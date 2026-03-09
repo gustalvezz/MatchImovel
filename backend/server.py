@@ -774,9 +774,10 @@ async def create_curator(curator_data: CreateCuratorRequest, current_user: dict 
     
     await db.pending_curators.insert_one(pending_curator)
     
-    # In production, send email here with the registration link
-    # For now, return the link
-    frontend_url = os.environ.get('FRONTEND_URL', 'https://find-your-home-3.preview.emergentagent.com')
+    # Get frontend URL from environment - REQUIRED for production
+    frontend_url = os.environ.get('FRONTEND_URL')
+    if not frontend_url:
+        raise HTTPException(status_code=500, detail="FRONTEND_URL não configurado no servidor")
     registration_link = f"{frontend_url}/complete-registration?token={registration_token}"
     
     return {
