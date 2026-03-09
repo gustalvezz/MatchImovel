@@ -61,9 +61,10 @@ const RegisterPage = () => {
         className="w-full max-w-md"
       >
         <div className="text-center mb-8">
-          <Link to="/" className="inline-flex items-center gap-2 text-2xl font-bold text-primary mb-2">
-            <Home className="w-8 h-8" />
-            <span>MatchImóvel</span>
+          <Link to="/" className="inline-flex items-center gap-1 text-2xl font-bold mb-2">
+            <Home className="w-8 h-8 text-slate-900" />
+            <span className="text-slate-900">Match</span>
+            <span className="text-indigo-600">Imovel</span>
           </Link>
           <h1 className="text-3xl font-semibold mt-4 mb-2" data-testid="register-title">
             {formData.role === 'buyer' ? 'Cadastro de Comprador' : 'Cadastro de Corretor'}

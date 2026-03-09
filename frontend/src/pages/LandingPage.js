@@ -1,15 +1,51 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { Home, Search, Users, Zap, Building2, Heart, CheckCircle2, ArrowRight, Shield, Target, Clock, Eye, MessageSquare, TrendingUp, Lock } from 'lucide-react';
+import { Home, Search, Users, Zap, Building2, CheckCircle2, ArrowRight, Shield, Target, Eye, TrendingUp, Lock, ChevronLeft, ChevronRight, Star } from 'lucide-react';
 
 const LandingPage = () => {
   const navigate = useNavigate();
+  const [currentTestimonial, setCurrentTestimonial] = useState(0);
 
-  const scrollToForm = () => {
-    document.getElementById('cadastro')?.scrollIntoView({ behavior: 'smooth' });
+  const testimonials = [
+    {
+      name: 'Ricardo Mendes',
+      role: 'Comprador',
+      location: 'Pinheiros, São Paulo',
+      text: 'Depois de 6 meses procurando, encontrei meu apartamento em 2 semanas com o MatchImovel. A curadoria realmente funciona, só recebi imóveis que faziam sentido para mim.',
+      rating: 5
+    },
+    {
+      name: 'Ana Paula Costa',
+      role: 'Corretora',
+      location: 'Rio de Janeiro',
+      text: 'Consegui vender um apartamento que estava parado há 8 meses. A comissão de 60% e a base de compradores qualificados fizeram toda a diferença no meu faturamento.',
+      rating: 5
+    },
+    {
+      name: 'Carlos Eduardo Silva',
+      role: 'Comprador',
+      location: 'Moema, São Paulo',
+      text: 'Impressionante como a equipe entendeu exatamente o que eu precisava. Visitei apenas 3 imóveis e fechei negócio no segundo. Processo transparente e rápido.',
+      rating: 5
+    },
+    {
+      name: 'Juliana Rodrigues',
+      role: 'Corretora',
+      location: 'Belo Horizonte',
+      text: 'Melhor plataforma para corretores que trabalham sério. Sem perda de tempo com curiosos, todos os compradores são pré-qualificados e realmente interessados.',
+      rating: 5
+    }
+  ];
+
+  const nextTestimonial = () => {
+    setCurrentTestimonial((prev) => (prev + 1) % testimonials.length);
+  };
+
+  const prevTestimonial = () => {
+    setCurrentTestimonial((prev) => (prev - 1 + testimonials.length) % testimonials.length);
   };
 
   return (
@@ -19,10 +55,10 @@ const LandingPage = () => {
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-indigo-200 via-purple-100 to-transparent opacity-60"></div>
         
         <nav className="relative max-w-7xl mx-auto px-6 py-6 flex justify-between items-center" data-testid="landing-nav">
-          <div className="text-2xl font-bold flex items-center gap-2">
-            <Home className="w-8 h-8 text-indigo-600" />
+          <div className="text-2xl font-bold flex items-center gap-1">
+            <Home className="w-8 h-8 text-slate-900" />
             <span className="text-slate-900">Match</span>
-            <span className="text-indigo-600">Imóvel</span>
+            <span className="text-indigo-600">Imovel</span>
           </div>
           <Button 
             data-testid="nav-login-button"
@@ -56,7 +92,7 @@ const LandingPage = () => {
             <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
               <Button 
                 data-testid="hero-buyer-cta"
-                onClick={() => scrollToForm()} 
+                onClick={() => navigate('/register?role=buyer')} 
                 size="lg" 
                 className="rounded-full h-14 px-10 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white shadow-lg shadow-indigo-500/25 text-lg font-medium"
               >
@@ -72,27 +108,6 @@ const LandingPage = () => {
                 Sou corretor
               </Button>
             </div>
-          </motion.div>
-        </div>
-      </div>
-
-      {/* O Problema */}
-      <div className="bg-slate-900 text-white py-24">
-        <div className="max-w-7xl mx-auto px-6">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="text-center max-w-3xl mx-auto"
-          >
-            <p className="text-sm font-semibold text-indigo-400 mb-4 uppercase tracking-wider">O problema que resolvemos</p>
-            <h2 className="text-4xl md:text-5xl font-bold mb-6">
-              O mercado é feito de imóveis.
-              <span className="block text-indigo-400 italic mt-2">Nós somos feitos de compradores.</span>
-            </h2>
-            <p className="text-lg text-slate-300 leading-relaxed">
-              Em vez de mais um portal cheio de anúncios desatualizados, criamos uma vitrine de pessoas reais com intenção real de compra. Corretores encontram compradores. Compradores encontram o imóvel certo. Sem desperdício de tempo.
-            </p>
           </motion.div>
         </div>
       </div>
@@ -163,6 +178,27 @@ const LandingPage = () => {
         </div>
       </div>
 
+      {/* O Problema */}
+      <div className="bg-slate-900 text-white py-24">
+        <div className="max-w-7xl mx-auto px-6">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="text-center max-w-3xl mx-auto"
+          >
+            <p className="text-sm font-semibold text-indigo-400 mb-4 uppercase tracking-wider">O problema que resolvemos</p>
+            <h2 className="text-4xl md:text-5xl font-bold mb-6">
+              O mercado é feito de imóveis.
+              <span className="block text-indigo-400 italic mt-2">Nós somos feitos de compradores.</span>
+            </h2>
+            <p className="text-lg text-slate-300 leading-relaxed">
+              Em vez de mais um portal cheio de anúncios desatualizados, criamos uma vitrine de pessoas reais com intenção real de compra. Corretores encontram compradores. Compradores encontram o imóvel certo. Sem desperdício de tempo.
+            </p>
+          </motion.div>
+        </div>
+      </div>
+
       {/* Para Compradores */}
       <div className="bg-gradient-to-br from-indigo-50 to-purple-50 py-24">
         <div className="max-w-7xl mx-auto px-6">
@@ -226,8 +262,8 @@ const LandingPage = () => {
               className="order-2 md:order-1"
             >
               <img 
-                src="https://images.unsplash.com/photo-1649151139875-ae8ea07082e2?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1NTN8MHwxfHNlYXJjaHwyfHxwcm9mZXNzaW9uYWwlMjByZWFsJTIwZXN0YXRlJTIwYWdlbnQlMjB0YWJsZXR8ZW58MHx8fHwxNzcyNzc2MDU5fDA&ixlib=rb-4.1.0&q=85"
-                alt="Corretor profissional"
+                src="https://images.unsplash.com/photo-1758611972971-1c8b9c6d7822?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1NzV8MHwxfHNlYXJjaHwzfHxibGFjayUyMHdvbWFuJTIwcmVhbCUyMGVzdGF0ZSUyMGFnZW50JTIwc21pbGluZyUyMGxvb2tpbmclMjBhdCUyMHBob25lJTIwcHJvZmVzc2lvbmFsfGVufDB8fHx8MTc3MzA5Mzk5Mnww&ixlib=rb-4.1.0&q=85"
+                alt="Corretora profissional"
                 className="rounded-3xl shadow-2xl"
               />
             </motion.div>
@@ -303,7 +339,7 @@ const LandingPage = () => {
             </Card>
 
             <Card className="p-8 rounded-3xl bg-gradient-to-br from-indigo-600 to-purple-600 border-0">
-              <p className="text-sm text-indigo-200 mb-4 uppercase tracking-wider">MatchImóvel</p>
+              <p className="text-sm text-indigo-200 mb-4 uppercase tracking-wider">MatchImovel</p>
               <div className="flex items-center gap-4 mb-6">
                 <div className="flex-[0.4]">
                   <div className="h-3 bg-indigo-400 rounded-full mb-2"></div>
@@ -320,7 +356,7 @@ const LandingPage = () => {
         </div>
       </div>
 
-      {/* Curadoria Humana - SEÇÃO NOVA */}
+      {/* Curadoria Humana */}
       <div className="bg-gradient-to-br from-indigo-50 to-purple-50 py-24">
         <div className="max-w-7xl mx-auto px-6">
           <motion.div
@@ -339,7 +375,7 @@ const LandingPage = () => {
             </p>
           </motion.div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-5xl mx-auto mb-12">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-5xl mx-auto">
             <Card className="p-8 rounded-3xl border-2 hover:border-indigo-300 transition-all">
               <div className="flex items-center gap-4 mb-6">
                 <div className="w-12 h-12 rounded-full bg-indigo-100 flex items-center justify-center">
@@ -364,93 +400,105 @@ const LandingPage = () => {
               </p>
             </Card>
           </div>
-
-          {/* Exemplo de Curadoria */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="max-w-3xl mx-auto"
-          >
-            <Card className="p-8 rounded-3xl bg-white border-2 border-indigo-200">
-              <div className="space-y-4">
-                <div className="flex items-start gap-3">
-                  <div className="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center flex-shrink-0">
-                    <MessageSquare className="w-5 h-5 text-purple-600" />
-                  </div>
-                  <div className="flex-1 bg-purple-50 p-4 rounded-2xl rounded-tl-none">
-                    <p className="text-sm font-semibold text-purple-600 mb-1">Corretor</p>
-                    <p className="text-slate-700">Olá! Identificamos um possível match para o ap. Rua Bela Cintra. Pode nos enviar detalhes?</p>
-                  </div>
-                </div>
-
-                <div className="flex items-start gap-3">
-                  <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center flex-shrink-0">
-                    <Building2 className="w-5 h-5 text-indigo-600" />
-                  </div>
-                  <div className="flex-1 bg-indigo-50 p-4 rounded-2xl rounded-tl-none">
-                    <p className="text-sm font-semibold text-indigo-600 mb-1">Bot IA</p>
-                    <p className="text-slate-700">2 dormitórios, 78m², R$590k, vaga inclusa. Prédio novo, entrega imediata.</p>
-                  </div>
-                </div>
-
-                <div className="flex items-start gap-3">
-                  <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
-                    <Shield className="w-5 h-5 text-green-600" />
-                  </div>
-                  <div className="flex-1 bg-green-50 p-4 rounded-2xl rounded-tl-none">
-                    <p className="text-sm font-semibold text-green-600 mb-1">Curador</p>
-                    <p className="text-slate-700">Curador avaliando o match... O comprador busca 70-80m² e orçamento até R$620k em Consolação/Bela Cintra.</p>
-                    <div className="mt-3 pt-3 border-t border-green-200">
-                      <p className="text-green-700 font-semibold">✓ Match validado — visita agendada para sáb 14h</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </Card>
-          </motion.div>
         </div>
       </div>
 
-      {/* CTA Final */}
-      <div id="cadastro" className="bg-gradient-to-br from-indigo-600 to-purple-600 py-24">
-        <div className="max-w-4xl mx-auto px-6 text-center">
+      {/* Depoimentos */}
+      <div className="bg-white py-24">
+        <div className="max-w-7xl mx-auto px-6">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
+            className="text-center mb-16"
           >
-            <p className="text-sm font-semibold text-indigo-200 mb-4 uppercase tracking-wider">Comece agora</p>
-            <h2 className="text-4xl md:text-5xl font-bold text-white mb-6">
-              Seu próximo imóvel
-              <span className="block italic mt-2">está esperando por você.</span>
+            <p className="text-sm font-semibold text-indigo-600 mb-4 uppercase tracking-wider">Depoimentos</p>
+            <h2 className="text-4xl md:text-5xl font-bold mb-4">
+              O que dizem sobre
+              <span className="block text-indigo-600 italic mt-2">o MatchImovel</span>
             </h2>
-            <p className="text-xl text-indigo-100 mb-8 max-w-2xl mx-auto">
-              Cadastre o que você procura. É gratuito, sem compromisso, e nossa equipe trabalha pra você encontrar o lar ideal.
-            </p>
-            <Button 
-              data-testid="final-cta-button"
-              onClick={() => navigate('/register?role=buyer')} 
-              size="lg" 
-              className="rounded-full h-14 px-10 bg-white text-indigo-600 hover:bg-slate-50 text-lg font-medium shadow-xl"
-            >
-              Cadastrar Gratuitamente <ArrowRight className="ml-2 w-5 h-5" />
-            </Button>
           </motion.div>
+
+          <div className="max-w-4xl mx-auto relative">
+            <Card className="p-12 rounded-3xl border-2 border-indigo-100 relative overflow-hidden">
+              <div className="absolute top-8 left-8 text-indigo-200 text-8xl font-serif leading-none">"</div>
+              
+              <motion.div
+                key={currentTestimonial}
+                initial={{ opacity: 0, x: 50 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -50 }}
+                transition={{ duration: 0.3 }}
+                className="relative z-10"
+              >
+                <div className="flex gap-1 mb-6 justify-center">
+                  {[...Array(testimonials[currentTestimonial].rating)].map((_, i) => (
+                    <Star key={i} className="w-5 h-5 fill-yellow-400 text-yellow-400" />
+                  ))}
+                </div>
+                
+                <p className="text-xl text-slate-700 leading-relaxed mb-8 text-center italic">
+                  {testimonials[currentTestimonial].text}
+                </p>
+                
+                <div className="text-center">
+                  <p className="font-bold text-lg text-slate-900">{testimonials[currentTestimonial].name}</p>
+                  <p className="text-sm text-slate-600">{testimonials[currentTestimonial].role} • {testimonials[currentTestimonial].location}</p>
+                </div>
+              </motion.div>
+            </Card>
+
+            <div className="flex items-center justify-center gap-4 mt-8">
+              <Button
+                onClick={prevTestimonial}
+                variant="outline"
+                size="icon"
+                className="rounded-full w-12 h-12 border-2 hover:border-indigo-600"
+                data-testid="testimonial-prev"
+              >
+                <ChevronLeft className="w-5 h-5" />
+              </Button>
+              
+              <div className="flex gap-2">
+                {testimonials.map((_, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => setCurrentTestimonial(idx)}
+                    className={`w-2 h-2 rounded-full transition-all ${
+                      idx === currentTestimonial
+                        ? 'w-8 bg-indigo-600'
+                        : 'bg-slate-300 hover:bg-slate-400'
+                    }`}
+                    data-testid={`testimonial-dot-${idx}`}
+                  />
+                ))}
+              </div>
+
+              <Button
+                onClick={nextTestimonial}
+                variant="outline"
+                size="icon"
+                className="rounded-full w-12 h-12 border-2 hover:border-indigo-600"
+                data-testid="testimonial-next"
+              >
+                <ChevronRight className="w-5 h-5" />
+              </Button>
+            </div>
+          </div>
         </div>
       </div>
 
       {/* Footer */}
       <footer className="bg-slate-900 text-slate-400 py-12">
         <div className="max-w-7xl mx-auto px-6 text-center">
-          <div className="flex items-center justify-center gap-2 mb-4">
+          <div className="flex items-center justify-center gap-1 mb-4">
             <Home className="w-6 h-6" />
             <span className="text-xl font-bold">
               <span className="text-white">Match</span>
-              <span className="text-indigo-400">Imóvel</span>
+              <span className="text-indigo-400">Imovel</span>
             </span>
           </div>
-          <p>© 2026 MatchImóvel. Todos os direitos reservados.</p>
+          <p>© 2026 MatchImovel. Todos os direitos reservados.</p>
         </div>
       </footer>
     </div>

@@ -100,10 +100,14 @@ const AgentDashboard = () => {
       {/* Header */}
       <header className="bg-white/70 backdrop-blur-xl border-b border-slate-200/50 sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
-          <div className="flex items-center gap-3">
-            <Home className="w-8 h-8 text-primary" />
+          <div className="flex items-center gap-2">
+            <Home className="w-8 h-8 text-slate-900" />
             <div>
-              <h1 className="text-xl font-bold" data-testid="agent-dashboard-title">MatchImóvel - Corretor</h1>
+              <h1 className="text-xl font-bold flex items-center gap-0.5" data-testid="agent-dashboard-title">
+                <span className="text-slate-900">Match</span>
+                <span className="text-indigo-600">Imovel</span>
+                <span className="text-slate-900"> - Corretor</span>
+              </h1>
               <p className="text-sm text-muted-foreground">Olá, {user?.name}</p>
             </div>
           </div>

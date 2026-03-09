@@ -60,7 +60,11 @@ const AdminLogin = () => {
           <h1 className="text-3xl font-semibold text-white mt-4 mb-2" data-testid="admin-login-title">
             Área Administrativa
           </h1>
-          <p className="text-slate-300">MatchImóvel - Painel de Controle</p>
+          <p className="text-slate-300 flex items-center justify-center gap-0.5">
+            <span className="text-white">Match</span>
+            <span className="text-indigo-400">Imovel</span>
+            <span className="text-slate-300"> - Painel de Controle</span>
+          </p>
         </div>
 
         <Card className="p-8 rounded-3xl shadow-2xl border-2 border-white/10 bg-white/5 backdrop-blur-xl" data-testid="admin-login-card">
