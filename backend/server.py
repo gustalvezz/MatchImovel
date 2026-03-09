@@ -776,7 +776,8 @@ async def create_curator(curator_data: CreateCuratorRequest, current_user: dict 
     
     # In production, send email here with the registration link
     # For now, return the link
-    registration_link = f"{os.environ.get('FRONTEND_URL', 'http://localhost:3000')}/complete-registration?token={registration_token}"
+    frontend_url = os.environ.get('FRONTEND_URL', 'https://find-your-home-3.preview.emergentagent.com')
+    registration_link = f"{frontend_url}/complete-registration?token={registration_token}"
     
     return {
         "status": "success",
