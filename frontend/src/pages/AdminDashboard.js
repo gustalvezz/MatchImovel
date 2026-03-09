@@ -32,7 +32,7 @@ const AdminDashboard = () => {
   const [expandedMatch, setExpandedMatch] = useState(null);
 
   useEffect(() => {
-    if (user?.role !== 'admin') {
+    if (user?.role !== 'admin' && user?.role !== 'curator') {
       navigate('/');
       return;
     }
@@ -92,7 +92,6 @@ const AdminDashboard = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-white">
-      {/* Header */}
       <header className="bg-white/70 backdrop-blur-xl border-b border-slate-200/50 sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
           <div className="flex items-center gap-2">
@@ -131,7 +130,6 @@ const AdminDashboard = () => {
       </header>
 
       <div className="max-w-7xl mx-auto px-6 py-8">
-        {/* Stats Overview */}
         <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
           <Card className="p-4 rounded-2xl" data-testid="admin-stat-buyers">
             <div className="flex items-center justify-between mb-2">
@@ -186,7 +184,6 @@ const AdminDashboard = () => {
           </Card>
         </div>
 
-        {/* Pending Matches Alert */}
         {pendingMatches.length > 0 && (
           <motion.div
             initial={{ opacity: 0, y: -10 }}
@@ -207,7 +204,6 @@ const AdminDashboard = () => {
           </motion.div>
         )}
 
-        {/* Tabs */}
         <Tabs defaultValue="pending-matches" className="w-full">
           <TabsList className="grid w-full grid-cols-5 mb-6 rounded-xl" data-testid="admin-tabs">
             <TabsTrigger value="pending-matches" className="rounded-lg" data-testid="admin-tab-pending">
@@ -219,7 +215,6 @@ const AdminDashboard = () => {
             <TabsTrigger value="interests" className="rounded-lg" data-testid="admin-tab-interests">Interesses</TabsTrigger>
           </TabsList>
 
-          {/* Pending Matches Tab */}
           <TabsContent value="pending-matches" className="space-y-4">
             {pendingMatches.length === 0 ? (
               <Card className="p-12 rounded-3xl text-center" data-testid="no-pending-matches">
@@ -236,7 +231,6 @@ const AdminDashboard = () => {
                 >
                   <Card className="p-6 rounded-2xl" data-testid={`pending-match-${match.id}`}>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
-                      {/* Buyer Info */}
                       <div className="bg-indigo-50 dark:bg-indigo-900/20 p-4 rounded-xl">
                         <h4 className="font-semibold mb-3 flex items-center gap-2">
                           <Users className="w-5 h-5 text-indigo-600" />
@@ -255,7 +249,6 @@ const AdminDashboard = () => {
                         )}
                       </div>
 
-                      {/* Agent Info */}
                       <div className="bg-purple-50 dark:bg-purple-900/20 p-4 rounded-xl">
                         <h4 className="font-semibold mb-3 flex items-center gap-2">
                           <Building2 className="w-5 h-5 text-purple-600" />
@@ -331,11 +324,52 @@ const AdminDashboard = () => {
             )}
           </TabsContent>
 
-          {/* All Matches Tab */}
           <TabsContent value="all-matches" className="space-y-4">
-            {matches.map((match) => (\n              <Card key={match.id} className="p-6 rounded-2xl" data-testid={`match-${match.id}`}>\n                <div className="flex justify-between items-start mb-3">\n                  <div>\n                    <h3 className="text-lg font-semibold">{match.buyer?.name} ↔️ {match.agent?.name}</h3>\n                    <p className="text-sm text-muted-foreground">{new Date(match.created_at).toLocaleDateString('pt-BR')}</p>\n                    {match.curator_name && (\n                      <p className="text-xs text-muted-foreground mt-1">Curado por: {match.curator_name}</p>\n                    )}\n                  </div>\n                  <Badge className="rounded-full">\n                    {match.status === 'pending_approval' ? 'Pendente' :\n                     match.status === 'approved' ? 'Aprovado' :\n                     match.status === 'rejected' ? 'Rejeitado' : match.status}\n                  </Badge>\n                </div>\n                {match.interest && (\n                  <p className="text-sm text-muted-foreground mb-4">\n                    {match.interest.property_type} em {match.interest.location}\n                  </p>\n                )}\n                \n                {match.status === 'approved' && (\n                  <div className="mt-4 pt-4 border-t">\n                    <Button\n                      data-testid={`toggle-followup-${match.id}`}\n                      onClick={() => setExpandedMatch(expandedMatch === match.id ? null : match.id)}\n                      variant="outline"\n                      className="rounded-full w-full"\n                    >\n                      <MessageSquare className="w-4 h-4 mr-2" />\n                      {expandedMatch === match.id ? 'Ocultar CRM' : 'Ver CRM / Follow-ups'}\n                    </Button>\n                    \n                    {expandedMatch === match.id && (\n                      <div className="mt-4">\n                        <MatchFollowUp match={match} />\n                      </div>\n                    )}\n                  </div>\n                )}\n              </Card>\n            ))}\n          </TabsContent>
+            {matches.map((match) => (
+              <Card key={match.id} className="p-6 rounded-2xl" data-testid={`match-${match.id}`}>
+                <div className="flex justify-between items-start mb-3">
+                  <div>
+                    <h3 className="text-lg font-semibold">{match.buyer?.name} - {match.agent?.name}</h3>
+                    <p className="text-sm text-muted-foreground">{new Date(match.created_at).toLocaleDateString('pt-BR')}</p>
+                    {match.curator_name && (
+                      <p className="text-xs text-muted-foreground mt-1">Curado por: {match.curator_name}</p>
+                    )}
+                  </div>
+                  <Badge className="rounded-full">
+                    {match.status === 'pending_approval' ? 'Pendente' :
+                     match.status === 'approved' ? 'Aprovado' :
+                     match.status === 'rejected' ? 'Rejeitado' : match.status}
+                  </Badge>
+                </div>
+                {match.interest && (
+                  <p className="text-sm text-muted-foreground mb-4">
+                    {match.interest.property_type} em {match.interest.location}
+                  </p>
+                )}
+                
+                {match.status === 'approved' && (
+                  <div className="mt-4 pt-4 border-t">
+                    <Button
+                      data-testid={`toggle-followup-${match.id}`}
+                      onClick={() => setExpandedMatch(expandedMatch === match.id ? null : match.id)}
+                      variant="outline"
+                      className="rounded-full w-full"
+                    >
+                      <MessageSquare className="w-4 h-4 mr-2" />
+                      {expandedMatch === match.id ? 'Ocultar CRM' : 'Ver CRM / Follow-ups'}
+                    </Button>
+                    
+                    {expandedMatch === match.id && (
+                      <div className="mt-4">
+                        <MatchFollowUp match={match} />
+                      </div>
+                    )}
+                  </div>
+                )}
+              </Card>
+            ))}
+          </TabsContent>
 
-          {/* Buyers Tab */}
           <TabsContent value="buyers" className="space-y-4">
             {buyers.map((buyer) => (
               <Card key={buyer.id} className="p-6 rounded-2xl" data-testid={`buyer-${buyer.id}`}>
@@ -354,7 +388,6 @@ const AdminDashboard = () => {
             ))}
           </TabsContent>
 
-          {/* Agents Tab */}
           <TabsContent value="agents" className="space-y-4">
             {agents.map((agent) => (
               <Card key={agent.id} className="p-6 rounded-2xl" data-testid={`agent-${agent.id}`}>
@@ -373,7 +406,6 @@ const AdminDashboard = () => {
             ))}
           </TabsContent>
 
-          {/* Interests Tab */}
           <TabsContent value="interests" className="space-y-4">
             {interests.map((interest) => (
               <Card key={interest.id} className="p-6 rounded-2xl" data-testid={`interest-${interest.id}`}>
