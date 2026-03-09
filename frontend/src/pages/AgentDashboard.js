@@ -27,6 +27,13 @@ const AgentDashboard = () => {
 
   useEffect(() => {
     fetchData();
+    
+    // Auto-refresh a cada 30 segundos
+    const interval = setInterval(() => {
+      fetchData();
+    }, 30000);
+    
+    return () => clearInterval(interval);
   }, []);
 
   const fetchData = async () => {
@@ -50,7 +57,7 @@ const AgentDashboard = () => {
         buyer_id: buyerId,
         interest_id: interestId
       });
-      toast.success('Match criado com sucesso! Inicie uma conversa com o bot para coletar informações do imóvel.');
+      toast.success('Seu Match foi enviado com sucesso e está em análise, aguarde o nosso contato para enviar mais informações sobre o imóvel.');
       fetchData();
     } catch (error) {
       toast.error(error.response?.data?.detail || 'Erro ao criar match');
@@ -62,11 +69,23 @@ const AgentDashboard = () => {
     navigate('/');
   };
 
-  const filteredBuyers = buyers.filter(buyer => 
-    buyer.location?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    buyer.property_type?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    buyer.buyer_name?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredBuyers = buyers.filter(buyer => {
+    // Filter out buyers that already have a match with this agent
+    const hasMatchWithThisAgent = myMatches.some(
+      match => match.interest_id === buyer.id
+    );
+    
+    if (hasMatchWithThisAgent) {
+      return false;
+    }
+    
+    // Apply search filter
+    return (
+      buyer.location?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      buyer.property_type?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      buyer.buyer_name?.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  });
 
   if (loading) {
     return (
@@ -84,7 +103,7 @@ const AgentDashboard = () => {
           <div className="flex items-center gap-3">
             <Home className="w-8 h-8 text-primary" />
             <div>
-              <h1 className="text-xl font-bold" data-testid="agent-dashboard-title">Match Imob - Corretor</h1>
+              <h1 className="text-xl font-bold" data-testid="agent-dashboard-title">MatchImóvel - Corretor</h1>
               <p className="text-sm text-muted-foreground">Olá, {user?.name}</p>
             </div>
           </div>

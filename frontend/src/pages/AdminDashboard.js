@@ -94,7 +94,7 @@ const AdminDashboard = () => {
           <div className="flex items-center gap-3">
             <Home className="w-8 h-8 text-primary" />
             <div>
-              <h1 className="text-xl font-bold" data-testid="admin-dashboard-title">Match Imob - Admin</h1>
+              <h1 className="text-xl font-bold" data-testid="admin-dashboard-title">MatchImóvel - Admin</h1>
               <p className="text-sm text-muted-foreground">Olá, {user?.name}</p>
             </div>
           </div>

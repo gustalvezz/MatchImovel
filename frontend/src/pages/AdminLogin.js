@@ -60,7 +60,7 @@ const AdminLogin = () => {
           <h1 className="text-3xl font-semibold text-white mt-4 mb-2" data-testid="admin-login-title">
             Área Administrativa
           </h1>
-          <p className="text-slate-300">Match Imob - Painel de Controle</p>
+          <p className="text-slate-300">MatchImóvel - Painel de Controle</p>
         </div>
 
         <Card className="p-8 rounded-3xl shadow-2xl border-2 border-white/10 bg-white/5 backdrop-blur-xl" data-testid="admin-login-card">
