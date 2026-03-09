@@ -12,6 +12,7 @@ import uuid
 from datetime import datetime, timezone, timedelta
 import bcrypt
 import jwt
+import secrets
 from emergentintegrations.llm.chat import LlmChat, UserMessage
 
 ROOT_DIR = Path(__file__).parent
@@ -142,6 +143,28 @@ class SendMessageRequest(BaseModel):
 class CurationDecision(BaseModel):
     approved: bool
     notes: Optional[str] = None
+
+class CreateCuratorRequest(BaseModel):
+    email: EmailStr
+    name: str
+    phone: str
+
+class CompleteCuratorRegistration(BaseModel):
+    token: str
+    password: str
+
+class FollowUpCreate(BaseModel):
+    content: str
+    contact_type: str  # "corretor" ou "comprador"
+
+class FollowUp(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    match_id: str
+    curator_id: str
+    content: str
+    contact_type: str
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 class DeleteReason(BaseModel):
     reason: str  # já_comprei, imovel_vendido, mudei_planos, outro
@@ -582,10 +605,12 @@ async def curate_match(match_id: str, decision: CurationDecision, current_user: 
     
     new_status = "approved" if decision.approved else "rejected"
     
+    # Store curator_id who approved/rejected
     await db.matches.update_one(
         {"id": match_id},
         {"$set": {
             "status": new_status,
+            "curator_id": current_user["user_id"],
             "updated_at": datetime.now(timezone.utc).isoformat()
         }}
     )
@@ -685,10 +710,14 @@ async def get_all_interests(current_user: dict = Depends(get_current_user)):
 
 @api_router.get("/admin/matches")
 async def get_all_matches(current_user: dict = Depends(get_current_user)):
-    if current_user["role"] != "admin":
+    if current_user["role"] not in ["admin", "curator"]:
         raise HTTPException(status_code=403, detail="Acesso negado")
     
-    matches = await db.matches.find({}, {"_id": 0}).to_list(1000)
+    # Admin sees all, curator only sees their approved matches
+    if current_user["role"] == "admin":
+        matches = await db.matches.find({}, {"_id": 0}).to_list(1000)
+    else:
+        matches = await db.matches.find({"curator_id": current_user["user_id"]}, {"_id": 0}).to_list(1000)
     
     for match in matches:
         if isinstance(match.get('created_at'), str):
@@ -706,8 +735,176 @@ async def get_all_matches(current_user: dict = Depends(get_current_user)):
             match['buyer'] = buyer
         if agent:
             match['agent'] = agent
+        
+        # Get curator name if exists
+        if match.get('curator_id'):
+            curator = await db.users.find_one({"id": match['curator_id']}, {"_id": 0})
+            if curator:
+                match['curator_name'] = curator.get('name')
     
     return matches
+
+# CURATOR MANAGEMENT (Admin only)
+@api_router.post("/admin/create-curator")
+async def create_curator(curator_data: CreateCuratorRequest, current_user: dict = Depends(get_current_user)):
+    if current_user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Apenas administradores podem criar curadores")
+    
+    # Check if email already exists
+    existing_user = await db.users.find_one({"email": curator_data.email}, {"_id": 0})
+    if existing_user:
+        raise HTTPException(status_code=400, detail="Email já cadastrado")
+    
+    # Generate registration token
+    registration_token = secrets.token_urlsafe(32)
+    
+    # Create pending curator
+    curator_id = str(uuid.uuid4())
+    pending_curator = {
+        "id": curator_id,
+        "email": curator_data.email,
+        "name": curator_data.name,
+        "phone": curator_data.phone,
+        "registration_token": registration_token,
+        "token_expires_at": (datetime.now(timezone.utc) + timedelta(days=7)).isoformat(),
+        "created_by": current_user["user_id"],
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "status": "pending"
+    }
+    
+    await db.pending_curators.insert_one(pending_curator)
+    
+    # In production, send email here with the registration link
+    # For now, return the link
+    registration_link = f"{os.environ.get('FRONTEND_URL', 'http://localhost:3000')}/complete-registration?token={registration_token}"
+    
+    return {
+        "status": "success",
+        "message": "Curador criado. Link de registro enviado por email.",
+        "registration_link": registration_link  # Remove this in production
+    }
+
+@api_router.post("/auth/complete-curator-registration")
+async def complete_curator_registration(registration_data: CompleteCuratorRegistration):
+    # Find pending curator
+    pending = await db.pending_curators.find_one({"registration_token": registration_data.token}, {"_id": 0})
+    if not pending:
+        raise HTTPException(status_code=404, detail="Token inválido ou expirado")
+    
+    # Check if token expired
+    if datetime.fromisoformat(pending["token_expires_at"]) < datetime.now(timezone.utc):
+        raise HTTPException(status_code=400, detail="Token expirado")
+    
+    if pending["status"] != "pending":
+        raise HTTPException(status_code=400, detail="Registro já completado")
+    
+    # Create user
+    user_doc = {
+        "id": pending["id"],
+        "email": pending["email"],
+        "password": hash_password(registration_data.password),
+        "role": "curator",
+        "name": pending["name"],
+        "phone": pending["phone"],
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    
+    await db.users.insert_one(user_doc)
+    
+    # Update pending curator status
+    await db.pending_curators.update_one(
+        {"id": pending["id"]},
+        {"$set": {"status": "completed", "completed_at": datetime.now(timezone.utc).isoformat()}}
+    )
+    
+    # Create token for immediate login
+    token = create_access_token(pending["id"], "curator")
+    
+    return {
+        "status": "success",
+        "message": "Cadastro completado com sucesso!",
+        "token": token,
+        "user_id": pending["id"],
+        "role": "curator",
+        "name": pending["name"]
+    }
+
+# FOLLOW-UP SYSTEM (CRM)
+@api_router.post("/matches/{match_id}/followup")
+async def create_followup(match_id: str, followup_data: FollowUpCreate, current_user: dict = Depends(get_current_user)):
+    if current_user["role"] not in ["curator", "admin"]:
+        raise HTTPException(status_code=403, detail="Acesso negado")
+    
+    # Check if match exists
+    match = await db.matches.find_one({"id": match_id}, {"_id": 0})
+    if not match:
+        raise HTTPException(status_code=404, detail="Match não encontrado")
+    
+    # Check if user has access to this match
+    if current_user["role"] == "curator" and match.get("curator_id") != current_user["user_id"]:
+        raise HTTPException(status_code=403, detail="Você não tem acesso a este match")
+    
+    followup = FollowUp(
+        match_id=match_id,
+        curator_id=current_user["user_id"],
+        content=followup_data.content,
+        contact_type=followup_data.contact_type
+    )
+    
+    doc = followup.model_dump()
+    doc['created_at'] = doc['created_at'].isoformat()
+    await db.followups.insert_one(doc)
+    
+    return {"status": "success", "followup_id": followup.id}
+
+@api_router.get("/matches/{match_id}/followups")
+async def get_followups(match_id: str, current_user: dict = Depends(get_current_user)):
+    if current_user["role"] not in ["curator", "admin"]:
+        raise HTTPException(status_code=403, detail="Acesso negado")
+    
+    # Check if match exists and user has access
+    match = await db.matches.find_one({"id": match_id}, {"_id": 0})
+    if not match:
+        raise HTTPException(status_code=404, detail="Match não encontrado")
+    
+    if current_user["role"] == "curator" and match.get("curator_id") != current_user["user_id"]:
+        raise HTTPException(status_code=403, detail="Você não tem acesso a este match")
+    
+    # Get followups
+    if current_user["role"] == "admin":
+        # Admin sees all followups for this match
+        followups = await db.followups.find({"match_id": match_id}, {"_id": 0}).to_list(100)
+    else:
+        # Curator only sees their own followups
+        followups = await db.followups.find(
+            {"match_id": match_id, "curator_id": current_user["user_id"]},
+            {"_id": 0}
+        ).to_list(100)
+    
+    for followup in followups:
+        if isinstance(followup.get('created_at'), str):
+            followup['created_at'] = datetime.fromisoformat(followup['created_at'])
+        
+        # Get curator name
+        curator = await db.users.find_one({"id": followup["curator_id"]}, {"_id": 0})
+        if curator:
+            followup['curator_name'] = curator.get('name')
+    
+    return followups
+
+@api_router.get("/admin/curators")
+async def get_all_curators(current_user: dict = Depends(get_current_user)):
+    if current_user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Acesso negado")
+    
+    curators = await db.users.find({"role": "curator"}, {"_id": 0, "password": 0}).to_list(100)
+    
+    for curator in curators:
+        # Count matches curated
+        match_count = await db.matches.count_documents({"curator_id": curator["id"]})
+        curator['curated_matches'] = match_count
+    
+    return curators
 
 # Include router
 app.include_router(api_router)

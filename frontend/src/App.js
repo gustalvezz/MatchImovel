@@ -7,6 +7,7 @@ import RegisterPage from '@/pages/RegisterPage';
 import LoginPage from '@/pages/LoginPage';
 import BuyerDashboard from '@/pages/BuyerDashboard';
 import AgentDashboard from '@/pages/AgentDashboard';
+import CompleteRegistration from '@/pages/CompleteRegistration';
 import AdminLogin from '@/pages/AdminLogin';
 import AdminDashboard from '@/pages/AdminDashboard';
 import '@/App.css';
@@ -58,10 +59,11 @@ function App() {
             } 
           />
           <Route path="/admin/login" element={<AdminLogin />} />
+          <Route path="/complete-registration" element={<CompleteRegistration />} />
           <Route 
             path="/admin/dashboard" 
             element={
-              <ProtectedRoute allowedRoles={['admin']}>
+              <ProtectedRoute allowedRoles={['admin', 'curator']}>
                 <AdminDashboard />
               </ProtectedRoute>
             } 

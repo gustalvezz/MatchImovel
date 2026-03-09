@@ -9,8 +9,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/context/AuthContext';
-import { Home, LogOut, Users, Heart, Building2, TrendingUp, CheckCircle, XCircle, Clock } from 'lucide-react';
+import { Home, LogOut, Users, Heart, Building2, TrendingUp, CheckCircle, XCircle, Clock, UserPlus, MessageSquare } from 'lucide-react';
 import { toast } from 'sonner';
+import CreateCuratorModal from '@/components/CreateCuratorModal';
+import MatchFollowUp from '@/components/MatchFollowUp';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
@@ -26,6 +28,8 @@ const AdminDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [curatingMatch, setCuratingMatch] = useState(null);
   const [curationNotes, setCurationNotes] = useState('');
+  const [showCreateCurator, setShowCreateCurator] = useState(false);
+  const [expandedMatch, setExpandedMatch] = useState(null);
 
   useEffect(() => {
     if (user?.role !== 'admin') {
@@ -102,16 +106,27 @@ const AdminDashboard = () => {
               <p className="text-sm text-muted-foreground">Olá, {user?.name}</p>
             </div>
           </div>
-          <Button 
-            data-testid="admin-logout-button"
-            onClick={handleLogout} 
-            variant="outline" 
-            className="rounded-full"
-          >
-            <LogOut className="w-4 h-4 mr-2" />
-            Sair
-          </Button>
-        </div>
+          <div className="flex items-center gap-3">
+            <Button 
+              data-testid="admin-logout-button"
+              onClick={handleLogout} 
+              variant="outline" 
+              className="rounded-full"
+            >
+              <LogOut className="w-4 h-4 mr-2" />
+              Sair
+            </Button>
+            {user?.role === 'admin' && (
+              <Button 
+                data-testid="create-curator-button"
+                onClick={() => setShowCreateCurator(true)} 
+                className="rounded-full bg-gradient-to-r from-indigo-600 to-purple-600"
+              >
+                <UserPlus className="w-4 h-4 mr-2" />
+                Cadastrar Curador
+              </Button>
+            )}
+          </div>
       </header>
 
       <div className="max-w-7xl mx-auto px-6 py-8">
@@ -317,27 +332,7 @@ const AdminDashboard = () => {
 
           {/* All Matches Tab */}
           <TabsContent value="all-matches" className="space-y-4">
-            {matches.map((match) => (
-              <Card key={match.id} className="p-6 rounded-2xl" data-testid={`match-${match.id}`}>
-                <div className="flex justify-between items-start mb-3">
-                  <div>
-                    <h3 className="text-lg font-semibold">{match.buyer?.name} ↔️ {match.agent?.name}</h3>
-                    <p className="text-sm text-muted-foreground">{new Date(match.created_at).toLocaleDateString('pt-BR')}</p>
-                  </div>
-                  <Badge className="rounded-full">
-                    {match.status === 'pending_approval' ? 'Pendente' :
-                     match.status === 'approved' ? 'Aprovado' :
-                     match.status === 'rejected' ? 'Rejeitado' : match.status}
-                  </Badge>
-                </div>
-                {match.interest && (
-                  <p className="text-sm text-muted-foreground">
-                    {match.interest.property_type} em {match.interest.location}
-                  </p>
-                )}
-              </Card>
-            ))}
-          </TabsContent>
+            {matches.map((match) => (\n              <Card key={match.id} className="p-6 rounded-2xl" data-testid={`match-${match.id}`}>\n                <div className="flex justify-between items-start mb-3">\n                  <div>\n                    <h3 className="text-lg font-semibold">{match.buyer?.name} ↔️ {match.agent?.name}</h3>\n                    <p className="text-sm text-muted-foreground">{new Date(match.created_at).toLocaleDateString('pt-BR')}</p>\n                    {match.curator_name && (\n                      <p className="text-xs text-muted-foreground mt-1">Curado por: {match.curator_name}</p>\n                    )}\n                  </div>\n                  <Badge className="rounded-full">\n                    {match.status === 'pending_approval' ? 'Pendente' :\n                     match.status === 'approved' ? 'Aprovado' :\n                     match.status === 'rejected' ? 'Rejeitado' : match.status}\n                  </Badge>\n                </div>\n                {match.interest && (\n                  <p className="text-sm text-muted-foreground mb-4">\n                    {match.interest.property_type} em {match.interest.location}\n                  </p>\n                )}\n                \n                {match.status === 'approved' && (\n                  <div className="mt-4 pt-4 border-t">\n                    <Button\n                      data-testid={`toggle-followup-${match.id}`}\n                      onClick={() => setExpandedMatch(expandedMatch === match.id ? null : match.id)}\n                      variant="outline"\n                      className="rounded-full w-full"\n                    >\n                      <MessageSquare className="w-4 h-4 mr-2" />\n                      {expandedMatch === match.id ? 'Ocultar CRM' : 'Ver CRM / Follow-ups'}\n                    </Button>\n                    \n                    {expandedMatch === match.id && (\n                      <div className="mt-4">\n                        <MatchFollowUp match={match} />\n                      </div>\n                    )}\n                  </div>\n                )}\n              </Card>\n            ))}\n          </TabsContent>
 
           {/* Buyers Tab */}
           <TabsContent value="buyers" className="space-y-4">
@@ -397,6 +392,16 @@ const AdminDashboard = () => {
           </TabsContent>
         </Tabs>
       </div>
+
+      {showCreateCurator && (
+        <CreateCuratorModal
+          onClose={() => setShowCreateCurator(false)}
+          onSuccess={() => {
+            setShowCreateCurator(false);
+            fetchData();
+          }}
+        />
+      )}
     </div>
   );
 };
