@@ -223,11 +223,29 @@ const AgentDashboard = () => {
                   <Card className="p-6 rounded-2xl hover:shadow-lg transition-all" data-testid={`buyer-card-${interest.id}`}>
                     <div className="flex justify-between items-start mb-4">
                       <div className="flex-1">
+                        {/* AI Profile Badge */}
+                        {interest.ai_profile && (
+                          <div className="mb-3">
+                            <Badge className="rounded-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white text-sm px-3 py-1">
+                              {interest.ai_profile}
+                            </Badge>
+                          </div>
+                        )}
                         <div className="flex items-center gap-3 mb-2">
                           <h3 className="text-xl font-semibold">{interest.property_type}</h3>
                           <Badge className="rounded-full" variant="secondary">
                             {interest.buyer_name || 'Comprador'}
                           </Badge>
+                          {interest.urgency && (
+                            <Badge className={`rounded-full text-xs ${
+                              interest.urgency === '3_meses' ? 'bg-red-100 text-red-700' :
+                              interest.urgency === '6_meses' ? 'bg-orange-100 text-orange-700' :
+                              'bg-slate-100 text-slate-700'
+                            }`}>
+                              {interest.urgency === '3_meses' ? 'Urgente' :
+                               interest.urgency === '6_meses' ? '6 meses' : 'Pesquisando'}
+                            </Badge>
+                          )}
                         </div>
                         <div className="flex items-center gap-2 text-muted-foreground mb-3">
                           <MapPin className="w-4 h-4" />
@@ -271,6 +289,33 @@ const AgentDashboard = () => {
                         </div>
                       )}
                     </div>
+
+                    {/* Additional info from new form */}
+                    {interest.ambiance && (
+                      <div className="mb-3 p-3 bg-slate-50 rounded-xl">
+                        <p className="text-sm text-muted-foreground mb-1">Ambiente Ideal</p>
+                        <p className="text-sm">
+                          {interest.ambiance === 'aconchegante' && 'Busca espaço aconchegante com plantas e madeira'}
+                          {interest.ambiance === 'amplo_moderno' && 'Quer ambiente amplo e moderno com luz natural'}
+                          {interest.ambiance === 'apartamento_clean' && 'Prefere apartamento moderno e clean'}
+                          {interest.ambiance === 'casa_quintal' && 'Sonha com casa com quintal e tranquilidade'}
+                          {interest.ambiance === 'casa_padrao' && 'Busca casa bem localizada e prática'}
+                        </p>
+                      </div>
+                    )}
+
+                    {interest.deal_breakers && interest.deal_breakers.length > 0 && (
+                      <div className="mb-3">
+                        <p className="text-sm text-muted-foreground mb-2">Não aceita</p>
+                        <div className="flex flex-wrap gap-2">
+                          {interest.deal_breakers.slice(0, 3).map((item, idx) => (
+                            <Badge key={idx} variant="outline" className="rounded-full text-xs bg-red-50 text-red-700 border-red-200">
+                              {item.split('—')[0].trim()}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+                    )}
 
                     {interest.neighborhoods && interest.neighborhoods.length > 0 && (
                       <div className="mb-3">

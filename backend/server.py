@@ -154,6 +154,23 @@ class BuyerInterestCreate(BaseModel):
     features: List[str] = []
     additional_notes: Optional[str] = None
 
+class FullInterestCreate(BaseModel):
+    """New comprehensive interest form"""
+    profile_type: str  # primeiro_imovel, melhor_localizacao, familia_cresceu, investidor
+    urgency: str  # 3_meses, 6_meses, sem_prazo
+    location: str  # Free text - city and neighborhoods
+    budget_range: str  # ate_400k, 400k_550k, 550k_700k, 700k_800k, acima_800k
+    indispensable: List[str] = []  # Multiple selection
+    indispensable_other: Optional[str] = None
+    ambiance: str  # aconchegante, amplo_moderno, apartamento_clean, casa_quintal, casa_padrao
+    deal_breakers: List[str] = []  # 1-3 selections
+    proximity_needs: List[str] = []  # 1-3 selections
+    personal_style: str  # minimalista, aconchegante, moderno, classico, descobrindo
+    experience_fears: Optional[str] = None
+    name: str
+    phone: str
+    email: Optional[str] = None
+
 class Match(BaseModel):
     model_config = ConfigDict(extra="ignore")
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
@@ -391,6 +408,203 @@ async def get_my_matches(current_user: dict = Depends(get_current_user)):
     matches = await db.matches.find({"buyer_id": current_user["user_id"]}, {"_id": 0}).to_list(100)
     
     # Enrich with interest and agent data
+
+# PUBLIC ENDPOINT - Create interest from form (no auth required)
+async def generate_ai_profile(form_data: dict) -> str:
+    """Generate a buyer profile using AI based on form responses"""
+    try:
+        profile_labels = {
+            'primeiro_imovel': 'Primeiro Imóvel',
+            'melhor_localizacao': 'Mudança por Localização',
+            'familia_cresceu': 'Mais Espaço para Família',
+            'investidor': 'Investidor'
+        }
+        
+        urgency_labels = {
+            '3_meses': 'urgente (3 meses)',
+            '6_meses': 'planejando (6 meses)',
+            'sem_prazo': 'pesquisando'
+        }
+        
+        style_labels = {
+            'minimalista': 'minimalista',
+            'aconchegante': 'acolhedor',
+            'moderno': 'moderno',
+            'classico': 'clássico',
+            'descobrindo': 'indefinido'
+        }
+        
+        ambiance_labels = {
+            'aconchegante': 'quer aconchego e natureza',
+            'amplo_moderno': 'quer amplitude e luz',
+            'apartamento_clean': 'quer modernidade urbana',
+            'casa_quintal': 'quer tranquilidade e quintal',
+            'casa_padrao': 'quer praticidade e boa localização'
+        }
+        
+        # Build context
+        profile_base = profile_labels.get(form_data.get('profile_type', ''), 'Comprador')
+        urgency = urgency_labels.get(form_data.get('urgency', ''), '')
+        style = style_labels.get(form_data.get('personal_style', ''), '')
+        ambiance = ambiance_labels.get(form_data.get('ambiance', ''), '')
+        
+        prompt = f"""Baseado nas respostas de um comprador de imóvel, crie um PERFIL CURTO (máximo 6 palavras) que descreva esse comprador.
+
+Dados:
+- Tipo: {profile_base}
+- Urgência: {urgency}
+- Localização desejada: {form_data.get('location', '')}
+- Orçamento: {form_data.get('budget_range', '')}
+- Estilo pessoal: {style}
+- Ambiente ideal: {ambiance}
+- O que incomoda: {', '.join(form_data.get('deal_breakers', [])[:2])}
+- Precisa perto: {', '.join(form_data.get('proximity_needs', [])[:2])}
+
+Exemplos de perfis:
+- "INVESTIDOR - Busca retorno rápido"
+- "PRIMEIRO IMÓVEL - Família jovem"
+- "UPGRADE - Mais espaço com conforto"
+- "LIFESTYLE - Minimalista urbano"
+- "FAMÍLIA - Busca segurança e escola"
+
+Responda APENAS com o perfil, nada mais. Use formato: "CATEGORIA - Descrição curta"
+"""
+        
+        api_key = os.environ.get('EMERGENT_LLM_KEY')
+        if not api_key:
+            return f"{profile_base.upper()} - Perfil em análise"
+        
+        chat = LlmChat(
+            api_key=api_key,
+            session_id=f"profile-{uuid.uuid4()}",
+            system_message="Você é um especialista em criar perfis curtos de compradores de imóveis."
+        ).with_model("openai", "gpt-4o-mini")
+        
+        response = await chat.send_message(UserMessage(text=prompt))
+        
+        # Clean response
+        profile = response.strip().strip('"').strip("'")
+        if len(profile) > 60:
+            profile = profile[:60]
+        
+        return profile
+        
+    except Exception as e:
+        logger.error(f"Error generating AI profile: {str(e)}")
+        profile_base = {
+            'primeiro_imovel': 'PRIMEIRO IMÓVEL',
+            'melhor_localizacao': 'MUDANÇA',
+            'familia_cresceu': 'FAMÍLIA',
+            'investidor': 'INVESTIDOR'
+        }.get(form_data.get('profile_type', ''), 'COMPRADOR')
+        return f"{profile_base} - Perfil em análise"
+
+@api_router.post("/interests/create-full")
+async def create_full_interest(form_data: FullInterestCreate):
+    """Create interest from the full multi-step form (public endpoint)"""
+    
+    # Check if user already exists with this email or phone
+    existing_user = None
+    if form_data.email:
+        existing_user = await db.users.find_one({"email": form_data.email}, {"_id": 0})
+    if not existing_user:
+        existing_user = await db.buyers.find_one({"phone": form_data.phone}, {"_id": 0})
+    
+    # Create or get user
+    if existing_user:
+        user_id = existing_user.get('id') or existing_user.get('user_id')
+    else:
+        # Create new buyer user (without password - they can set it later)
+        user_id = str(uuid.uuid4())
+        temp_password = secrets.token_urlsafe(16)
+        
+        new_user = {
+            "id": user_id,
+            "email": form_data.email or f"temp_{user_id}@matchimob.com",
+            "password": hash_password(temp_password),
+            "role": "buyer",
+            "name": form_data.name,
+            "phone": form_data.phone,
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "needs_password_setup": True
+        }
+        await db.users.insert_one(new_user)
+        
+        # Create buyer profile
+        buyer_profile = {
+            "user_id": user_id,
+            "name": form_data.name,
+            "email": form_data.email,
+            "phone": form_data.phone,
+            "created_at": datetime.now(timezone.utc).isoformat()
+        }
+        await db.buyers.insert_one(buyer_profile)
+    
+    # Convert budget_range to price values
+    budget_map = {
+        'ate_400k': (0, 400000),
+        '400k_550k': (400000, 550000),
+        '550k_700k': (550000, 700000),
+        '700k_800k': (700000, 800000),
+        'acima_800k': (800000, 5000000)
+    }
+    min_price, max_price = budget_map.get(form_data.budget_range, (0, 1000000))
+    
+    # Determine property type from indispensable choices
+    property_type = 'casa'
+    if 'Aceito apartamento' in form_data.indispensable:
+        property_type = 'apartamento'
+    elif 'Prefiro casa em condomínio' in form_data.indispensable:
+        property_type = 'casa_condominio'
+    elif 'Quero casa em bairro aberto' in form_data.indispensable:
+        property_type = 'casa'
+    
+    # Extract bedrooms from indispensable
+    bedrooms = None
+    if 'Pelo menos 3 quartos' in form_data.indispensable:
+        bedrooms = 3
+    elif 'Pelo menos 2 quartos' in form_data.indispensable:
+        bedrooms = 2
+    
+    # Generate AI profile
+    ai_profile = await generate_ai_profile(form_data.model_dump())
+    
+    # Create the interest record
+    interest_id = str(uuid.uuid4())
+    interest = {
+        "id": interest_id,
+        "buyer_id": user_id,
+        "property_type": property_type,
+        "location": form_data.location,
+        "neighborhoods": [],  # Will be extracted by AI search later
+        "min_price": min_price,
+        "max_price": max_price,
+        "bedrooms": bedrooms,
+        "features": form_data.indispensable,
+        "additional_notes": form_data.indispensable_other,
+        "status": "active",
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        # New fields from comprehensive form
+        "profile_type": form_data.profile_type,
+        "urgency": form_data.urgency,
+        "budget_range": form_data.budget_range,
+        "ambiance": form_data.ambiance,
+        "deal_breakers": form_data.deal_breakers,
+        "proximity_needs": form_data.proximity_needs,
+        "personal_style": form_data.personal_style,
+        "experience_fears": form_data.experience_fears,
+        "ai_profile": ai_profile,  # AI-generated profile for brokers
+        "form_version": "v2"  # To distinguish from old simple form
+    }
+    
+    await db.interests.insert_one(interest)
+    
+    return {
+        "status": "success",
+        "message": "Interesse cadastrado com sucesso!",
+        "interest_id": interest_id,
+        "ai_profile": ai_profile
+    }
     for match in matches:
         if isinstance(match.get('created_at'), str):
             match['created_at'] = datetime.fromisoformat(match['created_at'])
@@ -424,6 +638,77 @@ async def search_buyers(current_user: dict = Depends(get_current_user)):
             interest['buyer_name'] = buyer.get("name")
     
     return interests
+
+@api_router.get("/agents/smart-search")
+async def smart_search_buyers(
+    query: str = "",
+    current_user: dict = Depends(get_current_user)
+):
+    """Smart search for buyers using AI to match location queries"""
+    if current_user["role"] not in ["agent", "curator", "admin"]:
+        raise HTTPException(status_code=403, detail="Acesso negado")
+    
+    # Get all active interests
+    interests = await db.interests.find({"status": "active"}, {"_id": 0}).to_list(1000)
+    
+    if not query:
+        # Return all if no query
+        for interest in interests:
+            if isinstance(interest.get('created_at'), str):
+                interest['created_at'] = datetime.fromisoformat(interest['created_at'])
+            buyer = await db.buyers.find_one({"user_id": interest["buyer_id"]}, {"_id": 0})
+            if buyer:
+                interest['buyer_name'] = buyer.get("name")
+        return interests
+    
+    # Normalize query for comparison
+    query_lower = query.lower().strip()
+    query_words = set(query_lower.replace(',', ' ').replace('-', ' ').split())
+    
+    results = []
+    for interest in interests:
+        location = interest.get('location', '').lower()
+        location_words = set(location.replace(',', ' ').replace('-', ' ').split())
+        
+        # Calculate match score
+        score = 0
+        
+        # Direct substring match (highest score)
+        if query_lower in location:
+            score += 100
+        
+        # Word intersection
+        common_words = query_words & location_words
+        score += len(common_words) * 30
+        
+        # Partial word matching (for typos/variations)
+        for qw in query_words:
+            for lw in location_words:
+                if len(qw) > 2 and len(lw) > 2:
+                    if qw in lw or lw in qw:
+                        score += 15
+        
+        # Budget range matching (if query contains price keywords)
+        budget_keywords = ['400', '500', '550', '600', '700', '800']
+        for bk in budget_keywords:
+            if bk in query_lower:
+                budget_range = interest.get('budget_range', '')
+                if bk in budget_range:
+                    score += 20
+        
+        if score > 0:
+            interest['search_score'] = score
+            if isinstance(interest.get('created_at'), str):
+                interest['created_at'] = datetime.fromisoformat(interest['created_at'])
+            buyer = await db.buyers.find_one({"user_id": interest["buyer_id"]}, {"_id": 0})
+            if buyer:
+                interest['buyer_name'] = buyer.get("name")
+            results.append(interest)
+    
+    # Sort by score
+    results.sort(key=lambda x: x.get('search_score', 0), reverse=True)
+    
+    return results
 
 @api_router.post("/agents/match", response_model=Match)
 async def create_match(match_data: MatchCreate, current_user: dict = Depends(get_current_user)):
