@@ -7,6 +7,7 @@ import RegisterPage from '@/pages/RegisterPage';
 import LoginPage from '@/pages/LoginPage';
 import BuyerDashboard from '@/pages/BuyerDashboard';
 import AgentDashboard from '@/pages/AgentDashboard';
+import CuratorDashboard from '@/pages/CuratorDashboard';
 import CompleteRegistration from '@/pages/CompleteRegistration';
 import AdminLogin from '@/pages/AdminLogin';
 import AdminDashboard from '@/pages/AdminDashboard';
@@ -55,6 +56,14 @@ function App() {
             element={
               <ProtectedRoute allowedRoles={['agent']}>
                 <AgentDashboard />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/dashboard/curator" 
+            element={
+              <ProtectedRoute allowedRoles={['curator']}>
+                <CuratorDashboard />
               </ProtectedRoute>
             } 
           />

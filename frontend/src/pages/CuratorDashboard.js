@@ -1,0 +1,416 @@
+import React, { useState, useEffect, useCallback } from 'react';
+import { motion } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
+import axios from 'axios';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
+import { useAuth } from '@/context/AuthContext';
+import { 
+  Home, LogOut, Users, Heart, Building2, CheckCircle, XCircle, 
+  Clock, MessageSquare, Phone, MapPin, DollarSign, BedDouble, 
+  Car, Bath, ChevronDown, ChevronUp
+} from 'lucide-react';
+import { toast } from 'sonner';
+import MatchFollowUp from '@/components/MatchFollowUp';
+
+const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
+const API = `${BACKEND_URL}/api`;
+
+const CuratorDashboard = () => {
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
+  const [pendingMatches, setPendingMatches] = useState([]);
+  const [myMatches, setMyMatches] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [curatingMatch, setCuratingMatch] = useState(null);
+  const [curationNotes, setCurationNotes] = useState('');
+  const [expandedMatch, setExpandedMatch] = useState(null);
+
+  const fetchData = useCallback(async () => {
+    try {
+      const [pendingRes, matchesRes] = await Promise.all([
+        axios.get(`${API}/curator/pending-matches`),
+        axios.get(`${API}/admin/matches`)
+      ]);
+      setPendingMatches(pendingRes.data);
+      setMyMatches(matchesRes.data.filter(m => m.status !== 'pending_approval'));
+    } catch (error) {
+      toast.error('Erro ao carregar dados');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (user?.role !== 'curator') {
+      navigate('/');
+      return;
+    }
+    fetchData();
+    
+    // Auto-refresh a cada 30 segundos
+    const interval = setInterval(() => {
+      fetchData();
+    }, 30000);
+    
+    return () => clearInterval(interval);
+  }, [user, navigate, fetchData]);
+
+  const handleCurate = async (matchId, approved) => {
+    try {
+      await axios.post(`${API}/curator/curate/${matchId}`, {
+        approved,
+        notes: curationNotes
+      });
+      toast.success(approved ? 'Match aprovado com sucesso!' : 'Match rejeitado');
+      setCuratingMatch(null);
+      setCurationNotes('');
+      fetchData();
+    } catch (error) {
+      toast.error('Erro ao processar curadoria');
+    }
+  };
+
+  const handleLogout = () => {
+    logout();
+    navigate('/');
+  };
+
+  const formatWhatsAppLink = (phone) => {
+    if (!phone) return null;
+    const cleanPhone = phone.replace(/\D/g, '');
+    const phoneWithCountry = cleanPhone.startsWith('55') ? cleanPhone : `55${cleanPhone}`;
+    return `https://wa.me/${phoneWithCountry}`;
+  };
+
+  const formatPrice = (value) => {
+    return new Intl.NumberFormat('pt-BR', {
+      style: 'currency',
+      currency: 'BRL',
+      maximumFractionDigits: 0
+    }).format(value);
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-lg text-muted-foreground">Carregando...</div>
+      </div>
+    );
+  }
+
+  const MatchCard = ({ match, showActions = false }) => (
+    <Card className="p-6 rounded-2xl" data-testid={`match-${match.id}`}>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
+        {/* Comprador */}
+        <div className="bg-indigo-50 p-4 rounded-xl">
+          <h4 className="font-semibold mb-3 flex items-center gap-2">
+            <Users className="w-5 h-5 text-indigo-600" />
+            Comprador
+          </h4>
+          <p className="text-lg font-semibold">{match.buyer?.name}</p>
+          <p className="text-sm text-muted-foreground">{match.buyer?.email}</p>
+          {match.buyer?.phone && (
+            <a 
+              href={formatWhatsAppLink(match.buyer.phone)} 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 mt-2 text-sm text-green-600 hover:text-green-700 font-medium"
+            >
+              <Phone className="w-4 h-4" />
+              {match.buyer.phone}
+              <span className="text-xs bg-green-100 px-2 py-0.5 rounded-full">WhatsApp</span>
+            </a>
+          )}
+          {match.interest && (
+            <div className="mt-3 pt-3 border-t border-indigo-200">
+              <p className="text-sm font-medium mb-2">Interesse:</p>
+              <div className="space-y-1 text-sm">
+                <p className="flex items-center gap-2">
+                  <Building2 className="w-4 h-4 text-indigo-500" />
+                  {match.interest.property_type}
+                </p>
+                <p className="flex items-center gap-2">
+                  <MapPin className="w-4 h-4 text-indigo-500" />
+                  {match.interest.location}
+                </p>
+                <p className="flex items-center gap-2">
+                  <DollarSign className="w-4 h-4 text-indigo-500" />
+                  {formatPrice(match.interest.min_price)} - {formatPrice(match.interest.max_price)}
+                </p>
+                {match.interest.bedrooms && (
+                  <p className="flex items-center gap-2">
+                    <BedDouble className="w-4 h-4 text-indigo-500" />
+                    {match.interest.bedrooms} quartos
+                  </p>
+                )}
+                {match.interest.bathrooms && (
+                  <p className="flex items-center gap-2">
+                    <Bath className="w-4 h-4 text-indigo-500" />
+                    {match.interest.bathrooms} banheiros
+                  </p>
+                )}
+                {match.interest.parking_spaces && (
+                  <p className="flex items-center gap-2">
+                    <Car className="w-4 h-4 text-indigo-500" />
+                    {match.interest.parking_spaces} vagas
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Corretor */}
+        <div className="bg-purple-50 p-4 rounded-xl">
+          <h4 className="font-semibold mb-3 flex items-center gap-2">
+            <Building2 className="w-5 h-5 text-purple-600" />
+            Corretor
+          </h4>
+          <p className="text-lg font-semibold">{match.agent?.name}</p>
+          <p className="text-sm text-muted-foreground">{match.agent?.email}</p>
+          {match.agent?.phone && (
+            <a 
+              href={formatWhatsAppLink(match.agent.phone)} 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 mt-2 text-sm text-green-600 hover:text-green-700 font-medium"
+            >
+              <Phone className="w-4 h-4" />
+              {match.agent.phone}
+              <span className="text-xs bg-green-100 px-2 py-0.5 rounded-full">WhatsApp</span>
+            </a>
+          )}
+          {match.agent?.company && (
+            <p className="text-sm mt-2 text-purple-700">{match.agent.company}</p>
+          )}
+        </div>
+      </div>
+
+      <div className="flex items-center justify-between text-sm text-muted-foreground mb-4">
+        <span>Criado em: {new Date(match.created_at).toLocaleDateString('pt-BR')}</span>
+        <Badge className={`rounded-full ${
+          match.status === 'approved' ? 'bg-green-100 text-green-700' :
+          match.status === 'rejected' ? 'bg-red-100 text-red-700' :
+          'bg-orange-100 text-orange-700'
+        }`}>
+          {match.status === 'approved' ? 'Aprovado' :
+           match.status === 'rejected' ? 'Rejeitado' : 'Pendente'}
+        </Badge>
+      </div>
+
+      {showActions && (
+        <div className="border-t pt-4">
+          {curatingMatch === match.id ? (
+            <div className="space-y-4">
+              <div>
+                <Label className="text-base">Observações da curadoria</Label>
+                <Textarea
+                  value={curationNotes}
+                  onChange={(e) => setCurationNotes(e.target.value)}
+                  placeholder="Adicione observações sobre esta curadoria..."
+                  className="mt-2"
+                />
+              </div>
+              <div className="flex gap-3">
+                <Button
+                  onClick={() => handleCurate(match.id, true)}
+                  className="flex-1 bg-green-600 hover:bg-green-700 rounded-full"
+                  data-testid={`approve-match-${match.id}`}
+                >
+                  <CheckCircle className="w-4 h-4 mr-2" />
+                  Aprovar Match
+                </Button>
+                <Button
+                  onClick={() => handleCurate(match.id, false)}
+                  variant="destructive"
+                  className="flex-1 rounded-full"
+                  data-testid={`reject-match-${match.id}`}
+                >
+                  <XCircle className="w-4 h-4 mr-2" />
+                  Rejeitar
+                </Button>
+                <Button
+                  onClick={() => setCuratingMatch(null)}
+                  variant="outline"
+                  className="rounded-full"
+                >
+                  Cancelar
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <Button
+              onClick={() => setCuratingMatch(match.id)}
+              className="w-full rounded-full bg-gradient-to-r from-indigo-600 to-purple-600"
+              data-testid={`curate-match-${match.id}`}
+            >
+              Avaliar Match
+            </Button>
+          )}
+        </div>
+      )}
+
+      {!showActions && match.status === 'approved' && (
+        <div className="border-t pt-4">
+          <Button
+            onClick={() => setExpandedMatch(expandedMatch === match.id ? null : match.id)}
+            variant="outline"
+            className="w-full rounded-full"
+          >
+            <MessageSquare className="w-4 h-4 mr-2" />
+            Follow-ups (CRM)
+            {expandedMatch === match.id ? (
+              <ChevronUp className="w-4 h-4 ml-2" />
+            ) : (
+              <ChevronDown className="w-4 h-4 ml-2" />
+            )}
+          </Button>
+          {expandedMatch === match.id && (
+            <div className="mt-4">
+              <MatchFollowUp match={match} />
+            </div>
+          )}
+        </div>
+      )}
+    </Card>
+  );
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-white">
+      <header className="bg-white/70 backdrop-blur-xl border-b border-slate-200/50 sticky top-0 z-10">
+        <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
+          <div className="flex items-center gap-2">
+            <Home className="w-8 h-8 text-slate-900" />
+            <div>
+              <h1 className="text-xl font-bold flex items-center gap-0.5" data-testid="curator-dashboard-title">
+                <span className="text-slate-900">Match</span>
+                <span className="text-indigo-600">Imovel</span>
+                <span className="text-slate-900"> - Curador</span>
+              </h1>
+              <p className="text-sm text-muted-foreground">Olá, {user?.name}</p>
+            </div>
+          </div>
+          <Button 
+            data-testid="curator-logout-button"
+            onClick={handleLogout} 
+            variant="outline" 
+            className="rounded-full"
+          >
+            <LogOut className="w-4 h-4 mr-2" />
+            Sair
+          </Button>
+        </div>
+      </header>
+
+      <div className="max-w-7xl mx-auto px-6 py-8">
+        {/* Stats Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+          <Card className="p-4 rounded-2xl" data-testid="curator-stat-pending">
+            <div className="flex items-center justify-between mb-2">
+              <Clock className="w-5 h-5 text-orange-600" />
+            </div>
+            <p className="text-2xl font-bold text-orange-600">{pendingMatches.length}</p>
+            <p className="text-xs text-muted-foreground">Matches Pendentes</p>
+          </Card>
+
+          <Card className="p-4 rounded-2xl" data-testid="curator-stat-approved">
+            <div className="flex items-center justify-between mb-2">
+              <CheckCircle className="w-5 h-5 text-green-600" />
+            </div>
+            <p className="text-2xl font-bold text-green-600">
+              {myMatches.filter(m => m.status === 'approved').length}
+            </p>
+            <p className="text-xs text-muted-foreground">Meus Aprovados</p>
+          </Card>
+
+          <Card className="p-4 rounded-2xl" data-testid="curator-stat-total">
+            <div className="flex items-center justify-between mb-2">
+              <Heart className="w-5 h-5 text-indigo-600" />
+            </div>
+            <p className="text-2xl font-bold text-indigo-600">{myMatches.length}</p>
+            <p className="text-xs text-muted-foreground">Total Curados</p>
+          </Card>
+        </div>
+
+        {/* Pending Alert */}
+        {pendingMatches.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-8"
+          >
+            <Card className="p-6 rounded-3xl bg-gradient-to-r from-orange-500 to-red-500 text-white border-0" data-testid="pending-matches-alert">
+              <div className="flex items-center gap-3">
+                <Clock className="w-8 h-8" />
+                <div>
+                  <h3 className="text-xl font-semibold">
+                    {pendingMatches.length} {pendingMatches.length === 1 ? 'Match Pendente' : 'Matches Pendentes'}
+                  </h3>
+                  <p className="text-orange-50">Aguardando sua avaliação</p>
+                </div>
+              </div>
+            </Card>
+          </motion.div>
+        )}
+
+        <Tabs defaultValue="pending" className="w-full">
+          <TabsList className="grid w-full grid-cols-2 mb-6 rounded-xl" data-testid="curator-tabs">
+            <TabsTrigger value="pending" className="rounded-lg" data-testid="curator-tab-pending">
+              Pendentes {pendingMatches.length > 0 && <Badge className="ml-2 rounded-full">{pendingMatches.length}</Badge>}
+            </TabsTrigger>
+            <TabsTrigger value="my-matches" className="rounded-lg" data-testid="curator-tab-my-matches">
+              Meus Matches
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="pending" className="space-y-4">
+            {pendingMatches.length === 0 ? (
+              <Card className="p-12 rounded-3xl text-center" data-testid="no-pending-matches">
+                <CheckCircle className="w-16 h-16 text-green-600 mx-auto mb-4" />
+                <h3 className="text-xl font-semibold mb-2">Nenhum match pendente</h3>
+                <p className="text-muted-foreground">Todos os matches foram avaliados!</p>
+              </Card>
+            ) : (
+              pendingMatches.map((match) => (
+                <motion.div
+                  key={match.id}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                >
+                  <MatchCard match={match} showActions={true} />
+                </motion.div>
+              ))
+            )}
+          </TabsContent>
+
+          <TabsContent value="my-matches" className="space-y-4">
+            {myMatches.length === 0 ? (
+              <Card className="p-12 rounded-3xl text-center">
+                <Heart className="w-16 h-16 text-slate-300 mx-auto mb-4" />
+                <h3 className="text-xl font-semibold mb-2">Nenhum match curado</h3>
+                <p className="text-muted-foreground">Avalie matches pendentes para vê-los aqui.</p>
+              </Card>
+            ) : (
+              myMatches.map((match) => (
+                <motion.div
+                  key={match.id}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                >
+                  <MatchCard match={match} showActions={false} />
+                </motion.div>
+              ))
+            )}
+          </TabsContent>
+        </Tabs>
+      </div>
+    </div>
+  );
+};
+
+export default CuratorDashboard;

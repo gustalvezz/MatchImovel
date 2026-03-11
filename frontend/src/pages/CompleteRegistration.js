@@ -46,16 +46,13 @@ const CompleteRegistration = () => {
 
     setLoading(true);
     try {
-      const response = await axios.post(`${API}/auth/complete-curator-registration`, {
+      await axios.post(`${API}/auth/complete-curator-registration`, {
         token,
         password
       });
       
-      const { token: authToken, user_id, role, name } = response.data;
-      login(authToken, { id: user_id, role, name });
-      
-      toast.success('Cadastro completado com sucesso!');
-      navigate('/admin/dashboard');
+      toast.success('Cadastro completado com sucesso! Faça login para acessar.');
+      navigate('/login');
     } catch (error) {
       toast.error(error.response?.data?.detail || 'Erro ao completar cadastro');
     } finally {

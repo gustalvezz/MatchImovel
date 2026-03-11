@@ -165,13 +165,15 @@ const LandingPage = () => {
               viewport={{ once: true }}
               transition={{ delay: idx * 0.1 }}
             >
-              <Card className="p-8 rounded-3xl border-2 hover:border-indigo-200 transition-all h-full">
-                <div className={`w-12 h-12 rounded-full ${step.color} flex items-center justify-center mb-6`}>
-                  <step.icon className="w-6 h-6" />
+              <Card className="p-6 rounded-3xl border-2 hover:border-indigo-200 transition-all h-full">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className={`w-10 h-10 rounded-full ${step.color} flex items-center justify-center flex-shrink-0`}>
+                    <step.icon className="w-5 h-5" />
+                  </div>
+                  <span className="text-2xl font-bold text-slate-300">{step.number}</span>
+                  <h3 className="text-lg font-bold text-slate-900">{step.title}</h3>
                 </div>
-                <div className="text-3xl font-bold text-slate-200 mb-3">{step.number}</div>
-                <h3 className="text-xl font-bold mb-3 text-slate-900">{step.title}</h3>
-                <p className="text-slate-600 leading-relaxed">{step.desc}</p>
+                <p className="text-slate-600 leading-relaxed text-sm">{step.desc}</p>
               </Card>
             </motion.div>
           ))}
