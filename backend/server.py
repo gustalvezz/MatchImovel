@@ -128,8 +128,8 @@ class BuyerInterest(BaseModel):
     property_type: str  # apartamento, casa, terreno, comercial
     location: str
     neighborhoods: List[str] = []
-    min_price: float
-    max_price: float
+    min_price: float = 0
+    max_price: float = 0
     min_area: Optional[float] = None
     max_area: Optional[float] = None
     bedrooms: Optional[int] = None
@@ -139,6 +139,17 @@ class BuyerInterest(BaseModel):
     additional_notes: Optional[str] = None
     status: str = "active"  # active, matched, inactive
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    # New fields from comprehensive form
+    profile_type: Optional[str] = None
+    urgency: Optional[str] = None
+    budget_range: Optional[str] = None
+    ambiance: Optional[str] = None
+    deal_breakers: List[str] = []
+    proximity_needs: List[str] = []
+    personal_style: Optional[str] = None
+    experience_fears: Optional[str] = None
+    ai_profile: Optional[str] = None
+    form_version: Optional[str] = None
 
 class BuyerInterestCreate(BaseModel):
     property_type: str

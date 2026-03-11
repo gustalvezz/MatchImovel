@@ -134,7 +134,7 @@ const BuyerDashboard = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground mb-1">Interesses Ativos</p>
-                <p className="text-3xl font-bold text-primary">{interests.filter(i => i.status === 'active').length}</p>
+                <p className="text-3xl font-bold text-primary">{(interests || []).filter(i => i.status === 'active').length}</p>
               </div>
               <div className="w-12 h-12 rounded-full bg-indigo-100 flex items-center justify-center">
                 <Building2 className="w-6 h-6 text-indigo-600" />
@@ -146,7 +146,7 @@ const BuyerDashboard = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground mb-1">Matches Recebidos</p>
-                <p className="text-3xl font-bold text-secondary">{matches.length}</p>
+                <p className="text-3xl font-bold text-secondary">{(matches || []).length}</p>
               </div>
               <div className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center">
                 <Heart className="w-6 h-6 text-green-600" />
@@ -158,7 +158,7 @@ const BuyerDashboard = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground mb-1">Visitas Agendadas</p>
-                <p className="text-3xl font-bold text-accent">{matches.filter(m => m.status === 'visit_scheduled').length}</p>
+                <p className="text-3xl font-bold text-accent">{(matches || []).filter(m => m.status === 'visit_scheduled').length}</p>
               </div>
               <div className="w-12 h-12 rounded-full bg-purple-100 flex items-center justify-center">
                 <Calendar className="w-6 h-6 text-purple-600" />
@@ -175,7 +175,7 @@ const BuyerDashboard = () => {
           </TabsList>
 
           <TabsContent value="interests" className="space-y-4">
-            {interests.length === 0 ? (
+            {(interests || []).length === 0 ? (
               <Card className="p-12 rounded-3xl text-center" data-testid="no-interests-message">
                 <Building2 className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
                 <h3 className="text-xl font-semibold mb-2">Nenhum interesse cadastrado</h3>
@@ -190,7 +190,7 @@ const BuyerDashboard = () => {
                 </Button>
               </Card>
             ) : (
-              interests.map((interest) => (
+              (interests || []).map((interest) => (
                 <motion.div
                   key={interest.id}
                   initial={{ opacity: 0, y: 10 }}
@@ -280,14 +280,14 @@ const BuyerDashboard = () => {
           </TabsContent>
 
           <TabsContent value="matches" className="space-y-4">
-            {matches.length === 0 ? (
+            {(matches || []).length === 0 ? (
               <Card className="p-12 rounded-3xl text-center" data-testid="no-matches-message">
                 <Heart className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
                 <h3 className="text-xl font-semibold mb-2">Nenhum match ainda</h3>
                 <p className="text-muted-foreground">Quando um corretor encontrar um imóvel perfeito para você, aparecerá aqui!</p>
               </Card>
             ) : (
-              matches.map((match) => (
+              (matches || []).map((match) => (
                 <motion.div
                   key={match.id}
                   initial={{ opacity: 0, y: 10 }}
