@@ -1,13 +1,31 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { Home, Search, Users, Zap, Building2, CheckCircle2, ArrowRight, Shield, Target, Eye, TrendingUp, Lock, ChevronLeft, ChevronRight, Star } from 'lucide-react';
+import { Home, Search, Users, Zap, Building2, CheckCircle2, ArrowRight, Shield, Target, Eye, TrendingUp, Lock, ChevronLeft, ChevronRight, Star, Menu, X } from 'lucide-react';
 
 const LandingPage = () => {
   const navigate = useNavigate();
   const [currentTestimonial, setCurrentTestimonial] = useState(0);
+  const [isScrolled, setIsScrolled] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setIsScrolled(window.scrollY > 20);
+    };
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  const scrollToSection = (sectionId) => {
+    const element = document.getElementById(sectionId);
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth' });
+      setMobileMenuOpen(false);
+    }
+  };
 
   const testimonials = [
     {
@@ -50,25 +68,117 @@ const LandingPage = () => {
 
   return (
     <div className="min-h-screen bg-white">
-      {/* Hero Section */}
-      <div className="relative overflow-hidden bg-gradient-to-br from-indigo-50 via-purple-50 to-white">
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-indigo-200 via-purple-100 to-transparent opacity-60"></div>
-        
-        <nav className="relative max-w-7xl mx-auto px-6 py-6 flex justify-between items-center" data-testid="landing-nav">
-          <div className="text-2xl font-bold flex items-center gap-1">
+      {/* Sticky Navigation */}
+      <nav 
+        className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
+          isScrolled 
+            ? 'bg-white/95 backdrop-blur-md shadow-sm' 
+            : 'bg-transparent'
+        }`}
+        data-testid="landing-nav"
+      >
+        <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
+          <div 
+            className="text-2xl font-bold flex items-center gap-1 cursor-pointer"
+            onClick={() => scrollToSection('hero')}
+          >
             <Home className="w-8 h-8 text-slate-900" />
             <span className="text-slate-900">Match</span>
             <span className="text-indigo-600">Imovel</span>
           </div>
-          <Button 
-            data-testid="nav-login-button"
-            onClick={() => navigate('/login')} 
-            variant="outline" 
-            className="rounded-full border-2 border-slate-200 hover:border-indigo-600"
+          
+          {/* Desktop Menu */}
+          <div className="hidden md:flex items-center gap-8">
+            <button 
+              onClick={() => scrollToSection('processo')}
+              className="text-slate-600 hover:text-indigo-600 font-medium transition-colors"
+            >
+              Como funciona
+            </button>
+            <button 
+              onClick={() => scrollToSection('compradores')}
+              className="text-slate-600 hover:text-indigo-600 font-medium transition-colors"
+            >
+              Para Compradores
+            </button>
+            <button 
+              onClick={() => scrollToSection('corretores')}
+              className="text-slate-600 hover:text-indigo-600 font-medium transition-colors"
+            >
+              Para Corretores
+            </button>
+            <button 
+              onClick={() => scrollToSection('depoimentos')}
+              className="text-slate-600 hover:text-indigo-600 font-medium transition-colors"
+            >
+              Depoimentos
+            </button>
+            <Button 
+              data-testid="nav-login-button"
+              onClick={() => navigate('/login')} 
+              className="rounded-full bg-indigo-600 hover:bg-indigo-700 text-white px-6"
+            >
+              Entrar
+            </Button>
+          </div>
+
+          {/* Mobile Menu Button */}
+          <div className="md:hidden flex items-center gap-4">
+            <Button 
+              onClick={() => navigate('/login')} 
+              className="rounded-full bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 text-sm"
+            >
+              Entrar
+            </Button>
+            <button
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="p-2 text-slate-600"
+            >
+              {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+            </button>
+          </div>
+        </div>
+
+        {/* Mobile Menu Dropdown */}
+        {mobileMenuOpen && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="md:hidden bg-white border-t shadow-lg"
           >
-            Entrar
-          </Button>
-        </nav>
+            <div className="px-6 py-4 space-y-4">
+              <button 
+                onClick={() => scrollToSection('processo')}
+                className="block w-full text-left text-slate-600 hover:text-indigo-600 font-medium py-2"
+              >
+                Como funciona
+              </button>
+              <button 
+                onClick={() => scrollToSection('compradores')}
+                className="block w-full text-left text-slate-600 hover:text-indigo-600 font-medium py-2"
+              >
+                Para Compradores
+              </button>
+              <button 
+                onClick={() => scrollToSection('corretores')}
+                className="block w-full text-left text-slate-600 hover:text-indigo-600 font-medium py-2"
+              >
+                Para Corretores
+              </button>
+              <button 
+                onClick={() => scrollToSection('depoimentos')}
+                className="block w-full text-left text-slate-600 hover:text-indigo-600 font-medium py-2"
+              >
+                Depoimentos
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </nav>
+
+      {/* Hero Section */}
+      <div id="hero" className="relative overflow-hidden bg-gradient-to-br from-indigo-50 via-purple-50 to-white pt-20">
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-indigo-200 via-purple-100 to-transparent opacity-60"></div>
 
         <div className="relative max-w-7xl mx-auto px-6 py-20 md:py-32">
           <motion.div
@@ -113,7 +223,7 @@ const LandingPage = () => {
       </div>
 
       {/* Como Funciona */}
-      <div className="max-w-7xl mx-auto px-6 py-24">
+      <div id="processo" className="max-w-7xl mx-auto px-6 py-24">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -202,7 +312,7 @@ const LandingPage = () => {
       </div>
 
       {/* Para Compradores */}
-      <div className="bg-gradient-to-br from-indigo-50 to-purple-50 py-24">
+      <div id="compradores" className="bg-gradient-to-br from-indigo-50 to-purple-50 py-24">
         <div className="max-w-7xl mx-auto px-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
             <motion.div
@@ -219,7 +329,7 @@ const LandingPage = () => {
                 Sem precisar ficar monitorando portais ou esperando retorno de corretores. Você define o perfil, nós trabalhamos.
               </p>
               
-              <div className="space-y-4">
+              <div className="space-y-4 mb-8">
                 {[
                   { icon: CheckCircle2, text: 'Cadastro gratuito e sem compromisso' },
                   { icon: Shield, text: 'Sugestões curadas por especialistas' },
@@ -235,6 +345,14 @@ const LandingPage = () => {
                   </div>
                 ))}
               </div>
+
+              <Button 
+                onClick={() => navigate('/register?role=buyer')} 
+                size="lg" 
+                className="rounded-full h-12 px-8 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white shadow-lg shadow-indigo-500/25"
+              >
+                Cadastrar meu interesse <ArrowRight className="ml-2 w-5 h-5" />
+              </Button>
             </motion.div>
 
             <motion.div
@@ -254,7 +372,7 @@ const LandingPage = () => {
       </div>
 
       {/* Para Corretores */}
-      <div className="bg-white py-24">
+      <div id="corretores" className="bg-white py-24">
         <div className="max-w-7xl mx-auto px-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
             <motion.div
@@ -285,7 +403,7 @@ const LandingPage = () => {
                 Acesse uma base real de compradores qualificados. Faça buscas, identifique matches e feche mais negócios.
               </p>
               
-              <div className="space-y-4">
+              <div className="space-y-4 mb-8">
                 {[
                   { icon: Users, text: 'Acesso à base de compradores ativos' },
                   { icon: TrendingUp, text: 'Comissão maior: 60% para o corretor' },
@@ -301,6 +419,14 @@ const LandingPage = () => {
                   </div>
                 ))}
               </div>
+
+              <Button 
+                onClick={() => navigate('/register?role=agent')} 
+                size="lg" 
+                className="rounded-full h-12 px-8 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white shadow-lg shadow-purple-500/25"
+              >
+                Encontrar compradores <ArrowRight className="ml-2 w-5 h-5" />
+              </Button>
             </motion.div>
           </div>
         </div>
@@ -406,7 +532,7 @@ const LandingPage = () => {
       </div>
 
       {/* Depoimentos */}
-      <div className="bg-white py-24">
+      <div id="depoimentos" className="bg-white py-24">
         <div className="max-w-7xl mx-auto px-6">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
