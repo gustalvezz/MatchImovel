@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import axios from 'axios';
 import { Button } from '@/components/ui/button';
@@ -19,11 +19,7 @@ const MatchFollowUp = ({ match }) => {
   const [contactType, setContactType] = useState('corretor');
   const [submitting, setSubmitting] = useState(false);
 
-  useEffect(() => {
-    fetchFollowups();
-  }, [match.id]);
-
-  const fetchFollowups = async () => {
+  const fetchFollowups = useCallback(async () => {
     try {
       const response = await axios.get(`${API}/matches/${match.id}/followups`);
       setFollowups(response.data);
@@ -32,7 +28,11 @@ const MatchFollowUp = ({ match }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [match.id]);
+
+  useEffect(() => {
+    fetchFollowups();
+  }, [fetchFollowups]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
