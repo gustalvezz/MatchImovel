@@ -13,6 +13,9 @@ from datetime import datetime, timezone, timedelta
 import bcrypt
 import jwt
 import secrets
+import aiosmtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 from emergentintegrations.llm.chat import LlmChat, UserMessage
 
 ROOT_DIR = Path(__file__).parent
@@ -28,10 +31,52 @@ JWT_SECRET = os.environ.get('JWT_SECRET', 'your-secret-key-change-in-production'
 JWT_ALGORITHM = "HS256"
 JWT_EXPIRATION_HOURS = 24 * 7  # 7 days
 
+# SMTP Configuration
+SMTP_HOST = os.environ.get('SMTP_HOST')
+SMTP_PORT = int(os.environ.get('SMTP_PORT', 587))
+SMTP_USER = os.environ.get('SMTP_USER')
+SMTP_PASSWORD = os.environ.get('SMTP_PASSWORD')
+SMTP_FROM_EMAIL = os.environ.get('SMTP_FROM_EMAIL')
+SMTP_FROM_NAME = os.environ.get('SMTP_FROM_NAME', 'MatchImovel')
+
 # Create the main app
 app = FastAPI()
 api_router = APIRouter(prefix="/api")
 security = HTTPBearer()
+
+# Logger
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
+
+# Email sending function
+async def send_email(to_email: str, subject: str, html_content: str) -> bool:
+    """Send email via SMTP"""
+    if not all([SMTP_HOST, SMTP_USER, SMTP_PASSWORD]):
+        logger.warning("SMTP not configured, skipping email send")
+        return False
+    
+    try:
+        message = MIMEMultipart("alternative")
+        message["From"] = f"{SMTP_FROM_NAME} <{SMTP_FROM_EMAIL}>"
+        message["To"] = to_email
+        message["Subject"] = subject
+        
+        html_part = MIMEText(html_content, "html")
+        message.attach(html_part)
+        
+        await aiosmtplib.send(
+            message,
+            hostname=SMTP_HOST,
+            port=SMTP_PORT,
+            username=SMTP_USER,
+            password=SMTP_PASSWORD,
+            start_tls=True
+        )
+        logger.info(f"Email sent successfully to {to_email}")
+        return True
+    except Exception as e:
+        logger.error(f"Failed to send email to {to_email}: {str(e)}")
+        return False
 
 # Helper functions
 def hash_password(password: str) -> str:
@@ -650,6 +695,134 @@ async def get_admin_stats(current_user: dict = Depends(get_current_user)):
         "approved_matches": approved_matches
     }
 
+@api_router.get("/admin/analytics")
+async def get_admin_analytics(current_user: dict = Depends(get_current_user)):
+    """Dashboard de Analytics completo para administradores"""
+    if current_user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Acesso negado")
+    
+    # Estatísticas gerais
+    total_buyers = await db.buyers.count_documents({})
+    total_agents = await db.agents.count_documents({})
+    total_curators = await db.users.count_documents({"role": "curator"})
+    total_interests = await db.interests.count_documents({})
+    active_interests = await db.interests.count_documents({"status": "active"})
+    
+    # Estatísticas de matches
+    total_matches = await db.matches.count_documents({})
+    pending_matches = await db.matches.count_documents({"status": "pending_approval"})
+    approved_matches = await db.matches.count_documents({"status": "approved"})
+    rejected_matches = await db.matches.count_documents({"status": "rejected"})
+    
+    # Taxa de conversão
+    conversion_rate = (approved_matches / total_matches * 100) if total_matches > 0 else 0
+    
+    # Estatísticas de follow-ups
+    total_followups = await db.followups.count_documents({})
+    followups_corretor = await db.followups.count_documents({"contact_type": "corretor"})
+    followups_comprador = await db.followups.count_documents({"contact_type": "comprador"})
+    
+    # Estatísticas de exclusões (motivos)
+    interest_deletions = await db.interest_deletions.find({}, {"_id": 0}).to_list(1000)
+    deletion_reasons = {}
+    for deletion in interest_deletions:
+        reason = deletion.get("reason", "outro")
+        deletion_reasons[reason] = deletion_reasons.get(reason, 0) + 1
+    
+    # Performance dos curadores
+    curators = await db.users.find({"role": "curator"}, {"_id": 0, "password": 0}).to_list(100)
+    curator_performance = []
+    for curator in curators:
+        matches_curated = await db.matches.count_documents({"curator_id": curator["id"]})
+        matches_approved = await db.matches.count_documents({"curator_id": curator["id"], "status": "approved"})
+        followups_count = await db.followups.count_documents({"curator_id": curator["id"]})
+        
+        curator_performance.append({
+            "id": curator["id"],
+            "name": curator["name"],
+            "email": curator["email"],
+            "matches_curated": matches_curated,
+            "matches_approved": matches_approved,
+            "followups_count": followups_count,
+            "approval_rate": (matches_approved / matches_curated * 100) if matches_curated > 0 else 0
+        })
+    
+    # Top corretores (por matches)
+    agents = await db.agents.find({}, {"_id": 0}).to_list(100)
+    agent_performance = []
+    for agent in agents:
+        matches_created = await db.matches.count_documents({"agent_id": agent["user_id"]})
+        matches_approved = await db.matches.count_documents({"agent_id": agent["user_id"], "status": "approved"})
+        
+        agent_performance.append({
+            "id": agent["user_id"],
+            "name": agent.get("name"),
+            "email": agent.get("email"),
+            "company": agent.get("company"),
+            "matches_created": matches_created,
+            "matches_approved": matches_approved,
+            "success_rate": (matches_approved / matches_created * 100) if matches_created > 0 else 0
+        })
+    
+    # Ordenar por matches criados
+    agent_performance.sort(key=lambda x: x["matches_created"], reverse=True)
+    
+    # Distribuição por tipo de imóvel
+    interests = await db.interests.find({}, {"_id": 0, "property_type": 1}).to_list(1000)
+    property_type_distribution = {}
+    for interest in interests:
+        ptype = interest.get("property_type", "outro")
+        property_type_distribution[ptype] = property_type_distribution.get(ptype, 0) + 1
+    
+    # Distribuição por localização
+    interests_location = await db.interests.find({}, {"_id": 0, "location": 1}).to_list(1000)
+    location_distribution = {}
+    for interest in interests_location:
+        loc = interest.get("location", "outro")
+        location_distribution[loc] = location_distribution.get(loc, 0) + 1
+    
+    # Faixa de preço média
+    interests_price = await db.interests.find({}, {"_id": 0, "min_price": 1, "max_price": 1}).to_list(1000)
+    if interests_price:
+        avg_min_price = sum(i.get("min_price", 0) for i in interests_price) / len(interests_price)
+        avg_max_price = sum(i.get("max_price", 0) for i in interests_price) / len(interests_price)
+    else:
+        avg_min_price = 0
+        avg_max_price = 0
+    
+    return {
+        "overview": {
+            "total_buyers": total_buyers,
+            "total_agents": total_agents,
+            "total_curators": total_curators,
+            "total_interests": total_interests,
+            "active_interests": active_interests
+        },
+        "matches": {
+            "total": total_matches,
+            "pending": pending_matches,
+            "approved": approved_matches,
+            "rejected": rejected_matches,
+            "conversion_rate": round(conversion_rate, 1)
+        },
+        "followups": {
+            "total": total_followups,
+            "with_broker": followups_corretor,
+            "with_buyer": followups_comprador
+        },
+        "deletion_reasons": deletion_reasons,
+        "curator_performance": curator_performance,
+        "agent_performance": agent_performance[:10],  # Top 10
+        "distributions": {
+            "property_types": property_type_distribution,
+            "locations": location_distribution
+        },
+        "price_range": {
+            "average_min": round(avg_min_price, 2),
+            "average_max": round(avg_max_price, 2)
+        }
+    }
+
 @api_router.get("/admin/buyers")
 async def get_all_buyers(current_user: dict = Depends(get_current_user)):
     if current_user["role"] != "admin":
@@ -755,6 +928,11 @@ async def create_curator(curator_data: CreateCuratorRequest, current_user: dict 
     if existing_user:
         raise HTTPException(status_code=400, detail="Email já cadastrado")
     
+    # Check if pending curator with same email exists
+    existing_pending = await db.pending_curators.find_one({"email": curator_data.email, "status": "pending"}, {"_id": 0})
+    if existing_pending:
+        raise HTTPException(status_code=400, detail="Já existe um convite pendente para este email")
+    
     # Generate registration token
     registration_token = secrets.token_urlsafe(32)
     
@@ -780,11 +958,75 @@ async def create_curator(curator_data: CreateCuratorRequest, current_user: dict 
         raise HTTPException(status_code=500, detail="FRONTEND_URL não configurado no servidor")
     registration_link = f"{frontend_url}/complete-registration?token={registration_token}"
     
-    return {
+    # Send registration email
+    email_html = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="UTF-8">
+        <style>
+            body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
+            .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
+            .header {{ background: linear-gradient(135deg, #6366f1, #8b5cf6); padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }}
+            .header h1 {{ color: white; margin: 0; font-size: 28px; }}
+            .content {{ background: #f9fafb; padding: 30px; border-radius: 0 0 10px 10px; }}
+            .button {{ display: inline-block; background: linear-gradient(135deg, #6366f1, #8b5cf6); color: white; padding: 15px 30px; text-decoration: none; border-radius: 25px; font-weight: bold; margin: 20px 0; }}
+            .footer {{ text-align: center; margin-top: 20px; color: #666; font-size: 12px; }}
+            .info-box {{ background: #e0e7ff; padding: 15px; border-radius: 8px; margin: 15px 0; }}
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="header">
+                <h1>MatchImovel</h1>
+            </div>
+            <div class="content">
+                <h2>Olá, {curator_data.name}!</h2>
+                <p>Você foi convidado para fazer parte da equipe de <strong>Curadores</strong> da plataforma MatchImovel.</p>
+                
+                <div class="info-box">
+                    <p><strong>O que é um Curador?</strong></p>
+                    <p>Como curador, você será responsável por avaliar e aprovar os matches entre compradores e corretores, garantindo a qualidade das conexões em nossa plataforma.</p>
+                </div>
+                
+                <p>Para completar seu cadastro e definir sua senha, clique no botão abaixo:</p>
+                
+                <center>
+                    <a href="{registration_link}" class="button">Completar Cadastro</a>
+                </center>
+                
+                <p><strong>Importante:</strong> Este link expira em 7 dias.</p>
+                
+                <p>Se o botão não funcionar, copie e cole o link abaixo no seu navegador:</p>
+                <p style="word-break: break-all; font-size: 12px; color: #666;">{registration_link}</p>
+            </div>
+            <div class="footer">
+                <p>Este é um email automático. Por favor, não responda.</p>
+                <p>&copy; 2024 MatchImovel - Todos os direitos reservados</p>
+            </div>
+        </div>
+    </body>
+    </html>
+    """
+    
+    email_sent = await send_email(
+        to_email=curator_data.email,
+        subject="Convite para ser Curador - MatchImovel",
+        html_content=email_html
+    )
+    
+    response = {
         "status": "success",
-        "message": "Curador criado. Link de registro enviado por email.",
-        "registration_link": registration_link  # Remove this in production
+        "message": "Curador criado com sucesso!",
+        "email_sent": email_sent
     }
+    
+    # Include registration link in response only if email failed (for manual sending)
+    if not email_sent:
+        response["message"] = "Curador criado. Email não enviado - use o link abaixo."
+        response["registration_link"] = registration_link
+    
+    return response
 
 @api_router.post("/auth/complete-curator-registration")
 async def complete_curator_registration(registration_data: CompleteCuratorRegistration):
@@ -918,12 +1160,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
-logger = logging.getLogger(__name__)
 
 @app.on_event("shutdown")
 async def shutdown_db_client():

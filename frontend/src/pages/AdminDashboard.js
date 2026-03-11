@@ -9,10 +9,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/context/AuthContext';
-import { Home, LogOut, Users, Heart, Building2, TrendingUp, CheckCircle, XCircle, Clock, UserPlus, MessageSquare } from 'lucide-react';
+import { Home, LogOut, Users, Heart, Building2, TrendingUp, CheckCircle, XCircle, Clock, UserPlus, MessageSquare, BarChart3 } from 'lucide-react';
 import { toast } from 'sonner';
 import CreateCuratorModal from '@/components/CreateCuratorModal';
 import MatchFollowUp from '@/components/MatchFollowUp';
+import AnalyticsDashboard from '@/components/AnalyticsDashboard';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
@@ -37,6 +38,13 @@ const AdminDashboard = () => {
       return;
     }
     fetchData();
+    
+    // Auto-refresh a cada 30 segundos
+    const interval = setInterval(() => {
+      fetchData();
+    }, 30000);
+    
+    return () => clearInterval(interval);
   }, [user, navigate]);
 
   const fetchData = async () => {
@@ -205,14 +213,20 @@ const AdminDashboard = () => {
         )}
 
         <Tabs defaultValue="pending-matches" className="w-full">
-          <TabsList className="grid w-full grid-cols-5 mb-6 rounded-xl" data-testid="admin-tabs">
+          <TabsList className="grid w-full grid-cols-6 mb-6 rounded-xl" data-testid="admin-tabs">
             <TabsTrigger value="pending-matches" className="rounded-lg" data-testid="admin-tab-pending">
-              Aprovar Matches {pendingMatches.length > 0 && <Badge className="ml-2 rounded-full">{pendingMatches.length}</Badge>}
+              Aprovar {pendingMatches.length > 0 && <Badge className="ml-1 rounded-full">{pendingMatches.length}</Badge>}
             </TabsTrigger>
-            <TabsTrigger value="all-matches" className="rounded-lg" data-testid="admin-tab-matches">Todos Matches</TabsTrigger>
+            <TabsTrigger value="all-matches" className="rounded-lg" data-testid="admin-tab-matches">Matches</TabsTrigger>
             <TabsTrigger value="buyers" className="rounded-lg" data-testid="admin-tab-buyers">Compradores</TabsTrigger>
             <TabsTrigger value="agents" className="rounded-lg" data-testid="admin-tab-agents">Corretores</TabsTrigger>
             <TabsTrigger value="interests" className="rounded-lg" data-testid="admin-tab-interests">Interesses</TabsTrigger>
+            {user?.role === 'admin' && (
+              <TabsTrigger value="analytics" className="rounded-lg" data-testid="admin-tab-analytics">
+                <BarChart3 className="w-4 h-4 mr-1" />
+                Analytics
+              </TabsTrigger>
+            )}
           </TabsList>
 
           <TabsContent value="pending-matches" className="space-y-4">
@@ -423,6 +437,12 @@ const AdminDashboard = () => {
               </Card>
             ))}
           </TabsContent>
+
+          {user?.role === 'admin' && (
+            <TabsContent value="analytics">
+              <AnalyticsDashboard />
+            </TabsContent>
+          )}
         </Tabs>
       </div>
 
