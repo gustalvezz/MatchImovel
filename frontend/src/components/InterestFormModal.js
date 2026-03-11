@@ -2,13 +2,10 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Label } from '@/components/ui/label';
 import { 
-  Home, ArrowRight, ArrowLeft, Check, X,
-  MapPin, User, Mail, Phone
+  Home, ArrowRight, ArrowLeft, Check, X, MapPin
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -36,7 +33,7 @@ const InterestFormModal = ({ isOpen, onClose, onSuccess, userInfo }) => {
     email: userInfo?.email || ''
   });
 
-  const totalSteps = 11; // Without intro and contact (user is already logged in)
+  const totalSteps = 11;
 
   const handleSingleSelect = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -49,7 +46,7 @@ const InterestFormModal = ({ isOpen, onClose, onSuccess, userInfo }) => {
         return { ...prev, [field]: current.filter(v => v !== value) };
       } else {
         if (maxSelections && current.length >= maxSelections) {
-          toast.error(`Selecione no máximo ${maxSelections} opções`);
+          toast.error(`Máximo ${maxSelections} opções`);
           return prev;
         }
         return { ...prev, [field]: [...current, value] };
@@ -68,7 +65,7 @@ const InterestFormModal = ({ isOpen, onClose, onSuccess, userInfo }) => {
       case 6: return formData.deal_breakers.length >= 1 && formData.deal_breakers.length <= 3;
       case 7: return formData.proximity_needs.length >= 1 && formData.proximity_needs.length <= 3;
       case 8: return formData.personal_style !== '';
-      case 9: return true; // Optional
+      case 9: return formData.experience_fears.trim() !== ''; // Now required
       default: return true;
     }
   };
@@ -104,44 +101,42 @@ const InterestFormModal = ({ isOpen, onClose, onSuccess, userInfo }) => {
     }
   };
 
+  // Compact option card
   const OptionCard = ({ selected, onClick, letter, title, subtitle }) => (
-    <motion.div
-      whileHover={{ scale: 1.02 }}
-      whileTap={{ scale: 0.98 }}
+    <div
       onClick={onClick}
-      className={`p-4 rounded-2xl border-2 cursor-pointer transition-all ${
+      className={`p-2.5 md:p-3 rounded-xl border-2 cursor-pointer transition-all ${
         selected 
           ? 'border-indigo-600 bg-indigo-50' 
           : 'border-slate-200 hover:border-slate-300 bg-white'
       }`}
     >
-      <div className="flex items-start gap-3">
-        <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
+      <div className="flex items-center gap-2">
+        <div className={`w-6 h-6 md:w-7 md:h-7 rounded-full flex items-center justify-center flex-shrink-0 text-xs md:text-sm font-medium ${
           selected ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-600'
         }`}>
           {letter}
         </div>
-        <div className="flex-1">
-          <p className={`font-medium ${selected ? 'text-indigo-900' : 'text-slate-900'}`}>
+        <div className="flex-1 min-w-0">
+          <p className={`text-sm font-medium leading-tight ${selected ? 'text-indigo-900' : 'text-slate-900'}`}>
             {title}
           </p>
           {subtitle && (
-            <p className={`text-sm ${selected ? 'text-indigo-600' : 'text-slate-500'}`}>
+            <p className={`text-xs leading-tight ${selected ? 'text-indigo-600' : 'text-slate-500'}`}>
               {subtitle}
             </p>
           )}
         </div>
-        {selected && <Check className="w-5 h-5 text-indigo-600" />}
+        {selected && <Check className="w-4 h-4 text-indigo-600 flex-shrink-0" />}
       </div>
-    </motion.div>
+    </div>
   );
 
+  // Compact checkbox card
   const CheckboxCard = ({ selected, onClick, text, disabled }) => (
-    <motion.div
-      whileHover={!disabled ? { scale: 1.01 } : {}}
-      whileTap={!disabled ? { scale: 0.99 } : {}}
+    <div
       onClick={!disabled ? onClick : undefined}
-      className={`p-3 rounded-xl border-2 cursor-pointer transition-all ${
+      className={`p-2 md:p-2.5 rounded-lg border-2 cursor-pointer transition-all ${
         selected 
           ? 'border-indigo-600 bg-indigo-50' 
           : disabled 
@@ -149,17 +144,17 @@ const InterestFormModal = ({ isOpen, onClose, onSuccess, userInfo }) => {
             : 'border-slate-200 hover:border-slate-300 bg-white'
       }`}
     >
-      <div className="flex items-center gap-3">
-        <div className={`w-5 h-5 rounded border-2 flex items-center justify-center ${
+      <div className="flex items-center gap-2">
+        <div className={`w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0 ${
           selected ? 'border-indigo-600 bg-indigo-600' : 'border-slate-300'
         }`}>
-          {selected && <Check className="w-3 h-3 text-white" />}
+          {selected && <Check className="w-2.5 h-2.5 text-white" />}
         </div>
-        <p className={`text-sm ${selected ? 'text-indigo-900 font-medium' : 'text-slate-700'}`}>
+        <p className={`text-xs md:text-sm leading-tight ${selected ? 'text-indigo-900 font-medium' : 'text-slate-700'}`}>
           {text}
         </p>
       </div>
-    </motion.div>
+    </div>
   );
 
   const renderStep = () => {
@@ -167,33 +162,13 @@ const InterestFormModal = ({ isOpen, onClose, onSuccess, userInfo }) => {
       case 0:
         return (
           <div>
-            <h2 className="text-xl font-bold mb-2">Como você se identifica nesse momento?</h2>
-            <p className="text-slate-500 mb-4 text-sm">Selecione uma opção</p>
+            <h2 className="text-base md:text-lg font-bold mb-1">Como você se identifica?</h2>
+            <p className="text-slate-500 mb-3 text-xs">Selecione uma opção</p>
             <div className="space-y-2">
-              <OptionCard
-                selected={formData.profile_type === 'primeiro_imovel'}
-                onClick={() => handleSingleSelect('profile_type', 'primeiro_imovel')}
-                letter="A"
-                title="Comprando meu primeiro imóvel"
-              />
-              <OptionCard
-                selected={formData.profile_type === 'melhor_localizacao'}
-                onClick={() => handleSingleSelect('profile_type', 'melhor_localizacao')}
-                letter="B"
-                title="Quero melhor localização"
-              />
-              <OptionCard
-                selected={formData.profile_type === 'familia_cresceu'}
-                onClick={() => handleSingleSelect('profile_type', 'familia_cresceu')}
-                letter="C"
-                title="Minha família cresceu"
-              />
-              <OptionCard
-                selected={formData.profile_type === 'investidor'}
-                onClick={() => handleSingleSelect('profile_type', 'investidor')}
-                letter="D"
-                title="Buscando para investir"
-              />
+              <OptionCard selected={formData.profile_type === 'primeiro_imovel'} onClick={() => handleSingleSelect('profile_type', 'primeiro_imovel')} letter="A" title="Comprando meu primeiro imóvel" />
+              <OptionCard selected={formData.profile_type === 'melhor_localizacao'} onClick={() => handleSingleSelect('profile_type', 'melhor_localizacao')} letter="B" title="Quero melhor localização" />
+              <OptionCard selected={formData.profile_type === 'familia_cresceu'} onClick={() => handleSingleSelect('profile_type', 'familia_cresceu')} letter="C" title="Minha família cresceu" />
+              <OptionCard selected={formData.profile_type === 'investidor'} onClick={() => handleSingleSelect('profile_type', 'investidor')} letter="D" title="Buscando para investir" />
             </div>
           </div>
         );
@@ -201,27 +176,12 @@ const InterestFormModal = ({ isOpen, onClose, onSuccess, userInfo }) => {
       case 1:
         return (
           <div>
-            <h2 className="text-xl font-bold mb-2">Qual o seu estado de urgência?</h2>
-            <p className="text-slate-500 mb-4 text-sm">Selecione uma opção</p>
+            <h2 className="text-base md:text-lg font-bold mb-1">Qual seu estado de urgência?</h2>
+            <p className="text-slate-500 mb-3 text-xs">Selecione uma opção</p>
             <div className="space-y-2">
-              <OptionCard
-                selected={formData.urgency === '3_meses'}
-                onClick={() => handleSingleSelect('urgency', '3_meses')}
-                letter="A"
-                title="Próximos 3 meses"
-              />
-              <OptionCard
-                selected={formData.urgency === '6_meses'}
-                onClick={() => handleSingleSelect('urgency', '6_meses')}
-                letter="B"
-                title="Próximos 6 meses"
-              />
-              <OptionCard
-                selected={formData.urgency === 'sem_prazo'}
-                onClick={() => handleSingleSelect('urgency', 'sem_prazo')}
-                letter="C"
-                title="Sem prazo definido"
-              />
+              <OptionCard selected={formData.urgency === '3_meses'} onClick={() => handleSingleSelect('urgency', '3_meses')} letter="A" title="Próximos 3 meses" subtitle="Urgente" />
+              <OptionCard selected={formData.urgency === '6_meses'} onClick={() => handleSingleSelect('urgency', '6_meses')} letter="B" title="Próximos 6 meses" subtitle="Planejando" />
+              <OptionCard selected={formData.urgency === 'sem_prazo'} onClick={() => handleSingleSelect('urgency', 'sem_prazo')} letter="C" title="Sem prazo definido" subtitle="Pesquisando" />
             </div>
           </div>
         );
@@ -229,15 +189,15 @@ const InterestFormModal = ({ isOpen, onClose, onSuccess, userInfo }) => {
       case 2:
         return (
           <div>
-            <h2 className="text-xl font-bold mb-2">Onde você quer morar ou investir?</h2>
-            <p className="text-slate-500 mb-4 text-sm">Digite cidade e bairros de interesse</p>
+            <h2 className="text-base md:text-lg font-bold mb-1">Onde você quer morar ou investir?</h2>
+            <p className="text-slate-500 mb-3 text-xs">Digite cidade e bairros de interesse</p>
             <div className="relative">
-              <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+              <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
               <Input
                 value={formData.location}
                 onChange={(e) => setFormData(prev => ({ ...prev, location: e.target.value }))}
                 placeholder="Ex: Jundiaí, Centro e Vila Arens"
-                className="pl-12 h-12 text-base rounded-xl border-2"
+                className="pl-10 h-10 text-sm rounded-lg border-2"
               />
             </div>
           </div>
@@ -246,13 +206,13 @@ const InterestFormModal = ({ isOpen, onClose, onSuccess, userInfo }) => {
       case 3:
         return (
           <div>
-            <h2 className="text-xl font-bold mb-2">Qual sua faixa de investimento?</h2>
-            <p className="text-slate-500 mb-4 text-sm">Selecione uma opção</p>
+            <h2 className="text-base md:text-lg font-bold mb-1">Qual sua faixa de investimento?</h2>
+            <p className="text-slate-500 mb-3 text-xs">Selecione uma opção</p>
             <div className="space-y-2">
               <OptionCard selected={formData.budget_range === 'ate_400k'} onClick={() => handleSingleSelect('budget_range', 'ate_400k')} letter="A" title="Até R$ 400 mil" />
-              <OptionCard selected={formData.budget_range === '400k_550k'} onClick={() => handleSingleSelect('budget_range', '400k_550k')} letter="B" title="R$ 400 mil a R$ 550 mil" />
-              <OptionCard selected={formData.budget_range === '550k_700k'} onClick={() => handleSingleSelect('budget_range', '550k_700k')} letter="C" title="R$ 550 mil a R$ 700 mil" />
-              <OptionCard selected={formData.budget_range === '700k_800k'} onClick={() => handleSingleSelect('budget_range', '700k_800k')} letter="D" title="R$ 700 mil a R$ 800 mil" />
+              <OptionCard selected={formData.budget_range === '400k_550k'} onClick={() => handleSingleSelect('budget_range', '400k_550k')} letter="B" title="R$ 400 a 550 mil" />
+              <OptionCard selected={formData.budget_range === '550k_700k'} onClick={() => handleSingleSelect('budget_range', '550k_700k')} letter="C" title="R$ 550 a 700 mil" />
+              <OptionCard selected={formData.budget_range === '700k_800k'} onClick={() => handleSingleSelect('budget_range', '700k_800k')} letter="D" title="R$ 700 a 800 mil" />
               <OptionCard selected={formData.budget_range === 'acima_800k'} onClick={() => handleSingleSelect('budget_range', 'acima_800k')} letter="E" title="Acima de R$ 800 mil" />
             </div>
           </div>
@@ -261,15 +221,13 @@ const InterestFormModal = ({ isOpen, onClose, onSuccess, userInfo }) => {
       case 4:
         return (
           <div>
-            <h2 className="text-xl font-bold mb-2">O que é indispensável?</h2>
-            <p className="text-slate-500 mb-4 text-sm">Selecione quantas opções quiser</p>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-[300px] overflow-y-auto">
+            <h2 className="text-base md:text-lg font-bold mb-1">O que é indispensável?</h2>
+            <p className="text-slate-500 mb-3 text-xs">Selecione quantas opções quiser</p>
+            <div className="grid grid-cols-2 gap-1.5">
               {[
-                'Pelo menos 2 quartos', 'Pelo menos 3 quartos', 'Suíte',
-                'Pelo menos 2 vagas', 'Área de lazer', 'Home office',
-                'Área gourmet / varanda', 'Aceito apartamento',
-                'Prefiro casa em condomínio', 'Quero casa em bairro aberto',
-                'Piscina', 'Térrea ou quarto no térreo'
+                '2+ quartos', '3+ quartos', 'Suíte', '2+ vagas',
+                'Área de lazer', 'Home office', 'Área gourmet', 'Apartamento',
+                'Casa condomínio', 'Casa bairro', 'Piscina', 'Térrea'
               ].map((item) => (
                 <CheckboxCard
                   key={item}
@@ -283,7 +241,7 @@ const InterestFormModal = ({ isOpen, onClose, onSuccess, userInfo }) => {
               value={formData.indispensable_other}
               onChange={(e) => setFormData(prev => ({ ...prev, indispensable_other: e.target.value }))}
               placeholder="Outro..."
-              className="mt-3 rounded-xl"
+              className="mt-2 h-9 text-sm rounded-lg"
             />
           </div>
         );
@@ -291,14 +249,14 @@ const InterestFormModal = ({ isOpen, onClose, onSuccess, userInfo }) => {
       case 5:
         return (
           <div>
-            <h2 className="text-xl font-bold mb-2">Qual ambiente te dá mais sensação de alívio?</h2>
-            <p className="text-slate-500 mb-4 text-sm">Selecione uma opção</p>
+            <h2 className="text-base md:text-lg font-bold mb-1">Qual ambiente te traz mais alívio?</h2>
+            <p className="text-slate-500 mb-3 text-xs">Selecione uma opção</p>
             <div className="space-y-2">
-              <OptionCard selected={formData.ambiance === 'aconchegante'} onClick={() => handleSingleSelect('ambiance', 'aconchegante')} letter="A" title="Espaço aconchegante" subtitle="Plantas, madeira, pouca tecnologia" />
-              <OptionCard selected={formData.ambiance === 'amplo_moderno'} onClick={() => handleSingleSelect('ambiance', 'amplo_moderno')} letter="B" title="Ambiente amplo, moderno" subtitle="Luz natural, janelas grandes" />
-              <OptionCard selected={formData.ambiance === 'apartamento_clean'} onClick={() => handleSingleSelect('ambiance', 'apartamento_clean')} letter="C" title="Apartamento clean" subtitle="Vista para a cidade" />
-              <OptionCard selected={formData.ambiance === 'casa_quintal'} onClick={() => handleSingleSelect('ambiance', 'casa_quintal')} letter="D" title="Casa com quintal" subtitle="Silêncio e distância do centro" />
-              <OptionCard selected={formData.ambiance === 'casa_padrao'} onClick={() => handleSingleSelect('ambiance', 'casa_padrao')} letter="E" title="Casa padrão" subtitle="Privacidade e boa localização" />
+              <OptionCard selected={formData.ambiance === 'aconchegante'} onClick={() => handleSingleSelect('ambiance', 'aconchegante')} letter="A" title="Aconchegante" subtitle="Plantas, madeira, natureza" />
+              <OptionCard selected={formData.ambiance === 'amplo_moderno'} onClick={() => handleSingleSelect('ambiance', 'amplo_moderno')} letter="B" title="Amplo e moderno" subtitle="Luz natural, janelas grandes" />
+              <OptionCard selected={formData.ambiance === 'apartamento_clean'} onClick={() => handleSingleSelect('ambiance', 'apartamento_clean')} letter="C" title="Apartamento clean" subtitle="Vista para cidade" />
+              <OptionCard selected={formData.ambiance === 'casa_quintal'} onClick={() => handleSingleSelect('ambiance', 'casa_quintal')} letter="D" title="Casa com quintal" subtitle="Silêncio, distância do centro" />
+              <OptionCard selected={formData.ambiance === 'casa_padrao'} onClick={() => handleSingleSelect('ambiance', 'casa_padrao')} letter="E" title="Casa padrão" subtitle="Privacidade, boa localização" />
             </div>
           </div>
         );
@@ -306,13 +264,12 @@ const InterestFormModal = ({ isOpen, onClose, onSuccess, userInfo }) => {
       case 6:
         return (
           <div>
-            <h2 className="text-xl font-bold mb-2">O que mais te incomoda em um imóvel?</h2>
-            <p className="text-slate-500 mb-4 text-sm">Selecione de 1 a 3 opções</p>
-            <div className="space-y-2 max-h-[280px] overflow-y-auto">
+            <h2 className="text-base md:text-lg font-bold mb-1">O que mais te incomoda?</h2>
+            <p className="text-slate-500 mb-3 text-xs">Selecione de 1 a 3 opções</p>
+            <div className="grid grid-cols-2 gap-1.5">
               {[
-                'Pouca luz natural', 'Vizinhança barulhenta', 'Espaços pequenos',
-                'Acabamento genérico', 'Planta fechada', 'Localização ruim',
-                'Falta de privacidade', 'Garagem apertada'
+                'Pouca luz', 'Barulho', 'Espaços pequenos', 'Acabamento ruim',
+                'Planta fechada', 'Localização ruim', 'Sem privacidade', 'Garagem ruim'
               ].map((item) => (
                 <CheckboxCard
                   key={item}
@@ -323,20 +280,19 @@ const InterestFormModal = ({ isOpen, onClose, onSuccess, userInfo }) => {
                 />
               ))}
             </div>
-            <p className="text-sm text-slate-500 mt-2">{formData.deal_breakers.length}/3</p>
+            <p className="text-xs text-slate-500 mt-2 text-center">{formData.deal_breakers.length}/3 selecionados</p>
           </div>
         );
 
       case 7:
         return (
           <div>
-            <h2 className="text-xl font-bold mb-2">O que precisa estar perto?</h2>
-            <p className="text-slate-500 mb-4 text-sm">Selecione de 1 a 3 opções</p>
-            <div className="space-y-2">
+            <h2 className="text-base md:text-lg font-bold mb-1">O que precisa estar perto?</h2>
+            <p className="text-slate-500 mb-3 text-xs">Selecione de 1 a 3 opções</p>
+            <div className="grid grid-cols-2 gap-1.5">
               {[
-                'Escola ou creche', 'Mercado / comércio', 'Academia',
-                'Parque ou área verde', 'Trabalho / centro comercial',
-                'Restaurantes e vida noturna', 'Transporte público'
+                'Escola/creche', 'Mercado', 'Academia', 'Parque/área verde',
+                'Trabalho', 'Restaurantes', 'Transporte público'
               ].map((item) => (
                 <CheckboxCard
                   key={item}
@@ -347,20 +303,20 @@ const InterestFormModal = ({ isOpen, onClose, onSuccess, userInfo }) => {
                 />
               ))}
             </div>
-            <p className="text-sm text-slate-500 mt-2">{formData.proximity_needs.length}/3</p>
+            <p className="text-xs text-slate-500 mt-2 text-center">{formData.proximity_needs.length}/3 selecionados</p>
           </div>
         );
 
       case 8:
         return (
           <div>
-            <h2 className="text-xl font-bold mb-2">Seu estilo pessoal</h2>
-            <p className="text-slate-500 mb-4 text-sm">Selecione uma opção</p>
+            <h2 className="text-base md:text-lg font-bold mb-1">Seu estilo pessoal</h2>
+            <p className="text-slate-500 mb-3 text-xs">Selecione uma opção</p>
             <div className="space-y-2">
               <OptionCard selected={formData.personal_style === 'minimalista'} onClick={() => handleSingleSelect('personal_style', 'minimalista')} letter="A" title="Minimalista" subtitle="Menos é mais" />
-              <OptionCard selected={formData.personal_style === 'aconchegante'} onClick={() => handleSingleSelect('personal_style', 'aconchegante')} letter="B" title="Aconchegante" subtitle="Pareça um lar" />
+              <OptionCard selected={formData.personal_style === 'aconchegante'} onClick={() => handleSingleSelect('personal_style', 'aconchegante')} letter="B" title="Aconchegante" subtitle="Um lar de verdade" />
               <OptionCard selected={formData.personal_style === 'moderno'} onClick={() => handleSingleSelect('personal_style', 'moderno')} letter="C" title="Moderno" subtitle="Design contemporâneo" />
-              <OptionCard selected={formData.personal_style === 'classico'} onClick={() => handleSingleSelect('personal_style', 'classico')} letter="D" title="Clássico" subtitle="Não sai de moda" />
+              <OptionCard selected={formData.personal_style === 'classico'} onClick={() => handleSingleSelect('personal_style', 'classico')} letter="D" title="Clássico" subtitle="Atemporal" />
               <OptionCard selected={formData.personal_style === 'descobrindo'} onClick={() => handleSingleSelect('personal_style', 'descobrindo')} letter="E" title="Ainda descobrindo" />
             </div>
           </div>
@@ -369,35 +325,35 @@ const InterestFormModal = ({ isOpen, onClose, onSuccess, userInfo }) => {
       case 9:
         return (
           <div>
-            <h2 className="text-xl font-bold mb-2">Algo faltou nos imóveis que visitou?</h2>
-            <p className="text-slate-500 mb-4 text-sm">Opcional - conte sua experiência</p>
+            <h2 className="text-base md:text-lg font-bold mb-1">Informação extra para a busca *</h2>
+            <p className="text-slate-500 mb-3 text-xs">Acrescente detalhes que ajudem a encontrar seu imóvel ideal</p>
             <Textarea
               value={formData.experience_fears}
               onChange={(e) => setFormData(prev => ({ ...prev, experience_fears: e.target.value }))}
-              placeholder="O que você teme não encontrar?"
-              className="min-h-[120px] rounded-xl border-2"
+              placeholder="Ex: Preciso de espaço para pets, tenho home office, prefiro andar alto..."
+              className="min-h-[100px] text-sm rounded-lg border-2 resize-none"
             />
           </div>
         );
 
       case 10:
         return (
-          <div className="text-center">
+          <div className="text-center py-4">
             <motion.div
               initial={{ scale: 0 }}
               animate={{ scale: 1 }}
-              className="w-16 h-16 bg-gradient-to-br from-green-500 to-emerald-600 rounded-full mx-auto mb-6 flex items-center justify-center"
+              className="w-14 h-14 bg-gradient-to-br from-green-500 to-emerald-600 rounded-full mx-auto mb-4 flex items-center justify-center"
             >
-              <Check className="w-8 h-8 text-white" />
+              <Check className="w-7 h-7 text-white" />
             </motion.div>
-            <h2 className="text-2xl font-bold mb-3">Tudo pronto!</h2>
-            <p className="text-slate-600 mb-6">
-              Clique em "Finalizar" para cadastrar seu interesse. Nossa equipe analisará seu perfil e enviará sugestões personalizadas.
+            <h2 className="text-lg font-bold mb-2">Tudo pronto!</h2>
+            <p className="text-slate-600 text-sm mb-4">
+              Clique em finalizar para cadastrar. Nossa equipe analisará seu perfil e enviará sugestões personalizadas.
             </p>
             <Button
               onClick={handleSubmit}
               disabled={isSubmitting}
-              className="w-full h-12 rounded-full bg-gradient-to-r from-indigo-600 to-purple-600"
+              className="w-full h-10 rounded-full bg-gradient-to-r from-indigo-600 to-purple-600 text-sm"
             >
               {isSubmitting ? 'Cadastrando...' : 'Finalizar Cadastro'}
             </Button>
@@ -417,51 +373,52 @@ const InterestFormModal = ({ isOpen, onClose, onSuccess, userInfo }) => {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
-        onClick={onClose}
+        className="fixed inset-0 z-50 flex items-center justify-center p-3 md:p-4 bg-black/50 backdrop-blur-sm"
+        // Removed onClick={onClose} - no closing on backdrop click
       >
         <motion.div
-          initial={{ scale: 0.9, opacity: 0 }}
+          initial={{ scale: 0.95, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
-          exit={{ scale: 0.9, opacity: 0 }}
-          className="w-full max-w-lg max-h-[90vh] overflow-hidden bg-white rounded-3xl shadow-2xl"
-          onClick={(e) => e.stopPropagation()}
+          exit={{ scale: 0.95, opacity: 0 }}
+          className="w-full max-w-md md:max-w-lg bg-white rounded-2xl shadow-2xl flex flex-col"
+          style={{ maxHeight: 'calc(100vh - 24px)' }}
         >
           {/* Header */}
-          <div className="sticky top-0 z-10 bg-white border-b px-6 py-4">
-            <div className="flex items-center justify-between mb-3">
+          <div className="flex-shrink-0 bg-white border-b px-4 py-3 rounded-t-2xl">
+            <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
-                <Home className="w-6 h-6 text-indigo-600" />
-                <span className="font-bold text-lg">Cadastrar Interesse</span>
+                <Home className="w-5 h-5 text-indigo-600" />
+                <span className="font-bold text-sm md:text-base">Cadastrar Interesse</span>
               </div>
               <button
                 onClick={onClose}
-                className="p-2 rounded-full hover:bg-slate-100 transition-colors"
+                className="p-1.5 rounded-full hover:bg-slate-100 transition-colors"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
             {/* Progress bar */}
             <div className="flex items-center gap-2">
-              <div className="flex-1 h-1.5 bg-slate-200 rounded-full overflow-hidden">
+              <div className="flex-1 h-1 bg-slate-200 rounded-full overflow-hidden">
                 <motion.div
                   className="h-full bg-gradient-to-r from-indigo-600 to-purple-600 rounded-full"
                   initial={{ width: 0 }}
                   animate={{ width: `${((currentStep + 1) / totalSteps) * 100}%` }}
                 />
               </div>
-              <span className="text-xs text-slate-500">{currentStep + 1}/{totalSteps}</span>
+              <span className="text-xs text-slate-500 font-medium">{currentStep + 1}/{totalSteps}</span>
             </div>
           </div>
 
-          {/* Content */}
-          <div className="p-6 overflow-y-auto max-h-[calc(90vh-180px)]">
+          {/* Content - No scroll, fits in viewport */}
+          <div className="flex-1 p-4 md:p-5">
             <AnimatePresence mode="wait">
               <motion.div
                 key={currentStep}
-                initial={{ opacity: 0, x: 20 }}
+                initial={{ opacity: 0, x: 15 }}
                 animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
+                exit={{ opacity: 0, x: -15 }}
+                transition={{ duration: 0.2 }}
               >
                 {renderStep()}
               </motion.div>
@@ -470,23 +427,23 @@ const InterestFormModal = ({ isOpen, onClose, onSuccess, userInfo }) => {
 
           {/* Footer */}
           {currentStep < 10 && (
-            <div className="sticky bottom-0 bg-white border-t px-6 py-4 flex justify-between">
+            <div className="flex-shrink-0 bg-white border-t px-4 py-3 flex justify-between rounded-b-2xl">
               <Button
                 onClick={prevStep}
                 variant="ghost"
                 disabled={currentStep === 0}
-                className="rounded-full"
+                className="rounded-full h-9 text-sm"
               >
-                <ArrowLeft className="w-4 h-4 mr-2" />
+                <ArrowLeft className="w-4 h-4 mr-1" />
                 Voltar
               </Button>
               <Button
                 onClick={nextStep}
                 disabled={!canProceed()}
-                className="rounded-full bg-gradient-to-r from-indigo-600 to-purple-600"
+                className="rounded-full h-9 text-sm bg-gradient-to-r from-indigo-600 to-purple-600"
               >
                 Próximo
-                <ArrowRight className="w-4 h-4 ml-2" />
+                <ArrowRight className="w-4 h-4 ml-1" />
               </Button>
             </div>
           )}
