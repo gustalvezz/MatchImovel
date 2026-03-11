@@ -28,8 +28,39 @@ const RegisterPage = () => {
   });
   const [loading, setLoading] = useState(false);
 
+  // Phone mask function
+  const formatPhone = (value) => {
+    const numbers = value.replace(/\D/g, '');
+    if (numbers.length <= 10) {
+      // Format: 99 9999-9999
+      return numbers
+        .replace(/(\d{2})(\d)/, '$1 $2')
+        .replace(/(\d{4})(\d)/, '$1-$2')
+        .substring(0, 12);
+    } else {
+      // Format: 99 99999-9999
+      return numbers
+        .replace(/(\d{2})(\d)/, '$1 $2')
+        .replace(/(\d{5})(\d)/, '$1-$2')
+        .substring(0, 13);
+    }
+  };
+
+  const handlePhoneChange = (e) => {
+    const formatted = formatPhone(e.target.value);
+    setFormData(prev => ({ ...prev, phone: formatted }));
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    // Validate phone
+    const phoneNumbers = formData.phone.replace(/\D/g, '');
+    if (phoneNumbers.length < 10) {
+      toast.error('Por favor, informe um telefone válido');
+      return;
+    }
+    
     setLoading(true);
     
     try {
@@ -80,12 +111,13 @@ const RegisterPage = () => {
         <Card className="p-8 rounded-3xl shadow-xl border-2" data-testid="register-form-card">
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
-              <Label htmlFor="name" className="text-base">Nome Completo</Label>
+              <Label htmlFor="name" className="text-base">Nome Completo *</Label>
               <div className="relative mt-2">
                 <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
                 <Input
                   data-testid="register-name-input"
                   id="name"
+                  name="name"
                   type="text"
                   required
                   value={formData.name}
@@ -97,12 +129,13 @@ const RegisterPage = () => {
             </div>
 
             <div>
-              <Label htmlFor="email" className="text-base">Email</Label>
+              <Label htmlFor="email" className="text-base">Email *</Label>
               <div className="relative mt-2">
                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
                 <Input
                   data-testid="register-email-input"
                   id="email"
+                  name="email"
                   type="email"
                   required
                   value={formData.email}
@@ -114,28 +147,32 @@ const RegisterPage = () => {
             </div>
 
             <div>
-              <Label htmlFor="phone" className="text-base">Telefone</Label>
+              <Label htmlFor="phone" className="text-base">Telefone/WhatsApp *</Label>
               <div className="relative mt-2">
                 <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
                 <Input
                   data-testid="register-phone-input"
                   id="phone"
+                  name="phone"
                   type="tel"
+                  required
                   value={formData.phone}
-                  onChange={(e) => setFormData({...formData, phone: e.target.value})}
+                  onChange={handlePhoneChange}
                   className="pl-10 h-12 rounded-xl"
-                  placeholder="(11) 98765-4321"
+                  placeholder="99 99999-9999"
+                  maxLength={13}
                 />
               </div>
             </div>
 
             <div>
-              <Label htmlFor="password" className="text-base">Senha</Label>
+              <Label htmlFor="password" className="text-base">Senha *</Label>
               <div className="relative mt-2">
                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
                 <Input
                   data-testid="register-password-input"
                   id="password"
+                  name="password"
                   type="password"
                   required
                   value={formData.password}

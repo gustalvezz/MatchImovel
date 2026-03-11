@@ -347,7 +347,7 @@ const LandingPage = () => {
               </div>
 
               <Button 
-                onClick={() => navigate('/cadastrar-interesse')} 
+                onClick={() => navigate('/register?role=buyer')} 
                 size="lg" 
                 className="rounded-full h-12 px-8 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white shadow-lg shadow-indigo-500/25"
               >

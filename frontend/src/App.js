@@ -11,7 +11,6 @@ import CuratorDashboard from '@/pages/CuratorDashboard';
 import CompleteRegistration from '@/pages/CompleteRegistration';
 import AdminLogin from '@/pages/AdminLogin';
 import AdminDashboard from '@/pages/AdminDashboard';
-import InterestForm from '@/pages/InterestForm';
 import '@/App.css';
 
 const ProtectedRoute = ({ children, allowedRoles }) => {
@@ -42,7 +41,6 @@ function App() {
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<LandingPage />} />
-          <Route path="/cadastrar-interesse" element={<InterestForm />} />
           <Route path="/register" element={<RegisterPage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route 

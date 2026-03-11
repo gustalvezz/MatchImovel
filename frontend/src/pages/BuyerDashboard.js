@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/context/AuthContext';
 import { Home, Plus, Heart, Calendar, LogOut, Building2, MapPin, DollarSign, Edit, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
-import CreateInterestModal from '@/components/CreateInterestModal';
+import InterestFormModal from '@/components/InterestFormModal';
 import EditInterestModal from '@/components/EditInterestModal';
 import DeleteConfirmModal from '@/components/DeleteConfirmModal';
 
@@ -26,6 +26,7 @@ const BuyerDashboard = () => {
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [selectedInterest, setSelectedInterest] = useState(null);
+  const hasCheckedFirstAccess = useRef(false);
 
   useEffect(() => {
     fetchData();
@@ -37,6 +38,19 @@ const BuyerDashboard = () => {
     
     return () => clearInterval(interval);
   }, []);
+
+  // Auto-open form on first access (no interests)
+  useEffect(() => {
+    if (!loading && !hasCheckedFirstAccess.current && interests !== null) {
+      hasCheckedFirstAccess.current = true;
+      if ((interests || []).length === 0) {
+        // First access - open the form automatically
+        setTimeout(() => {
+          setShowCreateModal(true);
+        }, 500);
+      }
+    }
+  }, [loading, interests]);
 
   const fetchData = async () => {
     try {
@@ -320,15 +334,19 @@ const BuyerDashboard = () => {
         </Tabs>
       </div>
 
-      {showCreateModal && (
-        <CreateInterestModal 
-          onClose={() => setShowCreateModal(false)}
-          onSuccess={() => {
-            setShowCreateModal(false);
-            fetchData();
-          }}
-        />
-      )}
+      <InterestFormModal 
+        isOpen={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
+        onSuccess={() => {
+          setShowCreateModal(false);
+          fetchData();
+        }}
+        userInfo={{
+          name: user?.name,
+          email: user?.email,
+          phone: user?.phone
+        }}
+      />
 
       {showEditModal && selectedInterest && (
         <EditInterestModal
