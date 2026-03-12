@@ -11,6 +11,7 @@ import { useAuth } from '@/context/AuthContext';
 import { Home, LogOut, Users, Heart, Search, DollarSign, MapPin, Building2, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import DeleteConfirmModal from '@/components/DeleteConfirmModal';
+import PropertyInfoModal from '@/components/PropertyInfoModal';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
@@ -24,6 +25,8 @@ const AgentDashboard = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [selectedMatch, setSelectedMatch] = useState(null);
+  const [showPropertyModal, setShowPropertyModal] = useState(false);
+  const [selectedInterest, setSelectedInterest] = useState(null);
 
   useEffect(() => {
     fetchData();
@@ -52,15 +55,30 @@ const AgentDashboard = () => {
   };
 
   const handleMatch = async (buyerId, interestId) => {
+    // Open modal to collect property info
+    const interest = buyers.find(b => b.id === interestId);
+    setSelectedInterest({
+      ...interest,
+      buyer_id: buyerId,
+      interest_id: interestId
+    });
+    setShowPropertyModal(true);
+  };
+
+  const handlePropertySubmit = async (propertyInfo) => {
     try {
       await axios.post(`${API}/agents/match`, {
-        buyer_id: buyerId,
-        interest_id: interestId
+        buyer_id: selectedInterest.buyer_id,
+        interest_id: selectedInterest.interest_id,
+        property_info: propertyInfo
       });
-      toast.success('Seu Match foi enviado com sucesso e está em análise, aguarde o nosso contato para enviar mais informações sobre o imóvel.');
+      toast.success('Seu Match foi enviado com sucesso e está em análise, aguarde o nosso contato.');
+      setShowPropertyModal(false);
+      setSelectedInterest(null);
       fetchData();
     } catch (error) {
       toast.error(error.response?.data?.detail || 'Erro ao criar match');
+      throw error;
     }
   };
 
@@ -358,14 +376,23 @@ const AgentDashboard = () => {
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                 >
-                  <Card className="p-6 rounded-2xl hover:shadow-lg transition-all" data-testid={`agent-match-card-${match.id}`}>
+                  <Card className="p-6 rounded-2xl hover:shadow-lg transition-all border-l-4 border-l-red-500" data-testid={`agent-match-card-${match.id}`}>
                     <div className="flex justify-between items-start mb-4">
                       <div className="flex-1">
-                        <h3 className="text-xl font-semibold mb-2">Match com {match.buyer?.name}</h3>
-                        <Badge className="rounded-full">
+                        <div className="flex items-center gap-2 mb-2">
+                          <Heart className="w-5 h-5 text-red-500 fill-red-500" />
+                          <h3 className="text-xl font-semibold">Match com {match.buyer?.name}</h3>
+                        </div>
+                        <Badge className={`rounded-full ${
+                          match.status === 'approved' ? 'bg-green-100 text-green-700' :
+                          match.status === 'rejected' ? 'bg-red-100 text-red-700' :
+                          match.status === 'visit_scheduled' ? 'bg-blue-100 text-blue-700' :
+                          'bg-orange-100 text-orange-700'
+                        }`}>
                           {match.status === 'pending_info' ? 'Aguardando Informações' :
                            match.status === 'pending_approval' ? 'Em Análise' :
                            match.status === 'approved' ? 'Aprovado' :
+                           match.status === 'visit_scheduled' ? 'Visita Agendada' :
                            match.status === 'rejected' ? 'Não Aprovado' : match.status}
                         </Badge>
                       </div>
@@ -420,6 +447,19 @@ const AgentDashboard = () => {
             setSelectedMatch(null);
             fetchData();
           }}
+        />
+      )}
+
+      {showPropertyModal && selectedInterest && (
+        <PropertyInfoModal
+          isOpen={showPropertyModal}
+          onClose={() => {
+            setShowPropertyModal(false);
+            setSelectedInterest(null);
+          }}
+          onSubmit={handlePropertySubmit}
+          buyerName={selectedInterest.buyer_name || 'Comprador'}
+          interestLocation={selectedInterest.location}
         />
       )}
     </div>

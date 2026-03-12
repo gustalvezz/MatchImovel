@@ -189,6 +189,7 @@ class Match(BaseModel):
     agent_id: str
     interest_id: str
     status: str = "pending_info"  # pending_info, pending_approval, approved, rejected, visit_scheduled, completed
+    property_info: Optional[dict] = None  # Property details from agent
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
@@ -242,6 +243,39 @@ class FollowUp(BaseModel):
 class DeleteReason(BaseModel):
     reason: str  # já_comprei, imovel_vendido, mudei_planos, outro
     other_reason: Optional[str] = None
+
+class PropertyInfo(BaseModel):
+    """Property information when creating a match"""
+    description: str  # Required
+    bedrooms: Optional[int] = None
+    bathrooms: Optional[int] = None
+    area_m2: Optional[float] = None
+    address: Optional[str] = None
+    price: Optional[float] = None
+    link: Optional[str] = None  # Optional link to listing
+
+class MatchCreateWithProperty(BaseModel):
+    buyer_id: str
+    interest_id: str
+    property_info: PropertyInfo
+
+class ScheduleVisitRequest(BaseModel):
+    visit_date: str  # ISO format date
+    visit_time: str  # HH:MM format
+    notes: Optional[str] = None
+
+class Visit(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    match_id: str
+    scheduled_by: str  # curator_id
+    visit_date: str
+    visit_time: str
+    notes: Optional[str] = None
+    status: str = "scheduled"  # scheduled, completed, cancelled
+    reminder_sent: bool = False
+    reminder_2h_sent: bool = False
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 class BuyerInterestUpdate(BaseModel):
     property_type: Optional[str] = None
@@ -419,6 +453,20 @@ async def get_my_matches(current_user: dict = Depends(get_current_user)):
     matches = await db.matches.find({"buyer_id": current_user["user_id"]}, {"_id": 0}).to_list(100)
     
     # Enrich with interest and agent data
+    for match in matches:
+        if isinstance(match.get('created_at'), str):
+            match['created_at'] = datetime.fromisoformat(match['created_at'])
+        if isinstance(match.get('updated_at'), str):
+            match['updated_at'] = datetime.fromisoformat(match['updated_at'])
+        
+        interest = await db.interests.find_one({"id": match["interest_id"]}, {"_id": 0})
+        match['interest'] = interest
+        
+        agent = await db.agents.find_one({"user_id": match["agent_id"]}, {"_id": 0})
+        if agent:
+            match['agent'] = {"name": agent.get("name"), "company": agent.get("company")}
+    
+    return matches
 
 # PUBLIC ENDPOINT - Create interest from form (no auth required)
 async def generate_ai_profile(form_data: dict) -> str:
@@ -616,20 +664,6 @@ async def create_full_interest(form_data: FullInterestCreate):
         "interest_id": interest_id,
         "ai_profile": ai_profile
     }
-    for match in matches:
-        if isinstance(match.get('created_at'), str):
-            match['created_at'] = datetime.fromisoformat(match['created_at'])
-        if isinstance(match.get('updated_at'), str):
-            match['updated_at'] = datetime.fromisoformat(match['updated_at'])
-        
-        interest = await db.interests.find_one({"id": match["interest_id"]}, {"_id": 0})
-        match['interest'] = interest
-        
-        agent = await db.agents.find_one({"user_id": match["agent_id"]}, {"_id": 0})
-        if agent:
-            match['agent'] = {"name": agent.get("name"), "company": agent.get("company")}
-    
-    return matches
 
 # AGENT ENDPOINTS
 @api_router.get("/agents/buyers")
@@ -722,7 +756,7 @@ async def smart_search_buyers(
     return results
 
 @api_router.post("/agents/match", response_model=Match)
-async def create_match(match_data: MatchCreate, current_user: dict = Depends(get_current_user)):
+async def create_match(match_data: MatchCreateWithProperty, current_user: dict = Depends(get_current_user)):
     if current_user["role"] != "agent":
         raise HTTPException(status_code=403, detail="Apenas corretores podem criar matches")
     
@@ -745,7 +779,8 @@ async def create_match(match_data: MatchCreate, current_user: dict = Depends(get
         buyer_id=match_data.buyer_id,
         agent_id=current_user["user_id"],
         interest_id=match_data.interest_id,
-        status="pending_approval"
+        status="pending_approval",
+        property_info=match_data.property_info.model_dump() if match_data.property_info else None
     )
     
     doc = match.model_dump()
@@ -922,12 +957,22 @@ async def get_pending_matches(current_user: dict = Depends(get_current_user)):
         interest = await db.interests.find_one({"id": match["interest_id"]}, {"_id": 0})
         match['interest'] = interest
         
+        # Get buyer info with phone
         buyer = await db.buyers.find_one({"user_id": match["buyer_id"]}, {"_id": 0})
-        agent = await db.agents.find_one({"user_id": match["agent_id"]}, {"_id": 0})
-        
+        buyer_user = await db.users.find_one({"id": match["buyer_id"]}, {"_id": 0, "password": 0})
         if buyer:
+            # Ensure phone is included from user record if not in buyer profile
+            if not buyer.get("phone") and buyer_user and buyer_user.get("phone"):
+                buyer["phone"] = buyer_user["phone"]
             match['buyer'] = buyer
+        
+        # Get agent info with phone
+        agent = await db.agents.find_one({"user_id": match["agent_id"]}, {"_id": 0})
+        agent_user = await db.users.find_one({"id": match["agent_id"]}, {"_id": 0, "password": 0})
         if agent:
+            # Ensure phone is included from user record if not in agent profile
+            if not agent.get("phone") and agent_user and agent_user.get("phone"):
+                agent["phone"] = agent_user["phone"]
             match['agent'] = agent
         
         conversation = await db.bot_conversations.find_one({"match_id": match["id"]}, {"_id": 0})
@@ -1197,12 +1242,20 @@ async def get_all_matches(current_user: dict = Depends(get_current_user)):
         interest = await db.interests.find_one({"id": match["interest_id"]}, {"_id": 0})
         match['interest'] = interest
         
+        # Get buyer info with phone
         buyer = await db.buyers.find_one({"user_id": match["buyer_id"]}, {"_id": 0})
-        agent = await db.agents.find_one({"user_id": match["agent_id"]}, {"_id": 0})
-        
+        buyer_user = await db.users.find_one({"id": match["buyer_id"]}, {"_id": 0, "password": 0})
         if buyer:
+            if not buyer.get("phone") and buyer_user and buyer_user.get("phone"):
+                buyer["phone"] = buyer_user["phone"]
             match['buyer'] = buyer
+        
+        # Get agent info with phone
+        agent = await db.agents.find_one({"user_id": match["agent_id"]}, {"_id": 0})
+        agent_user = await db.users.find_one({"id": match["agent_id"]}, {"_id": 0, "password": 0})
         if agent:
+            if not agent.get("phone") and agent_user and agent_user.get("phone"):
+                agent["phone"] = agent_user["phone"]
             match['agent'] = agent
         
         # Get curator name if exists
@@ -1445,6 +1498,245 @@ async def get_all_curators(current_user: dict = Depends(get_current_user)):
         curator['curated_matches'] = match_count
     
     return curators
+
+# VISIT SCHEDULING ENDPOINTS
+async def send_visit_notification(
+    to_email: str,
+    to_name: str,
+    visit_date: str,
+    visit_time: str,
+    property_address: str,
+    is_reminder: bool = False,
+    is_2h_reminder: bool = False
+) -> bool:
+    """Send visit notification email"""
+    
+    if is_2h_reminder:
+        subject = f"⏰ Lembrete: Visita em 2 horas - MatchImovel"
+        title = "Sua visita é em 2 horas!"
+        message = f"Lembrando que você tem uma visita agendada para <strong>hoje às {visit_time}</strong>."
+    elif is_reminder:
+        subject = f"📅 Lembrete: Visita agendada - MatchImovel"
+        title = "Lembrete de visita agendada"
+        message = f"Você tem uma visita agendada para <strong>{visit_date} às {visit_time}</strong>."
+    else:
+        subject = f"🏠 Visita agendada - MatchImovel"
+        title = "Nova visita agendada!"
+        message = f"Uma visita foi agendada para <strong>{visit_date} às {visit_time}</strong>."
+    
+    email_html = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="UTF-8">
+        <style>
+            body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
+            .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
+            .header {{ background: linear-gradient(135deg, #6366f1, #8b5cf6); padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }}
+            .header h1 {{ color: white; margin: 0; font-size: 28px; }}
+            .content {{ background: #f9fafb; padding: 30px; border-radius: 0 0 10px 10px; }}
+            .info-box {{ background: #e0e7ff; padding: 20px; border-radius: 8px; margin: 15px 0; }}
+            .footer {{ text-align: center; margin-top: 20px; color: #666; font-size: 12px; }}
+            .highlight {{ color: #6366f1; font-weight: bold; }}
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="header">
+                <h1>MatchImovel</h1>
+            </div>
+            <div class="content">
+                <h2>{title}</h2>
+                <p>Olá, <strong>{to_name}</strong>!</p>
+                <p>{message}</p>
+                
+                <div class="info-box">
+                    <p><strong>📍 Endereço:</strong> {property_address}</p>
+                    <p><strong>📅 Data:</strong> {visit_date}</p>
+                    <p><strong>🕐 Horário:</strong> {visit_time}</p>
+                </div>
+                
+                <p>Em caso de dúvidas ou necessidade de reagendamento, entre em contato com nossa equipe de curadoria.</p>
+            </div>
+            <div class="footer">
+                <p>&copy; 2026 MatchImovel - Todos os direitos reservados</p>
+            </div>
+        </div>
+    </body>
+    </html>
+    """
+    
+    return await send_email(to_email, subject, email_html)
+
+@api_router.post("/curator/schedule-visit/{match_id}")
+async def schedule_visit(match_id: str, visit_data: ScheduleVisitRequest, current_user: dict = Depends(get_current_user)):
+    """Schedule a property visit and notify buyer and agent"""
+    if current_user["role"] not in ["curator", "admin"]:
+        raise HTTPException(status_code=403, detail="Acesso negado")
+    
+    # Get match
+    match = await db.matches.find_one({"id": match_id}, {"_id": 0})
+    if not match:
+        raise HTTPException(status_code=404, detail="Match não encontrado")
+    
+    # Check if curator has access
+    if current_user["role"] == "curator" and match.get("curator_id") != current_user["user_id"]:
+        raise HTTPException(status_code=403, detail="Você não tem acesso a este match")
+    
+    # Create visit record
+    visit = Visit(
+        match_id=match_id,
+        scheduled_by=current_user["user_id"],
+        visit_date=visit_data.visit_date,
+        visit_time=visit_data.visit_time,
+        notes=visit_data.notes
+    )
+    
+    doc = visit.model_dump()
+    doc['created_at'] = doc['created_at'].isoformat()
+    await db.visits.insert_one(doc)
+    
+    # Update match status
+    await db.matches.update_one(
+        {"id": match_id},
+        {"$set": {"status": "visit_scheduled", "updated_at": datetime.now(timezone.utc).isoformat()}}
+    )
+    
+    # Get buyer and agent info for notifications
+    buyer = await db.buyers.find_one({"user_id": match["buyer_id"]}, {"_id": 0})
+    buyer_user = await db.users.find_one({"id": match["buyer_id"]}, {"_id": 0})
+    agent = await db.agents.find_one({"user_id": match["agent_id"]}, {"_id": 0})
+    agent_user = await db.users.find_one({"id": match["agent_id"]}, {"_id": 0})
+    
+    # Get property address from match property_info
+    property_address = "Endereço a confirmar"
+    if match.get("property_info") and match["property_info"].get("address"):
+        property_address = match["property_info"]["address"]
+    
+    # Send notifications
+    notifications_sent = {"buyer": False, "agent": False}
+    
+    if buyer and buyer.get("email"):
+        notifications_sent["buyer"] = await send_visit_notification(
+            to_email=buyer.get("email") or buyer_user.get("email"),
+            to_name=buyer.get("name", "Comprador"),
+            visit_date=visit_data.visit_date,
+            visit_time=visit_data.visit_time,
+            property_address=property_address
+        )
+    
+    if agent and agent.get("email"):
+        notifications_sent["agent"] = await send_visit_notification(
+            to_email=agent.get("email") or agent_user.get("email"),
+            to_name=agent.get("name", "Corretor"),
+            visit_date=visit_data.visit_date,
+            visit_time=visit_data.visit_time,
+            property_address=property_address
+        )
+    
+    return {
+        "status": "success",
+        "visit_id": visit.id,
+        "notifications_sent": notifications_sent
+    }
+
+@api_router.get("/curator/visits/{match_id}")
+async def get_match_visits(match_id: str, current_user: dict = Depends(get_current_user)):
+    """Get all visits for a match"""
+    if current_user["role"] not in ["curator", "admin"]:
+        raise HTTPException(status_code=403, detail="Acesso negado")
+    
+    visits = await db.visits.find({"match_id": match_id}, {"_id": 0}).to_list(100)
+    
+    for visit in visits:
+        if isinstance(visit.get('created_at'), str):
+            visit['created_at'] = datetime.fromisoformat(visit['created_at'])
+        
+        # Get scheduler name
+        scheduler = await db.users.find_one({"id": visit["scheduled_by"]}, {"_id": 0})
+        if scheduler:
+            visit['scheduled_by_name'] = scheduler.get('name')
+    
+    return visits
+
+@api_router.delete("/curator/visits/{visit_id}")
+async def cancel_visit(visit_id: str, current_user: dict = Depends(get_current_user)):
+    """Cancel a scheduled visit"""
+    if current_user["role"] not in ["curator", "admin"]:
+        raise HTTPException(status_code=403, detail="Acesso negado")
+    
+    visit = await db.visits.find_one({"id": visit_id}, {"_id": 0})
+    if not visit:
+        raise HTTPException(status_code=404, detail="Visita não encontrada")
+    
+    await db.visits.update_one(
+        {"id": visit_id},
+        {"$set": {"status": "cancelled"}}
+    )
+    
+    return {"status": "success", "message": "Visita cancelada"}
+
+# Background task to send 2h reminder - would need a scheduler like APScheduler in production
+@api_router.post("/internal/send-visit-reminders")
+async def send_visit_reminders():
+    """Internal endpoint to send 2h visit reminders - call this from a scheduler"""
+    now = datetime.now(timezone.utc)
+    two_hours_from_now = now + timedelta(hours=2)
+    
+    # Find visits scheduled in the next 2 hours that haven't had reminder sent
+    visits = await db.visits.find({
+        "status": "scheduled",
+        "reminder_2h_sent": False
+    }, {"_id": 0}).to_list(100)
+    
+    reminders_sent = 0
+    
+    for visit in visits:
+        try:
+            visit_datetime_str = f"{visit['visit_date']} {visit['visit_time']}"
+            visit_datetime = datetime.strptime(visit_datetime_str, "%Y-%m-%d %H:%M")
+            visit_datetime = visit_datetime.replace(tzinfo=timezone.utc)
+            
+            # Check if visit is within 2 hours
+            time_diff = visit_datetime - now
+            if timedelta(hours=0) <= time_diff <= timedelta(hours=2, minutes=15):
+                # Get match info
+                match = await db.matches.find_one({"id": visit["match_id"]}, {"_id": 0})
+                if match:
+                    buyer = await db.buyers.find_one({"user_id": match["buyer_id"]}, {"_id": 0})
+                    agent = await db.agents.find_one({"user_id": match["agent_id"]}, {"_id": 0})
+                    
+                    property_address = match.get("property_info", {}).get("address", "Endereço a confirmar")
+                    
+                    if buyer and buyer.get("email"):
+                        await send_visit_notification(
+                            to_email=buyer["email"],
+                            to_name=buyer.get("name", "Comprador"),
+                            visit_date=visit["visit_date"],
+                            visit_time=visit["visit_time"],
+                            property_address=property_address,
+                            is_2h_reminder=True
+                        )
+                    
+                    if agent and agent.get("email"):
+                        await send_visit_notification(
+                            to_email=agent["email"],
+                            to_name=agent.get("name", "Corretor"),
+                            visit_date=visit["visit_date"],
+                            visit_time=visit["visit_time"],
+                            property_address=property_address,
+                            is_2h_reminder=True
+                        )
+                    
+                    await db.visits.update_one(
+                        {"id": visit["id"]},
+                        {"$set": {"reminder_2h_sent": True}}
+                    )
+                    reminders_sent += 1
+        except Exception as e:
+            logger.error(f"Error sending reminder for visit {visit['id']}: {str(e)}")
+    
+    return {"reminders_sent": reminders_sent}
 
 # Include router
 app.include_router(api_router)

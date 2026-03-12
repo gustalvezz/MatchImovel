@@ -8,11 +8,12 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
 import { useAuth } from '@/context/AuthContext';
 import { 
   Home, LogOut, Users, Heart, Building2, CheckCircle, XCircle, 
   Clock, MessageSquare, Phone, MapPin, DollarSign, BedDouble, 
-  Car, Bath, ChevronDown, ChevronUp
+  Car, Bath, ChevronDown, ChevronUp, Calendar, Link as LinkIcon, Ruler, ExternalLink
 } from 'lucide-react';
 import { toast } from 'sonner';
 import MatchFollowUp from '@/components/MatchFollowUp';
@@ -29,6 +30,10 @@ const CuratorDashboard = () => {
   const [curatingMatch, setCuratingMatch] = useState(null);
   const [curationNotes, setCurationNotes] = useState('');
   const [expandedMatch, setExpandedMatch] = useState(null);
+  const [schedulingVisit, setSchedulingVisit] = useState(null);
+  const [visitDate, setVisitDate] = useState('');
+  const [visitTime, setVisitTime] = useState('');
+  const [visitNotes, setVisitNotes] = useState('');
 
   const fetchData = useCallback(async () => {
     try {
@@ -72,6 +77,39 @@ const CuratorDashboard = () => {
       fetchData();
     } catch (error) {
       toast.error('Erro ao processar curadoria');
+    }
+  };
+
+  const handleScheduleVisit = async (matchId) => {
+    if (!visitDate || !visitTime) {
+      toast.error('Por favor, preencha data e horário da visita');
+      return;
+    }
+    
+    try {
+      const response = await axios.post(`${API}/curator/schedule-visit/${matchId}`, {
+        visit_date: visitDate,
+        visit_time: visitTime,
+        notes: visitNotes
+      });
+      
+      const { notifications_sent } = response.data;
+      let message = 'Visita agendada com sucesso!';
+      
+      if (notifications_sent.buyer && notifications_sent.agent) {
+        message += ' Notificações enviadas para comprador e corretor.';
+      } else if (notifications_sent.buyer || notifications_sent.agent) {
+        message += ' Notificação enviada parcialmente.';
+      }
+      
+      toast.success(message);
+      setSchedulingVisit(null);
+      setVisitDate('');
+      setVisitTime('');
+      setVisitNotes('');
+      fetchData();
+    } catch (error) {
+      toast.error('Erro ao agendar visita');
     }
   };
 
@@ -191,15 +229,78 @@ const CuratorDashboard = () => {
         </div>
       </div>
 
+      {/* Property Info from Agent - NEW SECTION */}
+      {match.property_info && (
+        <div className="bg-green-50 border border-green-200 p-4 rounded-xl mb-4">
+          <h4 className="font-semibold mb-3 flex items-center gap-2">
+            <Home className="w-5 h-5 text-green-600" />
+            Imóvel Oferecido pelo Corretor
+          </h4>
+          
+          {/* Description */}
+          <p className="text-sm text-slate-700 mb-3 whitespace-pre-wrap">{match.property_info.description}</p>
+          
+          {/* Property details grid */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+            {match.property_info.bedrooms && (
+              <div className="flex items-center gap-1 text-slate-600">
+                <BedDouble className="w-4 h-4 text-green-500" />
+                <span>{match.property_info.bedrooms} quartos</span>
+              </div>
+            )}
+            {match.property_info.bathrooms && (
+              <div className="flex items-center gap-1 text-slate-600">
+                <Bath className="w-4 h-4 text-green-500" />
+                <span>{match.property_info.bathrooms} banheiros</span>
+              </div>
+            )}
+            {match.property_info.area_m2 && (
+              <div className="flex items-center gap-1 text-slate-600">
+                <Ruler className="w-4 h-4 text-green-500" />
+                <span>{match.property_info.area_m2} m²</span>
+              </div>
+            )}
+            {match.property_info.price && (
+              <div className="flex items-center gap-1 text-slate-600">
+                <DollarSign className="w-4 h-4 text-green-500" />
+                <span>{formatPrice(match.property_info.price)}</span>
+              </div>
+            )}
+          </div>
+          
+          {match.property_info.address && (
+            <p className="flex items-center gap-2 mt-3 text-sm text-slate-600">
+              <MapPin className="w-4 h-4 text-green-500" />
+              {match.property_info.address}
+            </p>
+          )}
+          
+          {match.property_info.link && (
+            <a 
+              href={match.property_info.link}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 mt-3 text-sm text-blue-600 hover:text-blue-700 font-medium"
+            >
+              <LinkIcon className="w-4 h-4" />
+              Ver anúncio
+              <ExternalLink className="w-3 h-3" />
+            </a>
+          )}
+        </div>
+      )}
+
       <div className="flex items-center justify-between text-sm text-muted-foreground mb-4">
         <span>Criado em: {new Date(match.created_at).toLocaleDateString('pt-BR')}</span>
         <Badge className={`rounded-full ${
           match.status === 'approved' ? 'bg-green-100 text-green-700' :
           match.status === 'rejected' ? 'bg-red-100 text-red-700' :
+          match.status === 'visit_scheduled' ? 'bg-blue-100 text-blue-700' :
           'bg-orange-100 text-orange-700'
         }`}>
           {match.status === 'approved' ? 'Aprovado' :
-           match.status === 'rejected' ? 'Rejeitado' : 'Pendente'}
+           match.status === 'rejected' ? 'Rejeitado' : 
+           match.status === 'visit_scheduled' ? 'Visita Agendada' : 'Pendente'}
         </Badge>
       </div>
 
@@ -256,7 +357,81 @@ const CuratorDashboard = () => {
       )}
 
       {!showActions && match.status === 'approved' && (
-        <div className="border-t pt-4">
+        <div className="border-t pt-4 space-y-4">
+          {/* Visit Scheduling Section */}
+          {schedulingVisit === match.id ? (
+            <div className="bg-blue-50 p-4 rounded-xl space-y-4">
+              <h4 className="font-semibold flex items-center gap-2">
+                <Calendar className="w-5 h-5 text-blue-600" />
+                Agendar Visita
+              </h4>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-sm">Data</Label>
+                  <Input
+                    type="date"
+                    value={visitDate}
+                    onChange={(e) => setVisitDate(e.target.value)}
+                    min={new Date().toISOString().split('T')[0]}
+                    className="mt-1 rounded-xl"
+                    data-testid="visit-date-input"
+                  />
+                </div>
+                <div>
+                  <Label className="text-sm">Horário</Label>
+                  <Input
+                    type="time"
+                    value={visitTime}
+                    onChange={(e) => setVisitTime(e.target.value)}
+                    className="mt-1 rounded-xl"
+                    data-testid="visit-time-input"
+                  />
+                </div>
+              </div>
+              <div>
+                <Label className="text-sm">Observações (opcional)</Label>
+                <Textarea
+                  value={visitNotes}
+                  onChange={(e) => setVisitNotes(e.target.value)}
+                  placeholder="Ex: Levar documentos, portaria avisada..."
+                  className="mt-1 rounded-xl"
+                />
+              </div>
+              <div className="flex gap-3">
+                <Button
+                  onClick={() => handleScheduleVisit(match.id)}
+                  className="flex-1 bg-blue-600 hover:bg-blue-700 rounded-full"
+                  data-testid="confirm-schedule-visit"
+                >
+                  <Calendar className="w-4 h-4 mr-2" />
+                  Confirmar Agendamento
+                </Button>
+                <Button
+                  onClick={() => {
+                    setSchedulingVisit(null);
+                    setVisitDate('');
+                    setVisitTime('');
+                    setVisitNotes('');
+                  }}
+                  variant="outline"
+                  className="rounded-full"
+                >
+                  Cancelar
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <Button
+              onClick={() => setSchedulingVisit(match.id)}
+              className="w-full rounded-full bg-blue-600 hover:bg-blue-700"
+              data-testid={`schedule-visit-${match.id}`}
+            >
+              <Calendar className="w-4 h-4 mr-2" />
+              Agendar Visita
+            </Button>
+          )}
+
+          {/* Follow-ups Section */}
           <Button
             onClick={() => setExpandedMatch(expandedMatch === match.id ? null : match.id)}
             variant="outline"

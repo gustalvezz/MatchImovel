@@ -1,41 +1,66 @@
 <!doctype html>
-<html lang="en">
+<html lang="pt-BR">
     <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <meta name="theme-color" content="#000000" />
-        <meta name="description" content="MatchImovel - A nova forma de comprar imóvel" />
+        <meta name="theme-color" content="#6366f1" />
+        
+        <!-- SEO Meta Tags -->
+        <meta name="description" content="MatchImovel - A nova forma de comprar imóvel. Cadastre seu interesse e deixe os corretores encontrarem o imóvel ideal para você. Curadoria profissional e comissão 60/40." />
+        <meta name="keywords" content="imóveis, comprar apartamento, comprar casa, corretor de imóveis, match imobiliário, São Paulo, Rio de Janeiro, imobiliária online" />
+        <meta name="author" content="MatchImovel" />
+        <meta name="robots" content="index, follow" />
+        
+        <!-- Open Graph / Facebook -->
+        <meta property="og:type" content="website" />
+        <meta property="og:url" content="https://matchimob.com.br/" />
+        <meta property="og:title" content="MatchImovel - O imóvel ideal te encontra" />
+        <meta property="og:description" content="Cansado de procurar imóveis? Cadastre o que você procura e nossa equipe de curadoria trabalha para você." />
+        <meta property="og:image" content="https://matchimob.com.br/og-image.png" />
+        <meta property="og:site_name" content="MatchImovel" />
+        <meta property="og:locale" content="pt_BR" />
+        
+        <!-- Twitter -->
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:url" content="https://matchimob.com.br/" />
+        <meta name="twitter:title" content="MatchImovel - O imóvel ideal te encontra" />
+        <meta name="twitter:description" content="Cansado de procurar imóveis? Cadastre o que você procura e nossa equipe de curadoria trabalha para você." />
+        <meta name="twitter:image" content="https://matchimob.com.br/og-image.png" />
+        
+        <!-- Canonical URL -->
+        <link rel="canonical" href="https://matchimob.com.br/" />
+        
+        <!-- Fonts -->
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@600&display=swap" rel="stylesheet" />
-        <!--
-        manifest.json provides metadata used when your web app is installed on a
-        user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
-        -->
-        <!--
-        Notice the use of %PUBLIC_URL% in the tags above.
-        It will be replaced with the URL of the `public` folder during the build.
-        Only files inside the `public` folder can be referenced from the HTML.
-
-        Unlike "/favicon.ico" or "favicon.ico", "%PUBLIC_URL%/favicon.ico" will
-        work correctly both with client-side routing and a non-root public URL.
-        Learn how to configure a non-root public URL by running `npm run build`.
-        -->
-        <title>MatchImovel | Plataforma Imobiliária</title>
+        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+        
+        <!-- Structured Data / JSON-LD -->
+        <script type="application/ld+json">
+        {
+            "@context": "https://schema.org",
+            "@type": "RealEstateAgent",
+            "name": "MatchImovel",
+            "description": "Plataforma imobiliária que conecta compradores a corretores através de curadoria profissional",
+            "url": "https://matchimob.com.br",
+            "logo": "https://matchimob.com.br/logo.png",
+            "address": {
+                "@type": "PostalAddress",
+                "addressCountry": "BR"
+            },
+            "areaServed": {
+                "@type": "Country",
+                "name": "Brasil"
+            },
+            "priceRange": "$$"
+        }
+        </script>
+        
+        <title>MatchImovel | O imóvel ideal te encontra</title>
         <script>window.addEventListener("error",function(e){if(e.error instanceof DOMException&&e.error.name==="DataCloneError"&&e.message&&e.message.includes("PerformanceServerTiming")){e.stopImmediatePropagation();e.preventDefault()}},true);</script>
     </head>
     <body>
-        <noscript>You need to enable JavaScript to run this app.</noscript>
+        <noscript>Você precisa habilitar JavaScript para usar este aplicativo.</noscript>
         <div id="root"></div>
-        <!--
-      This HTML file is a template.
-      If you open it directly in the browser, you will see an empty page.
-
-      You can add webfonts, meta tags, or analytics to this file.
-      The build step will place the bundled scripts into the <body> tag.
-
-      To begin the development, run `npm start` or `yarn start`.
-      To create a production bundle, use `npm run build` or `yarn build`.
-    -->
     </body>
 </html>
