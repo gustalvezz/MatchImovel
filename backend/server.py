@@ -40,7 +40,7 @@ SMTP_FROM_EMAIL = os.environ.get('SMTP_FROM_EMAIL')
 SMTP_FROM_NAME = os.environ.get('SMTP_FROM_NAME', 'MatchImovel')
 
 # Create the main app
-app = FastAPI()
+app = FastAPI(redirect_slashes=False)
 api_router = APIRouter(prefix="/api")
 security = HTTPBearer()
 
@@ -1742,16 +1742,15 @@ async def send_visit_reminders():
     
     return {"reminders_sent": reminders_sent}
 
-# Include router
-app.include_router(api_router)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_credentials=True,
-    allow_origins=os.environ.get('CORS_ORIGINS', '*').split(','),
+    allow_origins=["*"],
     allow_methods=["*"],
     allow_headers=["*"],
 )
+# Include router
+app.include_router(api_router)
 
 @app.on_event("shutdown")
 async def shutdown_db_client():
