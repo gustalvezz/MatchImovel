@@ -16,7 +16,7 @@ import secrets
 import aiosmtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-from emergentintegrations.llm.chat import LlmChat, UserMessage
+from openai import AsyncOpenAI
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -882,7 +882,7 @@ async def send_bot_message(match_id: str, request: SendMessageRequest, current_u
     interest = await db.interests.find_one({"id": match["interest_id"]}, {"_id": 0})
     
     # Initialize LLM chat
-    api_key = os.environ.get('EMERGENT_LLM_KEY')
+    api_key = os.environ.get('OPENAI_API_KEY')
     system_message = f"""Você é um assistente especializado em coletar informações sobre imóveis.
 O comprador está interessado em: {interest.get('property_type')} em {interest.get('location')}
 Orçamento: R$ {interest.get('min_price'):,.2f} - R$ {interest.get('max_price'):,.2f}
@@ -899,15 +899,19 @@ Sua função é coletar as seguintes informações do corretor sobre o imóvel:
 
 Seja educado, objetivo e faça uma pergunta de cada vez. Quando tiver todas as informações, confirme os dados."""
     
-    chat = LlmChat(
-        api_key=api_key,
-        session_id=match_id,
-        system_message=system_message
-    ).with_model("openai", "gpt-5.2")
+    # Build messages list from conversation history                                                                                                                    
+    messages = [{"role": "system", "content": system_message}]
+    for msg in conversation.get("messages", []):
+      messages.append({"role": msg["role"], "content": msg["content"]})                                                                      
+    messages.append({"role": "user", "content": request.message})
     
     # Send message to LLM
-    user_msg = UserMessage(text=request.message)
-    response = await chat.send_message(user_msg)
+    client = AsyncOpenAI(api_key=api_key)                                                                                                                              
+    completion = await client.chat.completions.create(                                                                                                                 
+        model="gpt-4o",                                                                                                                                                
+        messages=messages,                                                                                                                                             
+    )                                                                                                                                                                  
+    response = completion.choices[0].message.content
     
     # Add assistant message
     assistant_message = {
