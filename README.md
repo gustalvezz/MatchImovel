@@ -16,7 +16,7 @@
 1. **Compradores** registram seus interesses de compra com características detalhadas
 2. **Corretores** buscam compradores compatíveis com imóveis que estão vendendo
 3. **Curadores** (equipe da plataforma) aprovam os matches e intermediam toda a comunicação
-4. **Admin** gerencia usuários, curadores e monitora a plataforma
+4. **Admin** gerencia usuários, curadores e monitora a plataforma!
 
 ---
 
