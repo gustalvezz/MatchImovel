@@ -1512,15 +1512,15 @@ async def send_visit_notification(
     """Send visit notification email"""
     
     if is_2h_reminder:
-        subject = f"⏰ Lembrete: Visita em 2 horas - MatchImovel"
+        subject = "⏰ Lembrete: Visita em 2 horas - MatchImovel"
         title = "Sua visita é em 2 horas!"
         message = f"Lembrando que você tem uma visita agendada para <strong>hoje às {visit_time}</strong>."
     elif is_reminder:
-        subject = f"📅 Lembrete: Visita agendada - MatchImovel"
+        subject = "📅 Lembrete: Visita agendada - MatchImovel"
         title = "Lembrete de visita agendada"
         message = f"Você tem uma visita agendada para <strong>{visit_date} às {visit_time}</strong>."
     else:
-        subject = f"🏠 Visita agendada - MatchImovel"
+        subject = "🏠 Visita agendada - MatchImovel"
         title = "Nova visita agendada!"
         message = f"Uma visita foi agendada para <strong>{visit_date} às {visit_time}</strong>."
     
@@ -1681,7 +1681,6 @@ async def cancel_visit(visit_id: str, current_user: dict = Depends(get_current_u
 async def send_visit_reminders():
     """Internal endpoint to send 2h visit reminders - call this from a scheduler"""
     now = datetime.now(timezone.utc)
-    two_hours_from_now = now + timedelta(hours=2)
     
     # Find visits scheduled in the next 2 hours that haven't had reminder sent
     visits = await db.visits.find({

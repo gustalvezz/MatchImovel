@@ -31,14 +31,20 @@ const AdminLogin = () => {
       const response = await axios.post(`${API}/auth/login`, formData);
       const { token, user_id, role, name } = response.data;
       
-      if (role !== 'admin') {
+      if (role !== 'admin' && role !== 'curator') {
         toast.error('Acesso negado. Apenas administradores podem acessar esta área.');
         return;
       }
       
       login(token, { id: user_id, role, name, email: formData.email });
       toast.success('Login realizado com sucesso!');
-      navigate('/admin/dashboard');
+      
+      // Redirect based on role
+      if (role === 'curator') {
+        navigate('/dashboard/curator');
+      } else {
+        navigate('/admin/dashboard');
+      }
     } catch (error) {
       toast.error(error.response?.data?.detail || 'Email ou senha incorretos');
     } finally {
