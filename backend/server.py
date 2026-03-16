@@ -167,16 +167,16 @@ class BuyerInterestCreate(BaseModel):
 
 class FullInterestCreate(BaseModel):
     """New comprehensive interest form"""
-    profile_type: str  # primeiro_imovel, melhor_localizacao, familia_cresceu, investidor
-    urgency: str  # 3_meses, 6_meses, sem_prazo
+    profile_type: str  # primeiro_imovel, sair_aluguel, melhor_localizacao, familia_cresceu, investidor
+    urgency: str  # 3_meses, 12_meses, sem_prazo
     location: str  # Free text - city and neighborhoods
-    budget_range: str  # ate_400k, 400k_550k, 550k_700k, 700k_800k, acima_800k
+    budget_range: str  # ate_400k, 400k_550k, 550k_700k, 700k_800k, 800k_1500k, acima_1500k
+    property_type: Optional[str] = None  # apartamento, casa, casa_condominio, terreno, etc.
     indispensable: List[str] = []  # Multiple selection
     indispensable_other: Optional[str] = None
-    ambiance: str  # aconchegante, amplo_moderno, apartamento_clean, casa_quintal, casa_padrao
+    ambiance: str  # aconchegante, amplo_moderno, minimalista, casa_campo, alto_padrao
     deal_breakers: List[str] = []  # 1-3 selections
     proximity_needs: List[str] = []  # 1-3 selections
-    personal_style: str  # minimalista, aconchegante, moderno, classico, descobrindo
     experience_fears: Optional[str] = None
     name: str
     phone: str
@@ -474,6 +474,7 @@ async def generate_ai_profile(form_data: dict) -> str:
     try:
         profile_labels = {
             'primeiro_imovel': 'Primeiro Imóvel',
+            'sair_aluguel': 'Sair do Aluguel',
             'melhor_localizacao': 'Mudança por Localização',
             'familia_cresceu': 'Mais Espaço para Família',
             'investidor': 'Investidor'
@@ -481,31 +482,34 @@ async def generate_ai_profile(form_data: dict) -> str:
         
         urgency_labels = {
             '3_meses': 'urgente (3 meses)',
-            '6_meses': 'planejando (6 meses)',
+            '12_meses': 'planejando (12 meses)',
             'sem_prazo': 'pesquisando'
-        }
-        
-        style_labels = {
-            'minimalista': 'minimalista',
-            'aconchegante': 'acolhedor',
-            'moderno': 'moderno',
-            'classico': 'clássico',
-            'descobrindo': 'indefinido'
         }
         
         ambiance_labels = {
             'aconchegante': 'quer aconchego e natureza',
             'amplo_moderno': 'quer amplitude e luz',
-            'apartamento_clean': 'quer modernidade urbana',
-            'casa_quintal': 'quer tranquilidade e quintal',
-            'casa_padrao': 'quer praticidade e boa localização'
+            'minimalista': 'quer simplicidade funcional',
+            'casa_campo': 'quer tranquilidade rural',
+            'alto_padrao': 'quer sofisticação moderna'
+        }
+        
+        property_type_labels = {
+            'apartamento': 'apartamento',
+            'casa': 'casa',
+            'casa_condominio': 'casa de condomínio',
+            'terreno': 'terreno',
+            'terreno_condominio': 'terreno de condomínio',
+            'sala_comercial': 'sala comercial',
+            'predio_comercial': 'prédio comercial',
+            'studio_loft': 'studio/loft'
         }
         
         # Build context
         profile_base = profile_labels.get(form_data.get('profile_type', ''), 'Comprador')
         urgency = urgency_labels.get(form_data.get('urgency', ''), '')
-        style = style_labels.get(form_data.get('personal_style', ''), '')
         ambiance = ambiance_labels.get(form_data.get('ambiance', ''), '')
+        property_type = property_type_labels.get(form_data.get('property_type', ''), '')
         
         prompt = f"""Baseado nas respostas de um comprador de imóvel, crie um PERFIL CURTO (máximo 6 palavras) que descreva esse comprador.
 
@@ -514,7 +518,7 @@ Dados:
 - Urgência: {urgency}
 - Localização desejada: {form_data.get('location', '')}
 - Orçamento: {form_data.get('budget_range', '')}
-- Estilo pessoal: {style}
+- Tipo de imóvel: {property_type}
 - Ambiente ideal: {ambiance}
 - O que incomoda: {', '.join(form_data.get('deal_breakers', [])[:2])}
 - Precisa perto: {', '.join(form_data.get('proximity_needs', [])[:2])}
@@ -552,6 +556,7 @@ Responda APENAS com o perfil, nada mais. Use formato: "CATEGORIA - Descrição c
         logger.error(f"Error generating AI profile: {str(e)}")
         profile_base = {
             'primeiro_imovel': 'PRIMEIRO IMÓVEL',
+            'sair_aluguel': 'SAIR DO ALUGUEL',
             'melhor_localizacao': 'MUDANÇA',
             'familia_cresceu': 'FAMÍLIA',
             'investidor': 'INVESTIDOR'
@@ -605,18 +610,25 @@ async def create_full_interest(form_data: FullInterestCreate):
         '400k_550k': (400000, 550000),
         '550k_700k': (550000, 700000),
         '700k_800k': (700000, 800000),
-        'acima_800k': (800000, 5000000)
+        '800k_1500k': (800000, 1500000),
+        'acima_1500k': (1500000, 10000000)
     }
     min_price, max_price = budget_map.get(form_data.budget_range, (0, 1000000))
     
-    # Determine property type from indispensable choices
-    property_type = 'casa'
-    if 'Aceito apartamento' in form_data.indispensable:
-        property_type = 'apartamento'
-    elif 'Prefiro casa em condomínio' in form_data.indispensable:
-        property_type = 'casa_condominio'
-    elif 'Quero casa em bairro aberto' in form_data.indispensable:
-        property_type = 'casa'
+    # Use property_type directly from form (new field)
+    property_type = form_data.property_type if hasattr(form_data, 'property_type') and form_data.property_type else 'casa'
+    
+    # Map property_type values to display labels
+    property_type_display = {
+        'apartamento': 'Apartamento',
+        'casa': 'Casa',
+        'casa_condominio': 'Casa de condomínio',
+        'terreno': 'Terreno',
+        'terreno_condominio': 'Terreno de condomínio',
+        'sala_comercial': 'Sala comercial',
+        'predio_comercial': 'Prédio comercial',
+        'studio_loft': 'Studio/Loft'
+    }.get(property_type, property_type)
     
     # Extract bedrooms from indispensable
     bedrooms = None
@@ -633,7 +645,8 @@ async def create_full_interest(form_data: FullInterestCreate):
     interest = {
         "id": interest_id,
         "buyer_id": user_id,
-        "property_type": property_type,
+        "property_type": property_type_display,  # Display label
+        "property_type_key": property_type,  # Original key for filtering
         "location": form_data.location,
         "neighborhoods": [],  # Will be extracted by AI search later
         "min_price": min_price,
@@ -650,10 +663,9 @@ async def create_full_interest(form_data: FullInterestCreate):
         "ambiance": form_data.ambiance,
         "deal_breakers": form_data.deal_breakers,
         "proximity_needs": form_data.proximity_needs,
-        "personal_style": form_data.personal_style,
         "experience_fears": form_data.experience_fears,
         "ai_profile": ai_profile,  # AI-generated profile for brokers
-        "form_version": "v2"  # To distinguish from old simple form
+        "form_version": "v3"  # Updated form version
     }
     
     await db.interests.insert_one(interest)

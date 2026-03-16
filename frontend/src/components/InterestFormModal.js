@@ -21,19 +21,19 @@ const InterestFormModal = ({ isOpen, onClose, onSuccess, userInfo }) => {
     urgency: '',
     location: '',
     budget_range: '',
+    property_type: '', // Nova tela 5
     indispensable: [],
     indispensable_other: '',
     ambiance: '',
     deal_breakers: [],
     proximity_needs: [],
-    personal_style: '',
     experience_fears: '',
     name: userInfo?.name || '',
     phone: userInfo?.phone || '',
     email: userInfo?.email || ''
   });
 
-  const totalSteps = 11;
+  const totalSteps = 10; // Agora são 10 telas (removeu a tela de estilo)
 
   const handleSingleSelect = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -60,12 +60,11 @@ const InterestFormModal = ({ isOpen, onClose, onSuccess, userInfo }) => {
       case 1: return formData.urgency !== '';
       case 2: return formData.location.trim() !== '';
       case 3: return formData.budget_range !== '';
-      case 4: return formData.indispensable.length > 0;
-      case 5: return formData.ambiance !== '';
-      case 6: return formData.deal_breakers.length >= 1 && formData.deal_breakers.length <= 3;
-      case 7: return formData.proximity_needs.length >= 1 && formData.proximity_needs.length <= 3;
-      case 8: return formData.personal_style !== '';
-      case 9: return formData.experience_fears.trim() !== ''; // Now required
+      case 4: return formData.property_type !== ''; // Nova tela - tipo de imóvel
+      case 5: return formData.indispensable.length > 0;
+      case 6: return formData.ambiance !== '';
+      case 7: return formData.deal_breakers.length >= 1 && formData.deal_breakers.length <= 3;
+      case 8: return formData.proximity_needs.length >= 1 && formData.proximity_needs.length <= 3;
       default: return true;
     }
   };
@@ -159,6 +158,7 @@ const InterestFormModal = ({ isOpen, onClose, onSuccess, userInfo }) => {
 
   const renderStep = () => {
     switch (currentStep) {
+      // TELA 1: Perfil - Adicionado "Quero sair do aluguel"
       case 0:
         return (
           <div>
@@ -166,13 +166,15 @@ const InterestFormModal = ({ isOpen, onClose, onSuccess, userInfo }) => {
             <p className="text-slate-500 mb-3 text-xs">Selecione uma opção</p>
             <div className="space-y-2">
               <OptionCard selected={formData.profile_type === 'primeiro_imovel'} onClick={() => handleSingleSelect('profile_type', 'primeiro_imovel')} letter="A" title="Comprando meu primeiro imóvel" />
-              <OptionCard selected={formData.profile_type === 'melhor_localizacao'} onClick={() => handleSingleSelect('profile_type', 'melhor_localizacao')} letter="B" title="Quero melhor localização" />
-              <OptionCard selected={formData.profile_type === 'familia_cresceu'} onClick={() => handleSingleSelect('profile_type', 'familia_cresceu')} letter="C" title="Minha família cresceu" />
-              <OptionCard selected={formData.profile_type === 'investidor'} onClick={() => handleSingleSelect('profile_type', 'investidor')} letter="D" title="Buscando para investir" />
+              <OptionCard selected={formData.profile_type === 'sair_aluguel'} onClick={() => handleSingleSelect('profile_type', 'sair_aluguel')} letter="B" title="Quero sair do aluguel" />
+              <OptionCard selected={formData.profile_type === 'melhor_localizacao'} onClick={() => handleSingleSelect('profile_type', 'melhor_localizacao')} letter="C" title="Quero melhor localização" />
+              <OptionCard selected={formData.profile_type === 'familia_cresceu'} onClick={() => handleSingleSelect('profile_type', 'familia_cresceu')} letter="D" title="Minha família cresceu" />
+              <OptionCard selected={formData.profile_type === 'investidor'} onClick={() => handleSingleSelect('profile_type', 'investidor')} letter="E" title="Buscando para investir" />
             </div>
           </div>
         );
 
+      // TELA 2: Urgência - Mudado 6 meses para 12 meses
       case 1:
         return (
           <div>
@@ -180,12 +182,13 @@ const InterestFormModal = ({ isOpen, onClose, onSuccess, userInfo }) => {
             <p className="text-slate-500 mb-3 text-xs">Selecione uma opção</p>
             <div className="space-y-2">
               <OptionCard selected={formData.urgency === '3_meses'} onClick={() => handleSingleSelect('urgency', '3_meses')} letter="A" title="Próximos 3 meses" subtitle="Urgente" />
-              <OptionCard selected={formData.urgency === '6_meses'} onClick={() => handleSingleSelect('urgency', '6_meses')} letter="B" title="Próximos 6 meses" subtitle="Planejando" />
+              <OptionCard selected={formData.urgency === '12_meses'} onClick={() => handleSingleSelect('urgency', '12_meses')} letter="B" title="Próximos 12 meses" subtitle="Planejando" />
               <OptionCard selected={formData.urgency === 'sem_prazo'} onClick={() => handleSingleSelect('urgency', 'sem_prazo')} letter="C" title="Sem prazo definido" subtitle="Pesquisando" />
             </div>
           </div>
         );
 
+      // TELA 3: Localização - Mantido
       case 2:
         return (
           <div>
@@ -203,6 +206,7 @@ const InterestFormModal = ({ isOpen, onClose, onSuccess, userInfo }) => {
           </div>
         );
 
+      // TELA 4: Budget - Mudado E e adicionado F
       case 3:
         return (
           <div>
@@ -213,12 +217,33 @@ const InterestFormModal = ({ isOpen, onClose, onSuccess, userInfo }) => {
               <OptionCard selected={formData.budget_range === '400k_550k'} onClick={() => handleSingleSelect('budget_range', '400k_550k')} letter="B" title="R$ 400 a 550 mil" />
               <OptionCard selected={formData.budget_range === '550k_700k'} onClick={() => handleSingleSelect('budget_range', '550k_700k')} letter="C" title="R$ 550 a 700 mil" />
               <OptionCard selected={formData.budget_range === '700k_800k'} onClick={() => handleSingleSelect('budget_range', '700k_800k')} letter="D" title="R$ 700 a 800 mil" />
-              <OptionCard selected={formData.budget_range === 'acima_800k'} onClick={() => handleSingleSelect('budget_range', 'acima_800k')} letter="E" title="Acima de R$ 800 mil" />
+              <OptionCard selected={formData.budget_range === '800k_1500k'} onClick={() => handleSingleSelect('budget_range', '800k_1500k')} letter="E" title="R$ 800 mil a 1,5 milhão" />
+              <OptionCard selected={formData.budget_range === 'acima_1500k'} onClick={() => handleSingleSelect('budget_range', 'acima_1500k')} letter="F" title="Acima de R$ 1,5 milhão" />
             </div>
           </div>
         );
 
+      // TELA 5: NOVA - O que está procurando?
       case 4:
+        return (
+          <div>
+            <h2 className="text-base md:text-lg font-bold mb-1">O que está procurando?</h2>
+            <p className="text-slate-500 mb-3 text-xs">Selecione o tipo de imóvel</p>
+            <div className="space-y-2">
+              <OptionCard selected={formData.property_type === 'apartamento'} onClick={() => handleSingleSelect('property_type', 'apartamento')} letter="A" title="Apartamento" />
+              <OptionCard selected={formData.property_type === 'casa'} onClick={() => handleSingleSelect('property_type', 'casa')} letter="B" title="Casa" />
+              <OptionCard selected={formData.property_type === 'casa_condominio'} onClick={() => handleSingleSelect('property_type', 'casa_condominio')} letter="C" title="Casa de condomínio" />
+              <OptionCard selected={formData.property_type === 'terreno'} onClick={() => handleSingleSelect('property_type', 'terreno')} letter="D" title="Terreno" />
+              <OptionCard selected={formData.property_type === 'terreno_condominio'} onClick={() => handleSingleSelect('property_type', 'terreno_condominio')} letter="E" title="Terreno de condomínio" />
+              <OptionCard selected={formData.property_type === 'sala_comercial'} onClick={() => handleSingleSelect('property_type', 'sala_comercial')} letter="F" title="Sala comercial" />
+              <OptionCard selected={formData.property_type === 'predio_comercial'} onClick={() => handleSingleSelect('property_type', 'predio_comercial')} letter="G" title="Prédio comercial" />
+              <OptionCard selected={formData.property_type === 'studio_loft'} onClick={() => handleSingleSelect('property_type', 'studio_loft')} letter="H" title="Studio/Loft" />
+            </div>
+          </div>
+        );
+
+      // TELA 6: O que é indispensável - Atualizado
+      case 5:
         return (
           <div>
             <h2 className="text-base md:text-lg font-bold mb-1">O que é indispensável?</h2>
@@ -226,8 +251,9 @@ const InterestFormModal = ({ isOpen, onClose, onSuccess, userInfo }) => {
             <div className="grid grid-cols-2 gap-1.5">
               {[
                 '2+ quartos', '3+ quartos', 'Suíte', '2+ vagas',
-                'Área de lazer', 'Home office', 'Área gourmet', 'Apartamento',
-                'Casa condomínio', 'Casa bairro', 'Piscina', 'Térrea'
+                'Home office', 'Área gourmet', 'Varanda Gourmet', 'Piscina',
+                'Térrea', 'Terreno grande', 'Porteira fechada', 'Elevador',
+                'Área de lazer completa'
               ].map((item) => (
                 <CheckboxCard
                   key={item}
@@ -246,7 +272,8 @@ const InterestFormModal = ({ isOpen, onClose, onSuccess, userInfo }) => {
           </div>
         );
 
-      case 5:
+      // TELA 7: Qual ambiente te traz alívio - Atualizado opções C, D, E
+      case 6:
         return (
           <div>
             <h2 className="text-base md:text-lg font-bold mb-1">Qual ambiente te traz mais alívio?</h2>
@@ -254,14 +281,15 @@ const InterestFormModal = ({ isOpen, onClose, onSuccess, userInfo }) => {
             <div className="space-y-2">
               <OptionCard selected={formData.ambiance === 'aconchegante'} onClick={() => handleSingleSelect('ambiance', 'aconchegante')} letter="A" title="Aconchegante" subtitle="Plantas, madeira, natureza" />
               <OptionCard selected={formData.ambiance === 'amplo_moderno'} onClick={() => handleSingleSelect('ambiance', 'amplo_moderno')} letter="B" title="Amplo e moderno" subtitle="Luz natural, janelas grandes" />
-              <OptionCard selected={formData.ambiance === 'apartamento_clean'} onClick={() => handleSingleSelect('ambiance', 'apartamento_clean')} letter="C" title="Apartamento clean" subtitle="Vista para cidade" />
-              <OptionCard selected={formData.ambiance === 'casa_quintal'} onClick={() => handleSingleSelect('ambiance', 'casa_quintal')} letter="D" title="Casa com quintal" subtitle="Silêncio, distância do centro" />
-              <OptionCard selected={formData.ambiance === 'casa_padrao'} onClick={() => handleSingleSelect('ambiance', 'casa_padrao')} letter="E" title="Casa padrão" subtitle="Privacidade, boa localização" />
+              <OptionCard selected={formData.ambiance === 'minimalista'} onClick={() => handleSingleSelect('ambiance', 'minimalista')} letter="C" title="Arquitetura minimalista" subtitle="Simples e funcional" />
+              <OptionCard selected={formData.ambiance === 'casa_campo'} onClick={() => handleSingleSelect('ambiance', 'casa_campo')} letter="D" title="Casa de campo" subtitle="Tranquilidade e natureza" />
+              <OptionCard selected={formData.ambiance === 'alto_padrao'} onClick={() => handleSingleSelect('ambiance', 'alto_padrao')} letter="E" title="Alto Padrão" subtitle="Moderno e sofisticado" />
             </div>
           </div>
         );
 
-      case 6:
+      // TELA 8: O que mais te incomoda - Mantido
+      case 7:
         return (
           <div>
             <h2 className="text-base md:text-lg font-bold mb-1">O que mais te incomoda?</h2>
@@ -284,7 +312,8 @@ const InterestFormModal = ({ isOpen, onClose, onSuccess, userInfo }) => {
           </div>
         );
 
-      case 7:
+      // TELA 9: O que precisa estar perto - Adicionado "Tanto faz"
+      case 8:
         return (
           <div>
             <h2 className="text-base md:text-lg font-bold mb-1">O que precisa estar perto?</h2>
@@ -292,64 +321,63 @@ const InterestFormModal = ({ isOpen, onClose, onSuccess, userInfo }) => {
             <div className="grid grid-cols-2 gap-1.5">
               {[
                 'Escola/creche', 'Mercado', 'Academia', 'Parque/área verde',
-                'Trabalho', 'Restaurantes', 'Transporte público'
+                'Trabalho', 'Restaurantes', 'Transporte público', 'Tanto faz'
               ].map((item) => (
                 <CheckboxCard
                   key={item}
                   selected={formData.proximity_needs.includes(item)}
-                  onClick={() => handleMultiSelect('proximity_needs', item, 3)}
+                  onClick={() => {
+                    // Se clicar em "Tanto faz", limpa os outros e seleciona só ele
+                    if (item === 'Tanto faz') {
+                      if (formData.proximity_needs.includes('Tanto faz')) {
+                        setFormData(prev => ({ ...prev, proximity_needs: [] }));
+                      } else {
+                        setFormData(prev => ({ ...prev, proximity_needs: ['Tanto faz'] }));
+                      }
+                    } else {
+                      // Se já tem "Tanto faz" selecionado, remove ao selecionar outro
+                      if (formData.proximity_needs.includes('Tanto faz')) {
+                        setFormData(prev => ({ ...prev, proximity_needs: [item] }));
+                      } else {
+                        handleMultiSelect('proximity_needs', item, 3);
+                      }
+                    }
+                  }}
                   text={item}
-                  disabled={formData.proximity_needs.length >= 3 && !formData.proximity_needs.includes(item)}
+                  disabled={
+                    item !== 'Tanto faz' && 
+                    !formData.proximity_needs.includes('Tanto faz') &&
+                    formData.proximity_needs.length >= 3 && 
+                    !formData.proximity_needs.includes(item)
+                  }
                 />
               ))}
             </div>
-            <p className="text-xs text-slate-500 mt-2 text-center">{formData.proximity_needs.length}/3 selecionados</p>
+            {!formData.proximity_needs.includes('Tanto faz') && (
+              <p className="text-xs text-slate-500 mt-2 text-center">{formData.proximity_needs.length}/3 selecionados</p>
+            )}
           </div>
         );
 
-      case 8:
-        return (
-          <div>
-            <h2 className="text-base md:text-lg font-bold mb-1">Seu estilo pessoal</h2>
-            <p className="text-slate-500 mb-3 text-xs">Selecione uma opção</p>
-            <div className="space-y-2">
-              <OptionCard selected={formData.personal_style === 'minimalista'} onClick={() => handleSingleSelect('personal_style', 'minimalista')} letter="A" title="Minimalista" subtitle="Menos é mais" />
-              <OptionCard selected={formData.personal_style === 'aconchegante'} onClick={() => handleSingleSelect('personal_style', 'aconchegante')} letter="B" title="Aconchegante" subtitle="Um lar de verdade" />
-              <OptionCard selected={formData.personal_style === 'moderno'} onClick={() => handleSingleSelect('personal_style', 'moderno')} letter="C" title="Moderno" subtitle="Design contemporâneo" />
-              <OptionCard selected={formData.personal_style === 'classico'} onClick={() => handleSingleSelect('personal_style', 'classico')} letter="D" title="Clássico" subtitle="Atemporal" />
-              <OptionCard selected={formData.personal_style === 'descobrindo'} onClick={() => handleSingleSelect('personal_style', 'descobrindo')} letter="E" title="Ainda descobrindo" />
-            </div>
-          </div>
-        );
-
+      // TELA 10: Campo aberto - Última tela
       case 9:
         return (
-          <div>
-            <h2 className="text-base md:text-lg font-bold mb-1">Informação extra para a busca *</h2>
-            <p className="text-slate-500 mb-3 text-xs">Acrescente detalhes que ajudem a encontrar seu imóvel ideal</p>
-            <Textarea
-              value={formData.experience_fears}
-              onChange={(e) => setFormData(prev => ({ ...prev, experience_fears: e.target.value }))}
-              placeholder="Ex: Preciso de espaço para pets, tenho home office, prefiro andar alto..."
-              className="min-h-[100px] text-sm rounded-lg border-2 resize-none"
-            />
-          </div>
-        );
-
-      case 10:
-        return (
-          <div className="text-center py-4">
+          <div className="text-center py-2">
             <motion.div
               initial={{ scale: 0 }}
               animate={{ scale: 1 }}
-              className="w-14 h-14 bg-gradient-to-br from-green-500 to-emerald-600 rounded-full mx-auto mb-4 flex items-center justify-center"
+              className="w-12 h-12 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full mx-auto mb-3 flex items-center justify-center"
             >
-              <Check className="w-7 h-7 text-white" />
+              <Home className="w-6 h-6 text-white" />
             </motion.div>
-            <h2 className="text-lg font-bold mb-2">Tudo pronto!</h2>
-            <p className="text-slate-600 text-sm mb-4">
-              Clique em finalizar para cadastrar. Nossa equipe analisará seu perfil e enviará sugestões personalizadas.
-            </p>
+            <h2 className="text-base md:text-lg font-bold mb-1">Quase lá!</h2>
+            <p className="text-slate-500 mb-3 text-xs">Informação extra para nos ajudar na busca (opcional)</p>
+            <Textarea
+              value={formData.experience_fears}
+              onChange={(e) => setFormData(prev => ({ ...prev, experience_fears: e.target.value }))}
+              placeholder="Ex: Preciso de espaço para pets, tenho home office, prefiro andar alto, aceito permuta..."
+              className="min-h-[80px] text-sm rounded-lg border-2 resize-none mb-4"
+            />
             <Button
               onClick={handleSubmit}
               disabled={isSubmitting}
@@ -374,7 +402,6 @@ const InterestFormModal = ({ isOpen, onClose, onSuccess, userInfo }) => {
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         className="fixed inset-0 z-50 flex items-center justify-center p-3 md:p-4 bg-black/50 backdrop-blur-sm"
-        // Removed onClick={onClose} - no closing on backdrop click
       >
         <motion.div
           initial={{ scale: 0.95, opacity: 0 }}
@@ -410,8 +437,8 @@ const InterestFormModal = ({ isOpen, onClose, onSuccess, userInfo }) => {
             </div>
           </div>
 
-          {/* Content - No scroll, fits in viewport */}
-          <div className="flex-1 p-4 md:p-5">
+          {/* Content */}
+          <div className="flex-1 p-4 md:p-5 overflow-y-auto">
             <AnimatePresence mode="wait">
               <motion.div
                 key={currentStep}
@@ -426,7 +453,7 @@ const InterestFormModal = ({ isOpen, onClose, onSuccess, userInfo }) => {
           </div>
 
           {/* Footer */}
-          {currentStep < 10 && (
+          {currentStep < 9 && (
             <div className="flex-shrink-0 bg-white border-t px-4 py-3 flex justify-between rounded-b-2xl">
               <Button
                 onClick={prevStep}
