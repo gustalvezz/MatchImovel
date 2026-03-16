@@ -78,6 +78,345 @@ async def send_email(to_email: str, subject: str, html_content: str) -> bool:
         logger.error(f"Failed to send email to {to_email}: {str(e)}")
         return False
 
+# ============ EMAIL NOTIFICATION FUNCTIONS ============
+
+async def send_interest_registered_email(buyer_email: str, buyer_name: str, interest_data: dict) -> bool:
+    """Send email to buyer when interest is registered"""
+    
+    property_type_labels = {
+        'apartamento': 'Apartamento',
+        'casa': 'Casa',
+        'casa_condominio': 'Casa de condomínio',
+        'terreno': 'Terreno',
+        'terreno_condominio': 'Terreno de condomínio',
+        'sala_comercial': 'Sala comercial',
+        'predio_comercial': 'Prédio comercial',
+        'studio_loft': 'Studio/Loft'
+    }
+    
+    budget_labels = {
+        'ate_400k': 'Até R$ 400 mil',
+        '400k_550k': 'R$ 400 a 550 mil',
+        '550k_700k': 'R$ 550 a 700 mil',
+        '700k_800k': 'R$ 700 a 800 mil',
+        '800k_1500k': 'R$ 800 mil a 1,5 milhão',
+        'acima_1500k': 'Acima de R$ 1,5 milhão'
+    }
+    
+    property_type = interest_data.get('property_type', 'Imóvel')
+    if property_type in property_type_labels:
+        property_type = property_type_labels[property_type]
+    
+    budget = budget_labels.get(interest_data.get('budget_range', ''), 'A definir')
+    location = interest_data.get('location', 'A definir')
+    
+    subject = "Seu interesse foi cadastrado com sucesso! - MatchImovel"
+    
+    html_content = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="UTF-8">
+        <style>
+            body {{ font-family: 'Segoe UI', Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; background-color: #f4f4f4; }}
+            .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
+            .header {{ background: linear-gradient(135deg, #6366f1, #8b5cf6); padding: 40px 30px; text-align: center; border-radius: 16px 16px 0 0; }}
+            .header h1 {{ color: white; margin: 0; font-size: 28px; }}
+            .header p {{ color: rgba(255,255,255,0.9); margin-top: 10px; font-size: 16px; }}
+            .content {{ background: white; padding: 40px 30px; border-radius: 0 0 16px 16px; }}
+            .greeting {{ font-size: 20px; font-weight: 600; color: #1e293b; margin-bottom: 20px; }}
+            .info-card {{ background: #f0f4ff; padding: 24px; border-radius: 12px; margin: 24px 0; border-left: 4px solid #6366f1; }}
+            .info-card h3 {{ margin: 0 0 16px 0; color: #4f46e5; font-size: 18px; }}
+            .info-row {{ display: flex; margin: 8px 0; }}
+            .info-label {{ font-weight: 600; color: #64748b; min-width: 120px; }}
+            .info-value {{ color: #1e293b; }}
+            .next-steps {{ background: #fef3c7; padding: 24px; border-radius: 12px; margin: 24px 0; }}
+            .next-steps h3 {{ margin: 0 0 16px 0; color: #92400e; font-size: 18px; }}
+            .next-steps ul {{ margin: 0; padding-left: 20px; color: #78350f; }}
+            .next-steps li {{ margin: 8px 0; }}
+            .highlight {{ background: #e0e7ff; padding: 20px; border-radius: 12px; margin: 24px 0; text-align: center; }}
+            .highlight p {{ margin: 0; color: #4338ca; font-weight: 500; }}
+            .footer {{ text-align: center; margin-top: 30px; color: #64748b; font-size: 12px; }}
+            .emoji {{ font-size: 24px; }}
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="header">
+                <h1>MatchImovel</h1>
+                <p>Seu interesse foi cadastrado com sucesso!</p>
+            </div>
+            <div class="content">
+                <p class="greeting">Olá, {buyer_name}! <span class="emoji">👋</span></p>
+                
+                <p>Parabéns! Seu interesse de compra foi registrado em nossa plataforma. Agora nossa equipe de especialistas vai trabalhar para encontrar o imóvel ideal para você.</p>
+                
+                <div class="info-card">
+                    <h3>📋 Resumo do seu interesse</h3>
+                    <div class="info-row">
+                        <span class="info-label">Tipo de imóvel:</span>
+                        <span class="info-value">{property_type}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Localização:</span>
+                        <span class="info-value">{location}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Investimento:</span>
+                        <span class="info-value">{budget}</span>
+                    </div>
+                </div>
+                
+                <div class="next-steps">
+                    <h3>📞 Próximos passos</h3>
+                    <ul>
+                        <li><strong>Um curador especialista da equipe MatchImovel entrará em contato pelo telefone cadastrado</strong> para confirmar e detalhar ainda mais seu perfil.</li>
+                        <li>Esse contato é muito importante para que possamos <strong>filtrar as ofertas</strong> e enviar apenas opções que realmente façam sentido para você.</li>
+                        <li>O curador é um <strong>corretor habilitado</strong> que irá acompanhá-lo em todo o processo de compra, desde a busca até a assinatura do contrato.</li>
+                    </ul>
+                </div>
+                
+                <div class="highlight">
+                    <p><span class="emoji">🎯</span> Nosso objetivo é conectar você ao imóvel perfeito, sem perda de tempo com opções que não fazem sentido!</p>
+                </div>
+                
+                <p>Enquanto isso, fique tranquilo! Corretores parceiros já podem visualizar seu perfil e enviar ofertas compatíveis com o que você busca.</p>
+                
+                <p>Qualquer dúvida, estamos à disposição!</p>
+                
+                <p>Abraços,<br><strong>Equipe MatchImovel</strong></p>
+            </div>
+            <div class="footer">
+                <p>&copy; 2026 MatchImovel - Todos os direitos reservados</p>
+                <p>Este é um email automático, por favor não responda.</p>
+            </div>
+        </div>
+    </body>
+    </html>
+    """
+    
+    return await send_email(buyer_email, subject, html_content)
+
+
+async def send_match_approved_buyer_email(buyer_email: str, buyer_name: str) -> bool:
+    """Send email to buyer when a match is approved"""
+    
+    subject = "Wohoo! Um novo match foi encontrado! - MatchImovel"
+    
+    html_content = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="UTF-8">
+        <style>
+            body {{ font-family: 'Segoe UI', Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; background-color: #f4f4f4; }}
+            .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
+            .header {{ background: linear-gradient(135deg, #10b981, #059669); padding: 40px 30px; text-align: center; border-radius: 16px 16px 0 0; }}
+            .header h1 {{ color: white; margin: 0; font-size: 32px; }}
+            .celebration {{ font-size: 48px; margin-bottom: 10px; }}
+            .content {{ background: white; padding: 40px 30px; border-radius: 0 0 16px 16px; text-align: center; }}
+            .greeting {{ font-size: 22px; font-weight: 600; color: #1e293b; margin-bottom: 20px; }}
+            .message-box {{ background: linear-gradient(135deg, #ecfdf5, #d1fae5); padding: 30px; border-radius: 16px; margin: 24px 0; }}
+            .message-box p {{ margin: 0; font-size: 18px; color: #065f46; }}
+            .whatsapp-info {{ background: #dcfce7; padding: 20px; border-radius: 12px; margin: 24px 0; border: 2px solid #22c55e; }}
+            .whatsapp-info p {{ margin: 0; color: #166534; font-weight: 500; }}
+            .footer {{ text-align: center; margin-top: 30px; color: #64748b; font-size: 12px; }}
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="header">
+                <div class="celebration">🎉</div>
+                <h1>Wohoo!</h1>
+            </div>
+            <div class="content">
+                <p class="greeting">Olá, {buyer_name}!</p>
+                
+                <div class="message-box">
+                    <p><strong>Um novo match foi encontrado para você!</strong></p>
+                    <p style="margin-top: 16px;">Um corretor parceiro encontrou um imóvel que pode ser perfeito para o que você procura! 🏠</p>
+                </div>
+                
+                <div class="whatsapp-info">
+                    <p>📱 <strong>Seu curador irá enviar mais detalhes do imóvel via WhatsApp em breve!</strong></p>
+                </div>
+                
+                <p>Fique de olho no seu celular e prepare-se para conhecer essa oportunidade!</p>
+                
+                <p style="margin-top: 30px;">Abraços,<br><strong>Equipe MatchImovel</strong></p>
+            </div>
+            <div class="footer">
+                <p>&copy; 2026 MatchImovel - Todos os direitos reservados</p>
+            </div>
+        </div>
+    </body>
+    </html>
+    """
+    
+    return await send_email(buyer_email, subject, html_content)
+
+
+async def send_match_approved_agent_email(agent_email: str, agent_name: str, buyer_name: str) -> bool:
+    """Send email to agent when their match is approved"""
+    
+    subject = "Seu match foi aprovado! - MatchImovel"
+    
+    html_content = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="UTF-8">
+        <style>
+            body {{ font-family: 'Segoe UI', Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; background-color: #f4f4f4; }}
+            .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
+            .header {{ background: linear-gradient(135deg, #6366f1, #8b5cf6); padding: 40px 30px; text-align: center; border-radius: 16px 16px 0 0; }}
+            .header h1 {{ color: white; margin: 0; font-size: 28px; }}
+            .checkmark {{ font-size: 48px; margin-bottom: 10px; }}
+            .content {{ background: white; padding: 40px 30px; border-radius: 0 0 16px 16px; }}
+            .greeting {{ font-size: 20px; font-weight: 600; color: #1e293b; margin-bottom: 20px; }}
+            .success-box {{ background: #f0fdf4; padding: 24px; border-radius: 12px; margin: 24px 0; border-left: 4px solid #22c55e; }}
+            .success-box p {{ margin: 0; color: #166534; }}
+            .info-box {{ background: #eff6ff; padding: 24px; border-radius: 12px; margin: 24px 0; }}
+            .info-box p {{ margin: 0; color: #1e40af; }}
+            .footer {{ text-align: center; margin-top: 30px; color: #64748b; font-size: 12px; }}
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="header">
+                <div class="checkmark">✅</div>
+                <h1>Match Aprovado!</h1>
+            </div>
+            <div class="content">
+                <p class="greeting">Olá, {agent_name}!</p>
+                
+                <div class="success-box">
+                    <p><strong>Ótima notícia!</strong> Seu match com <strong>{buyer_name}</strong> foi aprovado pela nossa equipe de curadoria!</p>
+                </div>
+                
+                <div class="info-box">
+                    <p>📋 <strong>Próximos passos:</strong></p>
+                    <p style="margin-top: 12px;">Aguarde o contato da equipe MatchImovel. Nosso curador irá intermediar a comunicação entre você e o comprador para agendar uma visita ao imóvel.</p>
+                </div>
+                
+                <p>Obrigado por fazer parte da nossa rede de corretores parceiros!</p>
+                
+                <p style="margin-top: 30px;">Abraços,<br><strong>Equipe MatchImovel</strong></p>
+            </div>
+            <div class="footer">
+                <p>&copy; 2026 MatchImovel - Todos os direitos reservados</p>
+            </div>
+        </div>
+    </body>
+    </html>
+    """
+    
+    return await send_email(agent_email, subject, html_content)
+
+
+async def send_deletion_notification_curator(
+    curator_email: str, 
+    curator_name: str, 
+    deletion_type: str,  # 'interest' or 'match'
+    deleted_by_name: str,
+    deleted_by_email: str,
+    deleted_by_phone: str,
+    reason: str,
+    description: str
+) -> bool:
+    """Send email to curator when an interest or match is deleted"""
+    
+    reason_labels = {
+        'ja_comprei': 'Já comprei um imóvel',
+        'mudei_planos': 'Mudei de planos',
+        'nao_interessado': 'Não tenho mais interesse',
+        'imovel_vendido': 'Imóvel já vendeu',
+        'proprietario_desistiu': 'Proprietário desistiu da venda',
+        'outro': 'Outro motivo'
+    }
+    
+    reason_text = reason_labels.get(reason, reason)
+    
+    if deletion_type == 'interest':
+        subject = "⚠️ Interesse excluído por comprador - MatchImovel"
+        title = "Um comprador excluiu seu interesse"
+        person_type = "Comprador"
+    else:
+        subject = "⚠️ Match excluído por corretor - MatchImovel"
+        title = "Um corretor excluiu um match"
+        person_type = "Corretor"
+    
+    html_content = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="UTF-8">
+        <style>
+            body {{ font-family: 'Segoe UI', Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; background-color: #f4f4f4; }}
+            .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
+            .header {{ background: linear-gradient(135deg, #f59e0b, #d97706); padding: 40px 30px; text-align: center; border-radius: 16px 16px 0 0; }}
+            .header h1 {{ color: white; margin: 0; font-size: 24px; }}
+            .warning {{ font-size: 48px; margin-bottom: 10px; }}
+            .content {{ background: white; padding: 40px 30px; border-radius: 0 0 16px 16px; }}
+            .greeting {{ font-size: 18px; font-weight: 600; color: #1e293b; margin-bottom: 20px; }}
+            .info-card {{ background: #fef3c7; padding: 24px; border-radius: 12px; margin: 24px 0; border-left: 4px solid #f59e0b; }}
+            .info-card h3 {{ margin: 0 0 16px 0; color: #92400e; font-size: 16px; }}
+            .info-row {{ margin: 8px 0; }}
+            .info-label {{ font-weight: 600; color: #78350f; }}
+            .info-value {{ color: #451a03; }}
+            .reason-box {{ background: #fee2e2; padding: 20px; border-radius: 12px; margin: 24px 0; }}
+            .reason-box h4 {{ margin: 0 0 12px 0; color: #991b1b; }}
+            .reason-box p {{ margin: 0; color: #7f1d1d; }}
+            .footer {{ text-align: center; margin-top: 30px; color: #64748b; font-size: 12px; }}
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="header">
+                <div class="warning">⚠️</div>
+                <h1>{title}</h1>
+            </div>
+            <div class="content">
+                <p class="greeting">Olá, {curator_name}!</p>
+                
+                <p>Informamos que um {deletion_type} vinculado a você foi excluído. Veja os detalhes abaixo:</p>
+                
+                <div class="info-card">
+                    <h3>👤 Dados do {person_type}</h3>
+                    <div class="info-row">
+                        <span class="info-label">Nome:</span>
+                        <span class="info-value">{deleted_by_name}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Email:</span>
+                        <span class="info-value">{deleted_by_email}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Telefone:</span>
+                        <span class="info-value">{deleted_by_phone or 'Não informado'}</span>
+                    </div>
+                </div>
+                
+                <div class="reason-box">
+                    <h4>📝 Motivo da exclusão</h4>
+                    <p><strong>{reason_text}</strong></p>
+                    {f'<p style="margin-top: 12px;">{description}</p>' if description else ''}
+                </div>
+                
+                <p>Se necessário, entre em contato com a pessoa para entender melhor a situação.</p>
+                
+                <p style="margin-top: 30px;">Atenciosamente,<br><strong>Equipe MatchImovel</strong></p>
+            </div>
+            <div class="footer">
+                <p>&copy; 2026 MatchImovel - Todos os direitos reservados</p>
+            </div>
+        </div>
+    </body>
+    </html>
+    """
+    
+    return await send_email(curator_email, subject, html_content)
+
 # Helper functions
 def hash_password(password: str) -> str:
     return bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
@@ -429,6 +768,28 @@ async def delete_interest(interest_id: str, reason_data: DeleteReason, current_u
     if not interest:
         raise HTTPException(status_code=404, detail="Interesse não encontrado")
     
+    # Get buyer info for notification
+    buyer = await db.buyers.find_one({"user_id": current_user["user_id"]}, {"_id": 0})
+    buyer_user = await db.users.find_one({"id": current_user["user_id"]}, {"_id": 0})
+    
+    # Find matches related to this interest and notify curators
+    related_matches = await db.matches.find({"interest_id": interest_id}, {"_id": 0}).to_list(100)
+    
+    for match in related_matches:
+        if match.get("curator_id"):
+            curator = await db.users.find_one({"id": match["curator_id"]}, {"_id": 0})
+            if curator and curator.get("email"):
+                await send_deletion_notification_curator(
+                    curator_email=curator["email"],
+                    curator_name=curator.get("name", "Curador"),
+                    deletion_type="interest",
+                    deleted_by_name=buyer.get("name") if buyer else buyer_user.get("name", "Comprador"),
+                    deleted_by_email=buyer.get("email") if buyer else buyer_user.get("email", ""),
+                    deleted_by_phone=buyer.get("phone") if buyer else buyer_user.get("phone", ""),
+                    reason=reason_data.reason,
+                    description=reason_data.other_reason or ""
+                )
+    
     # Store deletion record
     deletion_record = {
         "id": str(uuid.uuid4()),
@@ -670,6 +1031,18 @@ async def create_full_interest(form_data: FullInterestCreate):
     
     await db.interests.insert_one(interest)
     
+    # Send email notification to buyer
+    if form_data.email:
+        await send_interest_registered_email(
+            buyer_email=form_data.email,
+            buyer_name=form_data.name,
+            interest_data={
+                'property_type': form_data.property_type,
+                'budget_range': form_data.budget_range,
+                'location': form_data.location
+            }
+        )
+    
     return {
         "status": "success",
         "message": "Interesse cadastrado com sucesso!",
@@ -819,6 +1192,25 @@ async def delete_match(match_id: str, reason_data: DeleteReason, current_user: d
     match = await db.matches.find_one({"id": match_id, "agent_id": current_user["user_id"]}, {"_id": 0})
     if not match:
         raise HTTPException(status_code=404, detail="Match não encontrado")
+    
+    # Get agent info for notification
+    agent = await db.agents.find_one({"user_id": current_user["user_id"]}, {"_id": 0})
+    agent_user = await db.users.find_one({"id": current_user["user_id"]}, {"_id": 0})
+    
+    # Notify curator if exists
+    if match.get("curator_id"):
+        curator = await db.users.find_one({"id": match["curator_id"]}, {"_id": 0})
+        if curator and curator.get("email"):
+            await send_deletion_notification_curator(
+                curator_email=curator["email"],
+                curator_name=curator.get("name", "Curador"),
+                deletion_type="match",
+                deleted_by_name=agent.get("name") if agent else agent_user.get("name", "Corretor"),
+                deleted_by_email=agent.get("email") if agent else agent_user.get("email", ""),
+                deleted_by_phone=agent.get("phone") if agent else agent_user.get("phone", ""),
+                reason=reason_data.reason,
+                description=reason_data.other_reason or ""
+            )
     
     # Store deletion record
     deletion_record = {
@@ -1023,6 +1415,29 @@ async def curate_match(match_id: str, decision: CurationDecision, current_user: 
         "created_at": datetime.now(timezone.utc).isoformat()
     }
     await db.curations.insert_one(curation_doc)
+    
+    # Send email notifications if approved
+    if decision.approved:
+        # Get buyer info
+        buyer = await db.buyers.find_one({"user_id": match["buyer_id"]}, {"_id": 0})
+        buyer_user = await db.users.find_one({"id": match["buyer_id"]}, {"_id": 0})
+        
+        if buyer and (buyer.get("email") or buyer_user.get("email")):
+            await send_match_approved_buyer_email(
+                buyer_email=buyer.get("email") or buyer_user.get("email"),
+                buyer_name=buyer.get("name", "Comprador")
+            )
+        
+        # Get agent info
+        agent = await db.agents.find_one({"user_id": match["agent_id"]}, {"_id": 0})
+        agent_user = await db.users.find_one({"id": match["agent_id"]}, {"_id": 0})
+        
+        if agent and (agent.get("email") or agent_user.get("email")):
+            await send_match_approved_agent_email(
+                agent_email=agent.get("email") or agent_user.get("email"),
+                agent_name=agent.get("name", "Corretor"),
+                buyer_name=buyer.get("name", "Comprador") if buyer else "Comprador"
+            )
     
     return {"status": "success", "new_status": new_status}
 

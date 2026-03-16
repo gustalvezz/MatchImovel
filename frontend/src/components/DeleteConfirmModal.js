@@ -16,13 +16,24 @@ const DeleteConfirmModal = ({ type, item, onClose, onSuccess }) => {
   const [selectedReason, setSelectedReason] = useState('');
   const [otherReason, setOtherReason] = useState('');
 
-  const reasons = [
-    { value: 'ja_comprei', label: type === 'interest' ? 'Já comprei um imóvel' : 'Imóvel já vendido' },
-    { value: 'imovel_vendido', label: 'Imóvel já foi vendido' },
+  // Diferentes opções para interesse vs match
+  const interestReasons = [
+    { value: 'ja_comprei', label: 'Já comprei um imóvel' },
     { value: 'mudei_planos', label: 'Mudei de planos' },
     { value: 'nao_interessado', label: 'Não tenho mais interesse' },
     { value: 'outro', label: 'Outro motivo' }
   ];
+
+  const matchReasons = [
+    { value: 'imovel_vendido', label: 'Imóvel já vendeu' },
+    { value: 'proprietario_desistiu', label: 'Proprietário desistiu da venda' },
+    { value: 'outro', label: 'Outro motivo' }
+  ];
+
+  const reasons = type === 'interest' ? interestReasons : matchReasons;
+
+  // Descrição obrigatória para "outro" no interesse OU sempre obrigatória no match
+  const isDescriptionRequired = type === 'match' || selectedReason === 'outro';
 
   const handleDelete = async () => {
     if (!selectedReason) {
@@ -30,8 +41,10 @@ const DeleteConfirmModal = ({ type, item, onClose, onSuccess }) => {
       return;
     }
 
-    if (selectedReason === 'outro' && !otherReason.trim()) {
-      toast.error('Descreva o motivo da exclusão');
+    // Para match, descrição é sempre obrigatória
+    // Para interesse, descrição só é obrigatória se "outro" for selecionado
+    if (isDescriptionRequired && !otherReason.trim()) {
+      toast.error('A descrição é obrigatória');
       return;
     }
 
@@ -39,7 +52,7 @@ const DeleteConfirmModal = ({ type, item, onClose, onSuccess }) => {
     try {
       const payload = {
         reason: selectedReason,
-        other_reason: selectedReason === 'outro' ? otherReason : null
+        other_reason: otherReason.trim() || null
       };
 
       if (type === 'interest') {
@@ -105,21 +118,28 @@ const DeleteConfirmModal = ({ type, item, onClose, onSuccess }) => {
               ))}
             </div>
 
-            {selectedReason === 'outro' && (
+            {/* Mostrar descrição quando necessário */}
+            {(selectedReason === 'outro' || (type === 'match' && selectedReason)) && (
               <motion.div
                 initial={{ opacity: 0, height: 0 }}
                 animate={{ opacity: 1, height: 'auto' }}
                 exit={{ opacity: 0, height: 0 }}
               >
-                <Label htmlFor="other-reason" className="text-sm">Descreva o motivo</Label>
+                <Label htmlFor="other-reason" className="text-sm">
+                  {type === 'match' ? 'Descrição *' : 'Descreva o motivo *'}
+                </Label>
                 <Textarea
                   data-testid="delete-other-reason-input"
                   id="other-reason"
                   value={otherReason}
                   onChange={(e) => setOtherReason(e.target.value)}
                   className="mt-2 rounded-xl min-h-24"
-                  placeholder="Explique o motivo da exclusão..."
+                  placeholder={type === 'match' 
+                    ? "Descreva os detalhes da exclusão..." 
+                    : "Explique o motivo da exclusão..."
+                  }
                 />
+                <p className="text-xs text-muted-foreground mt-1">* Campo obrigatório</p>
               </motion.div>
             )}
           </div>
