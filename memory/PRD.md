@@ -10,10 +10,10 @@ Plataforma imobiliária que conecta compradores interessados a corretores atrav�
 4. **Admin**: Gerencia usuários, curadores e visualiza analytics
 
 ## Fluxo Principal
-1. Comprador se registra → Preenche formulário de interesse (10 telas)
+1. Comprador se registra → Preenche formulário de interesse (10 telas) → Recebe email de confirmação
 2. IA gera perfil do comprador baseado nas respostas
-3. Corretor busca compradores → Dá match com informações do imóvel
-4. Curador avalia o match → Aprova/Rejeita
+3. Corretor busca compradores → Dá match com informações do imóvel (modal obrigatório)
+4. Curador avalia o match → Aprova/Rejeita → Emails enviados ao comprador e corretor
 5. Curador agenda visita → Notificações por email enviadas
 6. Processo de intermediação até fechamento
 
@@ -27,7 +27,7 @@ Plataforma imobiliária que conecta compradores interessados a corretores atrav�
 - [x] Admin login separado (/admin/login)
 - [x] Curador login via área admin
 
-### Formulário de Interesse (v3) - Atualizado 15/03/2026
+### Formulário de Interesse (v3) - Atualizado 16/03/2026
 - [x] **Tela 1**: Perfil (5 opções incluindo "Quero sair do aluguel")
 - [x] **Tela 2**: Urgência (3, 12 meses ou sem prazo)
 - [x] **Tela 3**: Localização (campo livre)
@@ -45,6 +45,7 @@ Plataforma imobiliária que conecta compradores interessados a corretores atrav�
 - [x] Modal de match com informações do imóvel (descrição obrigatória)
 - [x] Aba "Meus Matches" com coração vermelho e borda colorida
 - [x] Status do match (Em Análise, Aprovado, Visita Agendada, etc.)
+- [x] Modal de exclusão com 3 opções + descrição obrigatória
 
 ### Dashboard do Curador
 - [x] Aba "Pendentes" para avaliar matches
@@ -60,10 +61,23 @@ Plataforma imobiliária que conecta compradores interessados a corretores atrav�
 - [x] Analytics com métricas da plataforma
 - [x] Visualização de todos os matches
 
-### Notificações por Email
-- [x] Email de registro para curadores
+### Sistema de Notificações por Email - Atualizado 16/03/2026
+- [x] Email ao comprador: Interesse cadastrado (com próximos passos e explicação sobre curador)
+- [x] Email ao comprador: Match aprovado ("Wohoo! Um novo match foi encontrado!")
+- [x] Email ao corretor: Match aprovado (aguardar contato da equipe)
+- [x] Email ao curador: Interesse excluído pelo comprador (com motivo e dados)
+- [x] Email ao curador: Match excluído pelo corretor (com motivo e dados)
 - [x] Email ao agendar visita (comprador e corretor)
 - [x] Endpoint para lembrete 2h antes da visita
+
+### Modais de Exclusão - Atualizado 16/03/2026
+**Exclusão de Interesse (Comprador):**
+- Opções: "Já comprei um imóvel", "Mudei de planos", "Não tenho mais interesse", "Outro motivo"
+- Descrição obrigatória apenas para "Outro motivo"
+
+**Exclusão de Match (Corretor):**
+- Opções: "Imóvel já vendeu", "Proprietário desistiu da venda", "Outro motivo"
+- Descrição SEMPRE obrigatória
 
 ### SEO e Landing Page
 - [x] Meta tags, Open Graph, Twitter Cards
@@ -85,9 +99,10 @@ Plataforma imobiliária que conecta compradores interessados a corretores atrav�
 - **URL Admin**: /admin/login
 
 ## Arquivos Principais
-- `/app/backend/server.py` - API completa
-- `/app/frontend/src/components/InterestFormModal.js` - Formulário de interesse
+- `/app/backend/server.py` - API completa (~2100 linhas)
+- `/app/frontend/src/components/InterestFormModal.js` - Formulário de interesse (10 telas)
 - `/app/frontend/src/components/PropertyInfoModal.js` - Modal info imóvel
+- `/app/frontend/src/components/DeleteConfirmModal.js` - Modal de exclusão
 - `/app/frontend/src/pages/CuratorDashboard.js` - Dashboard curador
 - `/app/frontend/src/pages/AgentDashboard.js` - Dashboard corretor
 
@@ -117,6 +132,16 @@ Plataforma imobiliária que conecta compradores interessados a corretores atrav�
 ---
 
 ## Changelog
+
+### 16/03/2026
+- Modais de exclusão atualizados:
+  - Interesse: removida opção "Imóvel já foi vendido", descrição obrigatória para "Outro"
+  - Match: apenas 3 opções, descrição SEMPRE obrigatória
+- Sistema completo de notificações por email:
+  - Email ao cadastrar interesse (com explicação sobre curador e próximos passos)
+  - Email "Wohoo!" ao comprador quando match aprovado
+  - Email ao corretor quando match aprovado
+  - Email ao curador quando interesse/match excluído (com motivo e dados)
 
 ### 15/03/2026
 - Reformulação completa do formulário de interesse (v3)
