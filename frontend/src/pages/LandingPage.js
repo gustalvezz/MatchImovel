@@ -444,7 +444,7 @@ const LandingPage = () => {
             <p className="text-sm font-semibold text-indigo-400 mb-4 uppercase tracking-wider">Modelo de comissão</p>
             <h2 className="text-4xl md:text-5xl font-bold mb-4">
               Mais vantajoso para
-              <span className="block text-indigo-400 italic mt-2">quem trabalha em campo</span>
+              <span className="block text-indigo-400 italic mt-2">quem trabalha em parceria.</span>
             </h2>
             <p className="text-lg text-slate-300 max-w-2xl mx-auto">
               Corretores ganham mais aqui. Porque queremos que você venha buscar seus compradores.
@@ -478,7 +478,7 @@ const LandingPage = () => {
                   <p className="text-sm text-white font-bold">60% Você fica com mais!</p>
                 </div>
               </div>
-              <p className="text-sm text-indigo-100">Comissão padrão do mercado. O corretor recebe 60% do valor total.</p>
+              <p className="text-sm text-indigo-100">Comissão maior para o corretor parceiro. O corretor recebe 60% do valor total.</p>
             </Card>
           </div>
         </div>
