@@ -656,6 +656,9 @@ const InterestFormModal = ({ isOpen, onClose, onSuccess, userInfo }) => {
           )}
         </motion.div>
       </motion.div>
+      
+      {/* Terms of Use Modal */}
+      <TermsModal isOpen={showTermsModal} onClose={() => setShowTermsModal(false)} />
     </AnimatePresence>
   );
 };
