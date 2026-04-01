@@ -7,16 +7,40 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card } from '@/components/ui/card';
 import { useAuth } from '@/context/AuthContext';
-import { Home, Mail, Lock, User, Phone, Shield, MapPin, Loader2, CheckCircle, XCircle } from 'lucide-react';
+import { Home, Mail, Lock, User, Phone, Shield, MapPin } from 'lucide-react';
 import { toast } from 'sonner';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
 
 const ESTADOS_BRASIL = [
-  'AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA', 
-  'MT', 'MS', 'MG', 'PA', 'PB', 'PR', 'PE', 'PI', 'RJ', 'RN', 
-  'RS', 'RO', 'RR', 'SC', 'SP', 'SE', 'TO'
+  { sigla: 'AC', nome: 'Acre' },
+  { sigla: 'AL', nome: 'Alagoas' },
+  { sigla: 'AP', nome: 'Amapá' },
+  { sigla: 'AM', nome: 'Amazonas' },
+  { sigla: 'BA', nome: 'Bahia' },
+  { sigla: 'CE', nome: 'Ceará' },
+  { sigla: 'DF', nome: 'Distrito Federal' },
+  { sigla: 'ES', nome: 'Espírito Santo' },
+  { sigla: 'GO', nome: 'Goiás' },
+  { sigla: 'MA', nome: 'Maranhão' },
+  { sigla: 'MT', nome: 'Mato Grosso' },
+  { sigla: 'MS', nome: 'Mato Grosso do Sul' },
+  { sigla: 'MG', nome: 'Minas Gerais' },
+  { sigla: 'PA', nome: 'Pará' },
+  { sigla: 'PB', nome: 'Paraíba' },
+  { sigla: 'PR', nome: 'Paraná' },
+  { sigla: 'PE', nome: 'Pernambuco' },
+  { sigla: 'PI', nome: 'Piauí' },
+  { sigla: 'RJ', nome: 'Rio de Janeiro' },
+  { sigla: 'RN', nome: 'Rio Grande do Norte' },
+  { sigla: 'RS', nome: 'Rio Grande do Sul' },
+  { sigla: 'RO', nome: 'Rondônia' },
+  { sigla: 'RR', nome: 'Roraima' },
+  { sigla: 'SC', nome: 'Santa Catarina' },
+  { sigla: 'SP', nome: 'São Paulo' },
+  { sigla: 'SE', nome: 'Sergipe' },
+  { sigla: 'TO', nome: 'Tocantins' }
 ];
 
 const RegisterPage = () => {
@@ -32,13 +56,9 @@ const RegisterPage = () => {
     phone: '',
     role: roleFromUrl,
     creci: '',
-    creci_uf: 'SP',
-    creci_completo: ''
+    creci_uf: 'SP'
   });
   const [loading, setLoading] = useState(false);
-  const [validatingCreci, setValidatingCreci] = useState(false);
-  const [creciValidation, setCreciValidation] = useState(null); // null, 'valid', 'invalid'
-  const [creciError, setCreciError] = useState('');
 
   // Phone mask function
   const formatPhone = (value) => {
@@ -63,62 +83,6 @@ const RegisterPage = () => {
     setFormData(prev => ({ ...prev, phone: formatted }));
   };
 
-  const handleCreciChange = (e) => {
-    // Reset validation when CRECI changes
-    setCreciValidation(null);
-    setCreciError('');
-    setFormData(prev => ({ ...prev, creci: e.target.value.toUpperCase(), creci_completo: '' }));
-  };
-
-  const handleUfChange = (e) => {
-    // Reset validation when UF changes
-    setCreciValidation(null);
-    setCreciError('');
-    setFormData(prev => ({ ...prev, creci_uf: e.target.value, creci_completo: '' }));
-  };
-
-  const validateCreci = async () => {
-    if (!formData.creci.trim()) {
-      toast.error('Informe o número do CRECI');
-      return false;
-    }
-
-    // Check for J suffix before API call
-    if (formData.creci.trim().toUpperCase().endsWith('J')) {
-      setCreciValidation('invalid');
-      setCreciError('CRECI de Pessoa Jurídica (J) não é aceito. Apenas CRECI de Pessoa Física (F).');
-      return false;
-    }
-
-    setValidatingCreci(true);
-    setCreciValidation(null);
-    setCreciError('');
-
-    try {
-      const response = await axios.post(`${API}/validate-creci`, {
-        creci: formData.creci.trim(),
-        uf: formData.creci_uf
-      });
-
-      if (response.data.valid) {
-        setCreciValidation('valid');
-        setFormData(prev => ({ ...prev, creci_completo: response.data.creci_completo }));
-        toast.success(`CRECI validado: ${response.data.nome_completo}`);
-        return true;
-      } else {
-        setCreciValidation('invalid');
-        setCreciError(response.data.error || 'CRECI inválido');
-        return false;
-      }
-    } catch (error) {
-      setCreciValidation('invalid');
-      setCreciError('Erro ao validar CRECI. Tente novamente.');
-      return false;
-    } finally {
-      setValidatingCreci(false);
-    }
-  };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     
@@ -129,19 +93,15 @@ const RegisterPage = () => {
       return;
     }
 
-    // For agents, validate CRECI first
+    // For agents, validate CRECI fields
     if (formData.role === 'agent') {
       if (!formData.creci.trim()) {
         toast.error('Por favor, informe o número do CRECI');
         return;
       }
-      
-      // If not validated yet, validate now
-      if (creciValidation !== 'valid') {
-        const isValid = await validateCreci();
-        if (!isValid) {
-          return;
-        }
+      if (!formData.creci_uf) {
+        toast.error('Por favor, selecione o estado do CRECI');
+        return;
       }
     }
     
@@ -254,83 +214,44 @@ const RegisterPage = () => {
               <div className="space-y-4 p-4 bg-indigo-50 rounded-xl border-2 border-indigo-100">
                 <div className="flex items-center gap-2 text-indigo-700">
                   <Shield className="w-5 h-5" />
-                  <span className="font-medium">Validação CRECI</span>
+                  <span className="font-medium">Dados do CRECI</span>
                 </div>
                 
                 <div className="grid grid-cols-3 gap-3">
                   <div className="col-span-1">
-                    <Label htmlFor="creci_uf" className="text-sm">UF *</Label>
+                    <Label htmlFor="creci_uf" className="text-sm">Estado *</Label>
                     <select
                       data-testid="register-creci-uf"
                       id="creci_uf"
                       value={formData.creci_uf}
-                      onChange={handleUfChange}
+                      onChange={(e) => setFormData(prev => ({ ...prev, creci_uf: e.target.value }))}
                       className="w-full h-12 mt-1 px-3 rounded-xl border-2 border-slate-200 focus:border-indigo-500 focus:outline-none bg-white"
-                      disabled={validatingCreci}
+                      required
                     >
-                      {ESTADOS_BRASIL.map(uf => (
-                        <option key={uf} value={uf}>{uf}</option>
+                      {ESTADOS_BRASIL.map(estado => (
+                        <option key={estado.sigla} value={estado.sigla}>{estado.sigla} - {estado.nome}</option>
                       ))}
                     </select>
                   </div>
                   
                   <div className="col-span-2">
-                    <Label htmlFor="creci" className="text-sm">Número CRECI *</Label>
-                    <div className="relative mt-1">
-                      <Input
-                        data-testid="register-creci-input"
-                        id="creci"
-                        name="creci"
-                        type="text"
-                        value={formData.creci}
-                        onChange={handleCreciChange}
-                        className={`h-12 rounded-xl pr-10 ${
-                          creciValidation === 'valid' ? 'border-green-500' :
-                          creciValidation === 'invalid' ? 'border-red-500' : ''
-                        }`}
-                        placeholder="123456-F"
-                        disabled={validatingCreci}
-                      />
-                      {creciValidation === 'valid' && (
-                        <CheckCircle className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-green-500" />
-                      )}
-                      {creciValidation === 'invalid' && (
-                        <XCircle className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-red-500" />
-                      )}
-                    </div>
+                    <Label htmlFor="creci" className="text-sm">Número do CRECI *</Label>
+                    <Input
+                      data-testid="register-creci-input"
+                      id="creci"
+                      name="creci"
+                      type="text"
+                      value={formData.creci}
+                      onChange={(e) => setFormData(prev => ({ ...prev, creci: e.target.value }))}
+                      className="h-12 mt-1 rounded-xl"
+                      placeholder="Ex: 123456-F"
+                      required
+                    />
                   </div>
                 </div>
 
-                {creciError && (
-                  <p className="text-red-600 text-sm" data-testid="creci-error">{creciError}</p>
-                )}
-
-                {creciValidation === 'valid' && formData.creci_completo && (
-                  <p className="text-green-600 text-sm font-medium" data-testid="creci-success">
-                    ✓ {formData.creci_completo} - Ativo
-                  </p>
-                )}
-
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={validateCreci}
-                  disabled={validatingCreci || !formData.creci.trim()}
-                  className="w-full h-10 rounded-xl"
-                  data-testid="validate-creci-button"
-                >
-                  {validatingCreci ? (
-                    <>
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      Validando CRECI... (pode levar até 30s)
-                    </>
-                  ) : (
-                    'Validar CRECI'
-                  )}
-                </Button>
-
-                <p className="text-xs text-slate-500 text-center">
-                  A validação consulta o sistema oficial do CRECI e pode levar alguns segundos.
+                <p className="text-xs text-slate-500">
+                  Seu CRECI será verificado pela nossa equipe após o cadastro.
                 </p>
               </div>
             )}

@@ -223,6 +223,16 @@ const CuratorDashboard = () => {
               <span className="text-xs bg-green-100 px-2 py-0.5 rounded-full">WhatsApp</span>
             </a>
           )}
+          {(match.agent?.creci || match.agent?.creci_uf) && (
+            <div className="mt-2 flex items-center gap-2">
+              <span className="text-sm font-medium text-purple-700">
+                CRECI: {match.agent?.creci_uf || ''}{match.agent?.creci || ''}
+              </span>
+              {match.agent?.creci_verified && (
+                <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">Verificado</span>
+              )}
+            </div>
+          )}
           {match.agent?.company && (
             <p className="text-sm mt-2 text-purple-700">{match.agent.company}</p>
           )}

@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/context/AuthContext';
-import { Home, LogOut, Users, Heart, Building2, TrendingUp, CheckCircle, XCircle, Clock, UserPlus, MessageSquare, BarChart3 } from 'lucide-react';
+import { Home, LogOut, Users, Heart, Building2, TrendingUp, CheckCircle, XCircle, Clock, UserPlus, MessageSquare, BarChart3, Shield, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
 import CreateCuratorModal from '@/components/CreateCuratorModal';
 import MatchFollowUp from '@/components/MatchFollowUp';
@@ -80,6 +80,19 @@ const AdminDashboard = () => {
       fetchData();
     } catch (error) {
       toast.error('Erro ao processar curadoria');
+    }
+  };
+
+  const handleCreciStatusUpdate = async (agentId, creci_verified, creci_blocked) => {
+    try {
+      await axios.put(`${API}/admin/agents/${agentId}/creci-status`, {
+        creci_verified,
+        creci_blocked
+      });
+      toast.success(creci_verified ? 'CRECI verificado com sucesso!' : creci_blocked ? 'Corretor bloqueado' : 'Status atualizado');
+      fetchData();
+    } catch (error) {
+      toast.error('Erro ao atualizar status do CRECI');
     }
   };
 
@@ -404,16 +417,102 @@ const AdminDashboard = () => {
 
           <TabsContent value="agents" className="space-y-4">
             {agents.map((agent) => (
-              <Card key={agent.id} className="p-6 rounded-2xl" data-testid={`agent-${agent.id}`}>
-                <div className="flex justify-between items-start">
+              <Card key={agent.id} className={`p-6 rounded-2xl ${agent.creci_blocked ? 'border-2 border-red-300 bg-red-50' : ''}`} data-testid={`agent-${agent.id}`}>
+                <div className="flex justify-between items-start mb-4">
                   <div>
-                    <h3 className="text-lg font-semibold">{agent.name}</h3>
+                    <h3 className="text-lg font-semibold flex items-center gap-2">
+                      {agent.name}
+                      {agent.creci_verified && !agent.creci_blocked && (
+                        <Badge className="bg-green-100 text-green-700 rounded-full text-xs">
+                          <CheckCircle className="w-3 h-3 mr-1" />
+                          CRECI Verificado
+                        </Badge>
+                      )}
+                      {agent.creci_blocked && (
+                        <Badge className="bg-red-100 text-red-700 rounded-full text-xs">
+                          <AlertTriangle className="w-3 h-3 mr-1" />
+                          Bloqueado
+                        </Badge>
+                      )}
+                    </h3>
                     <p className="text-sm text-muted-foreground">{agent.email}</p>
                     {agent.phone && <p className="text-sm text-muted-foreground">{agent.phone}</p>}
                     {agent.company && <p className="text-sm font-medium mt-1">{agent.company}</p>}
                   </div>
                   <div className="text-right">
                     <p className="text-sm font-semibold">{agent.match_count} matches</p>
+                  </div>
+                </div>
+
+                {/* CRECI Info */}
+                <div className="bg-slate-50 p-4 rounded-xl mb-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Shield className="w-4 h-4 text-indigo-600" />
+                    <span className="font-medium text-sm">CRECI</span>
+                  </div>
+                  <p className="text-lg font-semibold text-indigo-700">
+                    {agent.creci_uf || ''}{agent.creci || 'Não informado'}
+                  </p>
+                </div>
+
+                {/* CRECI Verification Checkboxes */}
+                <div className="border-t pt-4 space-y-3">
+                  <p className="text-sm font-medium text-slate-600">Verificação do CRECI:</p>
+                  
+                  <div className="flex flex-col gap-3">
+                    {/* Checkbox: CRECI Verificado */}
+                    <label 
+                      className={`flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all ${
+                        agent.creci_verified && !agent.creci_blocked
+                          ? 'bg-green-50 border-2 border-green-300'
+                          : 'bg-slate-50 border-2 border-slate-200 hover:border-green-300'
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={agent.creci_verified && !agent.creci_blocked}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            handleCreciStatusUpdate(agent.id, true, false);
+                          } else {
+                            handleCreciStatusUpdate(agent.id, false, false);
+                          }
+                        }}
+                        className="w-5 h-5 rounded border-2 border-green-500 text-green-600 focus:ring-green-500"
+                        data-testid={`creci-verified-${agent.id}`}
+                      />
+                      <div>
+                        <span className="font-medium text-green-700">CRECI Verificado, OK e Ativo</span>
+                        <p className="text-xs text-green-600">Marque após verificar que o CRECI está ativo e válido</p>
+                      </div>
+                    </label>
+
+                    {/* Checkbox: CRECI Inativo/Inválido */}
+                    <label 
+                      className={`flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all ${
+                        agent.creci_blocked
+                          ? 'bg-red-50 border-2 border-red-300'
+                          : 'bg-slate-50 border-2 border-slate-200 hover:border-red-300'
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={agent.creci_blocked}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            handleCreciStatusUpdate(agent.id, false, true);
+                          } else {
+                            handleCreciStatusUpdate(agent.id, false, false);
+                          }
+                        }}
+                        className="w-5 h-5 rounded border-2 border-red-500 text-red-600 focus:ring-red-500"
+                        data-testid={`creci-blocked-${agent.id}`}
+                      />
+                      <div>
+                        <span className="font-medium text-red-700">CRECI Inativo ou Inválido</span>
+                        <p className="text-xs text-red-600">Bloqueia o acesso do corretor até regularização</p>
+                      </div>
+                    </label>
                   </div>
                 </div>
               </Card>

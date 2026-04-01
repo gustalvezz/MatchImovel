@@ -420,6 +420,134 @@ async def send_deletion_notification_curator(
     
     return await send_email(curator_email, subject, html_content)
 
+
+async def send_creci_verified_email(agent_email: str, agent_name: str, creci: str) -> bool:
+    """Send email to agent when CRECI is verified and approved"""
+    
+    subject = "✅ Seu CRECI foi verificado! - MatchImovel"
+    
+    html_content = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="UTF-8">
+        <style>
+            body {{ font-family: 'Segoe UI', Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; background-color: #f4f4f4; }}
+            .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
+            .header {{ background: linear-gradient(135deg, #10b981, #059669); padding: 40px 30px; text-align: center; border-radius: 16px 16px 0 0; }}
+            .header h1 {{ color: white; margin: 0; font-size: 28px; }}
+            .checkmark {{ font-size: 48px; margin-bottom: 10px; }}
+            .content {{ background: white; padding: 40px 30px; border-radius: 0 0 16px 16px; text-align: center; }}
+            .greeting {{ font-size: 22px; font-weight: 600; color: #1e293b; margin-bottom: 20px; }}
+            .message-box {{ background: #ecfdf5; padding: 30px; border-radius: 16px; margin: 24px 0; border: 2px solid #10b981; }}
+            .message-box p {{ margin: 0; font-size: 16px; color: #065f46; }}
+            .creci-badge {{ background: #d1fae5; padding: 16px 24px; border-radius: 12px; display: inline-block; margin: 20px 0; }}
+            .creci-badge span {{ font-size: 20px; font-weight: 700; color: #047857; }}
+            .footer {{ text-align: center; margin-top: 30px; color: #64748b; font-size: 12px; }}
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="header">
+                <div class="checkmark">✅</div>
+                <h1>CRECI Verificado!</h1>
+            </div>
+            <div class="content">
+                <p class="greeting">Olá, {agent_name}!</p>
+                
+                <div class="message-box">
+                    <p><strong>Ótima notícia!</strong> Seu CRECI foi verificado pela nossa equipe e está tudo em ordem com seu cadastro!</p>
+                </div>
+                
+                <div class="creci-badge">
+                    <span>CRECI: {creci}</span>
+                </div>
+                
+                <p>Agora você pode utilizar todas as funcionalidades da plataforma MatchImovel normalmente.</p>
+                
+                <p>Bons negócios!</p>
+                
+                <p style="margin-top: 30px;">Abraços,<br><strong>Equipe MatchImovel</strong></p>
+            </div>
+            <div class="footer">
+                <p>&copy; 2026 MatchImovel - Todos os direitos reservados</p>
+            </div>
+        </div>
+    </body>
+    </html>
+    """
+    
+    return await send_email(agent_email, subject, html_content)
+
+
+async def send_creci_blocked_email(agent_email: str, agent_name: str, creci: str) -> bool:
+    """Send email to agent when CRECI is marked as invalid/blocked"""
+    
+    subject = "⚠️ Pendência no seu CRECI - MatchImovel"
+    
+    html_content = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="UTF-8">
+        <style>
+            body {{ font-family: 'Segoe UI', Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; background-color: #f4f4f4; }}
+            .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
+            .header {{ background: linear-gradient(135deg, #ef4444, #dc2626); padding: 40px 30px; text-align: center; border-radius: 16px 16px 0 0; }}
+            .header h1 {{ color: white; margin: 0; font-size: 28px; }}
+            .warning {{ font-size: 48px; margin-bottom: 10px; }}
+            .content {{ background: white; padding: 40px 30px; border-radius: 0 0 16px 16px; }}
+            .greeting {{ font-size: 20px; font-weight: 600; color: #1e293b; margin-bottom: 20px; }}
+            .alert-box {{ background: #fef2f2; padding: 24px; border-radius: 12px; margin: 24px 0; border-left: 4px solid #ef4444; }}
+            .alert-box p {{ margin: 0; color: #991b1b; }}
+            .creci-badge {{ background: #fee2e2; padding: 16px 24px; border-radius: 12px; display: inline-block; margin: 20px 0; }}
+            .creci-badge span {{ font-size: 18px; font-weight: 700; color: #b91c1c; }}
+            .action-box {{ background: #fef3c7; padding: 20px; border-radius: 12px; margin: 24px 0; }}
+            .action-box h4 {{ margin: 0 0 12px 0; color: #92400e; }}
+            .action-box ul {{ margin: 0; padding-left: 20px; color: #78350f; }}
+            .footer {{ text-align: center; margin-top: 30px; color: #64748b; font-size: 12px; }}
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="header">
+                <div class="warning">⚠️</div>
+                <h1>Atenção: Pendência no CRECI</h1>
+            </div>
+            <div class="content">
+                <p class="greeting">Olá, {agent_name}!</p>
+                
+                <div class="alert-box">
+                    <p><strong>Identificamos uma pendência com seu CRECI.</strong> Seu acesso à plataforma está temporariamente bloqueado até a regularização.</p>
+                </div>
+                
+                <div class="creci-badge">
+                    <span>CRECI: {creci}</span>
+                </div>
+                
+                <div class="action-box">
+                    <h4>📋 O que fazer agora?</h4>
+                    <ul>
+                        <li>Verifique se seu CRECI está ativo junto ao CRECI do seu estado</li>
+                        <li>Caso tenha alguma pendência, regularize-a</li>
+                        <li>Entre em contato conosco pelo email suporte@matchimovel.com.br informando seu CRECI atualizado</li>
+                    </ul>
+                </div>
+                
+                <p>Assim que a situação for regularizada, liberaremos seu acesso imediatamente.</p>
+                
+                <p style="margin-top: 30px;">Atenciosamente,<br><strong>Equipe MatchImovel</strong></p>
+            </div>
+            <div class="footer">
+                <p>&copy; 2026 MatchImovel - Todos os direitos reservados</p>
+            </div>
+        </div>
+    </body>
+    </html>
+    """
+    
+    return await send_email(agent_email, subject, html_content)
+
 # Helper functions
 def hash_password(password: str) -> str:
     return bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
@@ -454,7 +582,6 @@ class UserRegister(BaseModel):
     phone: Optional[str] = None
     creci: Optional[str] = None  # For agents: CRECI number
     creci_uf: Optional[str] = None  # For agents: State (UF)
-    creci_completo: Optional[str] = None  # Full CRECI returned by API
 
 class UserLogin(BaseModel):
     email: EmailStr
@@ -837,7 +964,8 @@ async def register(user_data: UserRegister):
             "phone": user_data.phone,
             "creci": user_data.creci,
             "creci_uf": user_data.creci_uf,
-            "creci_completo": user_data.creci_completo,
+            "creci_verified": False,  # Admin marks as verified
+            "creci_blocked": False,   # Admin marks if CRECI is invalid/inactive
             "company": None,
             "created_at": datetime.now(timezone.utc).isoformat()
         }
@@ -851,6 +979,15 @@ async def login(credentials: UserLogin):
     user = await db.users.find_one({"email": credentials.email}, {"_id": 0})
     if not user or not verify_password(credentials.password, user["password"]):
         raise HTTPException(status_code=401, detail="Email ou senha incorretos")
+    
+    # Check if agent is blocked due to CRECI issues
+    if user["role"] == "agent":
+        agent = await db.agents.find_one({"user_id": user["id"]}, {"_id": 0})
+        if agent and agent.get("creci_blocked"):
+            raise HTTPException(
+                status_code=403, 
+                detail="Seu cadastro está temporariamente bloqueado devido a pendências com seu CRECI. Entre em contato com o suporte para regularizar sua situação."
+            )
     
     token = create_access_token(user["id"], user["role"])
     return AuthResponse(token=token, user_id=user["id"], role=user["role"], name=user["name"])
@@ -1787,6 +1924,62 @@ async def get_all_agents(current_user: dict = Depends(get_current_user)):
         agent['match_count'] = match_count
     
     return agents
+
+class CreciVerificationUpdate(BaseModel):
+    creci_verified: Optional[bool] = None
+    creci_blocked: Optional[bool] = None
+
+@api_router.put("/admin/agents/{agent_id}/creci-status")
+async def update_agent_creci_status(agent_id: str, update: CreciVerificationUpdate, current_user: dict = Depends(get_current_user)):
+    """Admin endpoint to verify or block an agent's CRECI"""
+    if current_user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Acesso negado")
+    
+    # Find agent
+    agent = await db.agents.find_one({"id": agent_id}, {"_id": 0})
+    if not agent:
+        raise HTTPException(status_code=404, detail="Corretor não encontrado")
+    
+    update_dict = {}
+    email_to_send = None
+    
+    if update.creci_verified is not None:
+        update_dict["creci_verified"] = update.creci_verified
+        if update.creci_verified:
+            # When verified, unblock
+            update_dict["creci_blocked"] = False
+            email_to_send = "verified"
+    
+    if update.creci_blocked is not None:
+        update_dict["creci_blocked"] = update.creci_blocked
+        if update.creci_blocked:
+            # When blocked, mark as not verified
+            update_dict["creci_verified"] = False
+            email_to_send = "blocked"
+    
+    if update_dict:
+        await db.agents.update_one(
+            {"id": agent_id},
+            {"$set": update_dict}
+        )
+    
+    # Send email notification
+    creci_display = f"{agent.get('creci_uf', '')}{agent.get('creci', '')}"
+    
+    if email_to_send == "verified":
+        await send_creci_verified_email(
+            agent_email=agent.get("email"),
+            agent_name=agent.get("name", "Corretor"),
+            creci=creci_display
+        )
+    elif email_to_send == "blocked":
+        await send_creci_blocked_email(
+            agent_email=agent.get("email"),
+            agent_name=agent.get("name", "Corretor"),
+            creci=creci_display
+        )
+    
+    return {"status": "success", "message": "Status do CRECI atualizado"}
 
 @api_router.get("/admin/interests")
 async def get_all_interests(current_user: dict = Depends(get_current_user)):
