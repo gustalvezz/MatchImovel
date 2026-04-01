@@ -355,3 +355,154 @@ async def get_all_curators(current_user: dict = Depends(get_current_user)):
         curator['curated_matches'] = match_count
     
     return curators
+
+
+
+@router.get("/admin/analytics")
+async def get_analytics(current_user: dict = Depends(get_current_user)):
+    """Get comprehensive analytics data"""
+    if current_user["role"] not in ["admin", "curator"]:
+        raise HTTPException(status_code=403, detail="Acesso negado")
+    
+    # Overview stats
+    total_buyers = await db.buyers.count_documents({})
+    total_agents = await db.agents.count_documents({})
+    total_curators = await db.users.count_documents({"role": "curator"})
+    total_interests = await db.interests.count_documents({})
+    active_interests = await db.interests.count_documents({"status": "active"})
+    
+    # Match stats
+    total_matches = await db.matches.count_documents({})
+    pending_matches = await db.matches.count_documents({"status": "pending_approval"})
+    approved_matches = await db.matches.count_documents({"status": {"$in": ["approved", "visit_scheduled", "completed"]}})
+    rejected_matches = await db.matches.count_documents({"status": "rejected"})
+    
+    conversion_rate = 0
+    if total_matches > 0:
+        conversion_rate = round((approved_matches / total_matches) * 100, 1)
+    
+    # Follow-ups
+    total_followups = await db.followups.count_documents({})
+    followups_with_broker = await db.followups.count_documents({"contact_type": "broker"})
+    followups_with_buyer = await db.followups.count_documents({"contact_type": "buyer"})
+    
+    # Distributions
+    interests = await db.interests.find({}, {"_id": 0, "property_type": 1, "location": 1, "min_price": 1, "max_price": 1}).to_list(1000)
+    
+    property_types = {}
+    locations = {}
+    total_min_price = 0
+    total_max_price = 0
+    price_count = 0
+    
+    for interest in interests:
+        # Property types
+        ptype = interest.get("property_type", "Outro")
+        property_types[ptype] = property_types.get(ptype, 0) + 1
+        
+        # Locations
+        loc = interest.get("location", "Não informado")
+        locations[loc] = locations.get(loc, 0) + 1
+        
+        # Prices
+        if interest.get("min_price") and interest.get("max_price"):
+            total_min_price += interest["min_price"]
+            total_max_price += interest["max_price"]
+            price_count += 1
+    
+    avg_min_price = total_min_price / price_count if price_count > 0 else 0
+    avg_max_price = total_max_price / price_count if price_count > 0 else 0
+    
+    # Curator performance
+    curator_performance = []
+    curators = await db.users.find({"role": "curator"}, {"_id": 0, "password": 0}).to_list(100)
+    
+    for curator in curators:
+        matches_curated = await db.matches.count_documents({"curator_id": curator["id"]})
+        matches_approved = await db.matches.count_documents({
+            "curator_id": curator["id"],
+            "status": {"$in": ["approved", "visit_scheduled", "completed"]}
+        })
+        followups_count = await db.followups.count_documents({"curator_id": curator["id"]})
+        
+        approval_rate = 0
+        if matches_curated > 0:
+            approval_rate = (matches_approved / matches_curated) * 100
+        
+        curator_performance.append({
+            "id": curator["id"],
+            "name": curator.get("name", ""),
+            "email": curator.get("email", ""),
+            "matches_curated": matches_curated,
+            "matches_approved": matches_approved,
+            "followups_count": followups_count,
+            "approval_rate": approval_rate
+        })
+    
+    # Agent performance
+    agent_performance = []
+    agents = await db.agents.find({}, {"_id": 0}).to_list(100)
+    
+    for agent in agents:
+        matches_created = await db.matches.count_documents({"agent_id": agent["user_id"]})
+        matches_approved = await db.matches.count_documents({
+            "agent_id": agent["user_id"],
+            "status": {"$in": ["approved", "visit_scheduled", "completed"]}
+        })
+        
+        success_rate = 0
+        if matches_created > 0:
+            success_rate = (matches_approved / matches_created) * 100
+        
+        agent_performance.append({
+            "id": agent["user_id"],
+            "name": agent.get("name", ""),
+            "company": agent.get("company"),
+            "matches_created": matches_created,
+            "matches_approved": matches_approved,
+            "success_rate": success_rate
+        })
+    
+    # Sort by matches created and get top 10
+    agent_performance.sort(key=lambda x: x["matches_created"], reverse=True)
+    agent_performance = agent_performance[:10]
+    
+    # Deletion reasons
+    deletion_reasons = {}
+    deletions = await db.interest_deletions.find({}, {"_id": 0, "reason": 1}).to_list(1000)
+    for deletion in deletions:
+        reason = deletion.get("reason", "outro")
+        deletion_reasons[reason] = deletion_reasons.get(reason, 0) + 1
+    
+    return {
+        "overview": {
+            "total_buyers": total_buyers,
+            "total_agents": total_agents,
+            "total_curators": total_curators,
+            "total_interests": total_interests,
+            "active_interests": active_interests
+        },
+        "matches": {
+            "total": total_matches,
+            "pending": pending_matches,
+            "approved": approved_matches,
+            "rejected": rejected_matches,
+            "conversion_rate": conversion_rate
+        },
+        "followups": {
+            "total": total_followups,
+            "with_broker": followups_with_broker,
+            "with_buyer": followups_with_buyer
+        },
+        "distributions": {
+            "property_types": property_types,
+            "locations": locations
+        },
+        "price_range": {
+            "average_min": avg_min_price,
+            "average_max": avg_max_price
+        },
+        "curator_performance": curator_performance,
+        "agent_performance": agent_performance,
+        "deletion_reasons": deletion_reasons
+    }
