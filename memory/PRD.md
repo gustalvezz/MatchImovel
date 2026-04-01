@@ -155,6 +155,15 @@ Plataforma imobiliária que conecta compradores interessados a corretores atrav�
   - Schema `FullInterestCreate` atualizado com campos de termos
   - **Compliance no Admin Dashboard**: Card de interesse exibe seção verde "Termos de Uso Aceitos" com data/hora e IP registrados
 
+- **Termo de Parceria para Corretores**:
+  - Checkbox obrigatório na tela de cadastro de corretor (`RegisterPage.js`)
+  - Modal com texto legal completo do Termo de Parceria e Credenciamento
+  - CRECI do corretor exibido dinamicamente no texto do termo
+  - Backend captura e salva: `terms_accepted`, `terms_accepted_at`, `terms_accepted_ip` no perfil do corretor (collection `agents`)
+  - Schema `UserRegister` atualizado com campos de termos
+  - Endpoint `/api/auth/register` atualizado com `Request` para capturar IP
+  - **Compliance no Admin Dashboard**: Card do corretor exibe seção verde "Termo de Parceria Aceito" com data/hora e IP
+
 - **Fluxo de Redefinição de Senha**:
   - `POST /api/auth/forgot-password` - Solicita reset (envia email com link)
   - `POST /api/auth/reset-password` - Redefine senha com token

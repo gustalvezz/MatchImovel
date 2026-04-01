@@ -496,6 +496,33 @@ const AdminDashboard = () => {
                   </p>
                 </div>
 
+                {/* Compliance - Termos de Parceria */}
+                {agent.terms_accepted && (
+                  <div className="bg-emerald-50 border border-emerald-200 p-3 rounded-xl mb-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <FileCheck className="w-4 h-4 text-emerald-600" />
+                      <p className="text-xs font-semibold text-emerald-700">Termo de Parceria Aceito</p>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      <div>
+                        <span className="text-muted-foreground">Data/Hora: </span>
+                        <span className="font-medium">
+                          {agent.terms_accepted_at 
+                            ? new Date(agent.terms_accepted_at).toLocaleString('pt-BR', { 
+                                day: '2-digit', month: '2-digit', year: 'numeric',
+                                hour: '2-digit', minute: '2-digit'
+                              })
+                            : 'N/A'}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">IP: </span>
+                        <span className="font-mono font-medium">{agent.terms_accepted_ip || 'N/A'}</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {/* CRECI Verification Checkboxes */}
                 <div className="border-t pt-4 space-y-3">
                   <p className="text-sm font-medium text-slate-600">Verificação do CRECI:</p>

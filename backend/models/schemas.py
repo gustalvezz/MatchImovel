@@ -17,6 +17,9 @@ class UserRegister(BaseModel):
     phone: Optional[str] = None
     creci: Optional[str] = None
     creci_uf: Optional[str] = None
+    # Terms acceptance for agents
+    terms_accepted: Optional[bool] = None
+    terms_accepted_at: Optional[str] = None
 
 class UserLogin(BaseModel):
     email: EmailStr

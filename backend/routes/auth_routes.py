@@ -2,7 +2,7 @@
 Authentication routes
 Handles login, registration, and CRECI validation
 """
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from datetime import datetime, timezone, timedelta
 import uuid
 import secrets
@@ -114,10 +114,13 @@ async def validate_creci(data: CreciValidationRequest):
 
 
 @router.post("/auth/register", response_model=AuthResponse)
-async def register(user_data: UserRegister):
+async def register(user_data: UserRegister, request: Request):
     existing_user = await db.users.find_one({"email": user_data.email}, {"_id": 0})
     if existing_user:
         raise HTTPException(status_code=400, detail="Email já cadastrado")
+    
+    # Capture client IP for terms acceptance
+    client_ip = request.client.host if request.client else "unknown"
     
     user_id = str(uuid.uuid4())
     user_doc = {
@@ -154,7 +157,11 @@ async def register(user_data: UserRegister):
             "creci_verified": False,
             "creci_blocked": False,
             "company": None,
-            "created_at": datetime.now(timezone.utc).isoformat()
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            # Terms acceptance
+            "terms_accepted": user_data.terms_accepted or False,
+            "terms_accepted_at": user_data.terms_accepted_at,
+            "terms_accepted_ip": client_ip if user_data.terms_accepted else None
         }
         await db.agents.insert_one(profile_doc)
     
