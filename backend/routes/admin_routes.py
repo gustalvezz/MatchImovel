@@ -3,6 +3,7 @@ Admin routes
 Handles admin dashboard, user management, and CRECI verification
 """
 from fastapi import APIRouter, HTTPException, Depends
+from pydantic import BaseModel
 from datetime import datetime, timezone, timedelta
 import uuid
 import secrets
@@ -130,6 +131,53 @@ async def block_agent_creci(agent_id: str, blocked: bool = True, current_user: d
     
     action = "bloqueado" if blocked else "desbloqueado"
     return {"status": "success", "message": f"CRECI {action} com sucesso"}
+
+
+class CreciStatusUpdate(BaseModel):
+    creci_verified: bool
+    creci_blocked: bool
+
+
+@router.put("/admin/agents/{agent_id}/creci-status")
+async def update_creci_status(agent_id: str, status: CreciStatusUpdate, current_user: dict = Depends(get_current_user)):
+    """Update agent's CRECI verification/block status"""
+    if current_user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Acesso negado")
+    
+    agent = await db.agents.find_one({"user_id": agent_id}, {"_id": 0})
+    if not agent:
+        raise HTTPException(status_code=404, detail="Corretor não encontrado")
+    
+    # Get previous status for email notifications
+    was_verified = agent.get("creci_verified", False)
+    was_blocked = agent.get("creci_blocked", False)
+    
+    # Update status
+    await db.agents.update_one(
+        {"user_id": agent_id},
+        {"$set": {"creci_verified": status.creci_verified, "creci_blocked": status.creci_blocked}}
+    )
+    
+    creci_display = f"{agent.get('creci_uf', '')}-{agent.get('creci', '')}"
+    
+    # Send email notifications based on status changes
+    if agent.get("email"):
+        # If newly verified (was not verified before, now is verified and not blocked)
+        if status.creci_verified and not status.creci_blocked and not was_verified:
+            await send_creci_verified_email(
+                agent_email=agent["email"],
+                agent_name=agent.get("name", "Corretor"),
+                creci=creci_display
+            )
+        # If newly blocked (was not blocked before, now is blocked)
+        elif status.creci_blocked and not was_blocked:
+            await send_creci_blocked_email(
+                agent_email=agent["email"],
+                agent_name=agent.get("name", "Corretor"),
+                creci=creci_display
+            )
+    
+    return {"status": "success", "message": "Status do CRECI atualizado com sucesso"}
 
 
 @router.get("/admin/interests")

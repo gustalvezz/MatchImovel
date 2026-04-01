@@ -39,6 +39,8 @@ const LoginPage = () => {
         navigate('/dashboard/buyer');
       } else if (role === 'agent') {
         navigate('/dashboard/agent');
+      } else if (role === 'admin') {
+        navigate('/admin/dashboard');
       } else {
         navigate('/dashboard/curator');
       }
