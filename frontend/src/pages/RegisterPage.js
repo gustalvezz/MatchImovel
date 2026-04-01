@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card } from '@/components/ui/card';
 import { useAuth } from '@/context/AuthContext';
-import { Home, Mail, Lock, User, Phone, Shield, MapPin } from 'lucide-react';
+import { Home, Mail, Lock, User, Phone, Shield, MapPin, Eye, EyeOff } from 'lucide-react';
 import { toast } from 'sonner';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
@@ -59,6 +59,7 @@ const RegisterPage = () => {
     creci_uf: 'SP'
   });
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   // Phone mask function
   const formatPhone = (value) => {
@@ -264,14 +265,22 @@ const RegisterPage = () => {
                   data-testid="register-password-input"
                   id="password"
                   name="password"
-                  type="password"
+                  type={showPassword ? "text" : "password"}
                   required
                   value={formData.password}
                   onChange={(e) => setFormData({...formData, password: e.target.value})}
-                  className="pl-10 h-12 rounded-xl"
+                  className="pl-10 pr-10 h-12 rounded-xl"
                   placeholder="Mínimo 6 caracteres"
                   minLength={6}
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-slate-700"
+                  tabIndex={-1}
+                >
+                  {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                </button>
               </div>
             </div>
 
