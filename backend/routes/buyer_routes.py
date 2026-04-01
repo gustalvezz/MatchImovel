@@ -2,7 +2,7 @@
 Buyer routes
 Handles buyer interests and matches
 """
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Request
 from datetime import datetime, timezone
 from typing import List
 import uuid
@@ -233,8 +233,11 @@ async def get_my_matches(current_user: dict = Depends(get_current_user)):
 
 
 @router.post("/interests/create-full")
-async def create_full_interest(form_data: FullInterestCreate):
+async def create_full_interest(form_data: FullInterestCreate, request: Request):
     """Create interest from the full multi-step form (public endpoint)"""
+    
+    # Capture client IP for Terms of Use
+    client_ip = request.client.host if request.client else "unknown"
     
     existing_user = None
     if form_data.email:
@@ -323,7 +326,11 @@ async def create_full_interest(form_data: FullInterestCreate):
         "proximity_needs": form_data.proximity_needs,
         "experience_fears": form_data.experience_fears,
         "ai_profile": ai_profile,
-        "form_version": "v3"
+        "form_version": "v3",
+        # Terms of Use acceptance
+        "terms_accepted": form_data.terms_accepted,
+        "terms_accepted_at": form_data.terms_accepted_at,
+        "terms_accepted_ip": client_ip
     }
     
     await db.interests.insert_one(interest)

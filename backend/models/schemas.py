@@ -127,6 +127,9 @@ class FullInterestCreate(BaseModel):
     name: str
     phone: str
     email: Optional[str] = None
+    # Terms of Use acceptance
+    terms_accepted: bool = False
+    terms_accepted_at: Optional[str] = None
 
 class BuyerProfile(BaseModel):
     model_config = ConfigDict(extra="ignore")

@@ -47,7 +47,7 @@ Plataforma imobiliária que conecta compradores interessados a corretores atrav�
 - [x] **Tela 7**: Ambiente ideal (5 opções atualizadas)
 - [x] **Tela 8**: O que incomoda (1-3 seleções)
 - [x] **Tela 9**: Proximidade necessária (inclui "Tanto faz")
-- [x] **Tela 10**: Informações extras + Finalizar
+- [x] **Tela 10**: Informações extras + Termos de Uso + Finalizar
 
 ### Dashboard do Corretor
 - [x] Listagem de compradores com perfil IA
@@ -147,6 +147,13 @@ Plataforma imobiliária que conecta compradores interessados a corretores atrav�
 ## Changelog
 
 ### 01/04/2026
+- **Termos de Uso para Compradores**:
+  - Checkbox obrigatório na última tela do formulário de interesse (Step 10)
+  - Modal com texto legal completo ao clicar em "li e aceito..."
+  - Backend captura e salva: `terms_accepted` (bool), `terms_accepted_at` (timestamp), `terms_accepted_ip` (IP do cliente)
+  - Endpoint `/api/interests/create-full` atualizado com `Request` para capturar IP
+  - Schema `FullInterestCreate` atualizado com campos de termos
+
 - **Fluxo de Redefinição de Senha**:
   - `POST /api/auth/forgot-password` - Solicita reset (envia email com link)
   - `POST /api/auth/reset-password` - Redefine senha com token

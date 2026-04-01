@@ -235,7 +235,7 @@ const InterestFormModal = ({ isOpen, onClose, onSuccess, userInfo }) => {
         phone: userInfo?.phone || formData.phone,
         email: userInfo?.email || formData.email,
         terms_accepted: true,
-        terms_version: "1.0"
+        terms_accepted_at: new Date().toISOString()
       });
       toast.success('Interesse cadastrado com sucesso!');
       onSuccess?.();
