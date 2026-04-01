@@ -473,13 +473,13 @@ const AdminDashboard = () => {
                         checked={agent.creci_verified && !agent.creci_blocked}
                         onChange={(e) => {
                           if (e.target.checked) {
-                            handleCreciStatusUpdate(agent.id, true, false);
+                            handleCreciStatusUpdate(agent.user_id, true, false);
                           } else {
-                            handleCreciStatusUpdate(agent.id, false, false);
+                            handleCreciStatusUpdate(agent.user_id, false, false);
                           }
                         }}
                         className="w-5 h-5 rounded border-2 border-green-500 text-green-600 focus:ring-green-500"
-                        data-testid={`creci-verified-${agent.id}`}
+                        data-testid={`creci-verified-${agent.user_id}`}
                       />
                       <div>
                         <span className="font-medium text-green-700">CRECI Verificado, OK e Ativo</span>
@@ -500,13 +500,13 @@ const AdminDashboard = () => {
                         checked={agent.creci_blocked}
                         onChange={(e) => {
                           if (e.target.checked) {
-                            handleCreciStatusUpdate(agent.id, false, true);
+                            handleCreciStatusUpdate(agent.user_id, false, true);
                           } else {
-                            handleCreciStatusUpdate(agent.id, false, false);
+                            handleCreciStatusUpdate(agent.user_id, false, false);
                           }
                         }}
                         className="w-5 h-5 rounded border-2 border-red-500 text-red-600 focus:ring-red-500"
-                        data-testid={`creci-blocked-${agent.id}`}
+                        data-testid={`creci-blocked-${agent.user_id}`}
                       />
                       <div>
                         <span className="font-medium text-red-700">CRECI Inativo ou Inválido</span>
