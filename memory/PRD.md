@@ -97,11 +97,30 @@ Plataforma imobiliária que conecta compradores interessados a corretores atrav�
 
 ## Stack Técnica
 - **Frontend**: React.js, Tailwind CSS, Shadcn UI, Framer Motion
-- **Backend**: FastAPI (Python)
+- **Backend**: FastAPI (Python) - Modularizado
 - **Database**: MongoDB
 - **AI**: OpenAI via emergentintegrations (Emergent LLM Key)
 - **Email**: SMTP (Hostgator) via aiosmtplib
 - **CRECI**: API BuscaCRECI (https://api.buscacreci.com.br)
+
+### Arquitetura Backend (v2.0.0)
+```
+/app/backend/
+├── server.py          # Entry point (50 linhas)
+├── config.py          # Configurações env vars
+├── database.py        # Conexão MongoDB
+├── auth.py            # JWT e passwords
+├── models/
+│   └── schemas.py     # Pydantic models
+├── services/
+│   └── email_service.py  # Funções de email
+└── routes/
+    ├── auth_routes.py    # Login, registro, CRECI
+    ├── buyer_routes.py   # Endpoints compradores
+    ├── agent_routes.py   # Endpoints corretores
+    ├── curator_routes.py # Endpoints curadores
+    └── admin_routes.py   # Endpoints admin
+```
 
 ## Credenciais de Teste
 - **Admin**: admin@matchimob.com / admin123
@@ -113,7 +132,7 @@ Plataforma imobiliária que conecta compradores interessados a corretores atrav�
 
 ### P1 - Alta Prioridade
 - [ ] Configurar cron job para lembretes de visita 2h antes
-- [ ] Refatorar server.py em módulos (routes, models, services)
+- [x] ~~Refatorar server.py em módulos (routes, models, services)~~ **CONCLUÍDO 01/04/2026**
 
 ### P2 - Média Prioridade
 - [ ] Analytics expandido para performance de curadores
@@ -126,6 +145,14 @@ Plataforma imobiliária que conecta compradores interessados a corretores atrav�
 ---
 
 ## Changelog
+
+### 01/04/2026
+- **Refatoração completa do backend (v2.0.0)**:
+  - server.py (2531 linhas) dividido em 11 arquivos modulares
+  - Separação em: config, database, auth, models, services, routes
+  - Cada arquivo com responsabilidade única
+  - Facilita manutenção e reduz custo de tokens em updates
+  - Todos endpoints funcionando após refatoração
 
 ### 16/03/2026 (Tarde)
 - Implementada validação de CRECI para corretores:
