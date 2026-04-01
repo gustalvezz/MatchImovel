@@ -101,6 +101,16 @@ const LoginPage = () => {
               </div>
             </div>
 
+            <div className="text-right">
+              <Link 
+                to="/forgot-password" 
+                className="text-sm text-indigo-600 hover:text-indigo-700 font-medium"
+                data-testid="forgot-password-link"
+              >
+                Esqueceu sua senha?
+              </Link>
+            </div>
+
             <Button
               data-testid="login-submit-button"
               type="submit"

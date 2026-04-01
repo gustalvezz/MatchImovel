@@ -147,6 +147,15 @@ Plataforma imobiliária que conecta compradores interessados a corretores atrav�
 ## Changelog
 
 ### 01/04/2026
+- **Fluxo de Redefinição de Senha**:
+  - `POST /api/auth/forgot-password` - Solicita reset (envia email com link)
+  - `POST /api/auth/reset-password` - Redefine senha com token
+  - `GET /api/auth/verify-reset-token/{token}` - Valida token
+  - Token válido por 24 horas
+  - Email de confirmação quando senha é alterada
+  - Páginas: `/forgot-password` e `/reset-password?token=xxx`
+  - Link "Esqueceu sua senha?" na página de login
+
 - **Sistema de Descoberta Inteligente por IA (Claude)**:
   - Substituiu busca por palavra-chave por matching inteligente
   - Corretor descreve o imóvel em texto livre
