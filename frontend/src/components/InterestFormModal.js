@@ -4,17 +4,157 @@ import axios from 'axios';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { Checkbox } from '@/components/ui/checkbox';
 import { 
-  Home, ArrowRight, ArrowLeft, Check, X, MapPin
+  Home, ArrowRight, ArrowLeft, Check, X, MapPin, FileText, ExternalLink
 } from 'lucide-react';
 import { toast } from 'sonner';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
 
+// Terms of Use Modal Component
+const TermsModal = ({ isOpen, onClose }) => {
+  if (!isOpen) return null;
+  
+  const currentDate = new Date().toLocaleDateString('pt-BR', {
+    day: '2-digit',
+    month: '2-digit', 
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+  
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+      onClick={onClose}
+    >
+      <motion.div
+        initial={{ scale: 0.95, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        exit={{ scale: 0.95, opacity: 0 }}
+        className="w-full max-w-2xl bg-white rounded-2xl shadow-2xl max-h-[85vh] flex flex-col"
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between p-4 border-b bg-gradient-to-r from-indigo-600 to-purple-600 rounded-t-2xl">
+          <div className="flex items-center gap-2 text-white">
+            <FileText className="w-5 h-5" />
+            <h2 className="font-bold">Termo de Uso — Comprador MatchImóvel</h2>
+          </div>
+          <button onClick={onClose} className="text-white/80 hover:text-white">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+        
+        <div className="flex-1 overflow-y-auto p-6 text-sm text-slate-700 space-y-4">
+          <p className="text-center font-bold text-base text-slate-900">
+            TERMO DE USO E COMPROMISSO DE INTERMEDIAÇÃO<br/>
+            MatchImóvel — Plataforma de Conexão Imobiliária<br/>
+            <span className="font-normal text-slate-500">Versão 1.0 — {currentDate}</span>
+          </p>
+          
+          <div className="space-y-4">
+            <div>
+              <h3 className="font-bold text-slate-900">1. DAS PARTES</h3>
+              <p>O presente termo é celebrado entre:</p>
+              <p><strong>MatchImóvel</strong>, nome fantasia de G. A. SILVA NEGOCIOS IMOBILIARIOS - ME, inscrita no CNPJ sob o nº 31.957.586/0001-00, doravante denominada PLATAFORMA; e</p>
+              <p>O usuário que realizou o cadastro e aceitou eletronicamente este instrumento, doravante denominado COMPRADOR.</p>
+            </div>
+            
+            <div>
+              <h3 className="font-bold text-slate-900">2. DO OBJETO</h3>
+              <p>A MatchImóvel é uma plataforma de intermediação imobiliária especializada no lado do comprador. Sua função é receber o perfil de busca do COMPRADOR, conectá-lo a corretores parceiros credenciados e realizar a curadoria das oportunidades antes de qualquer apresentação.</p>
+              <p>A PLATAFORMA não é proprietária de imóveis, não atua como corretora vendedora e não representa os interesses do vendedor ou proprietário.</p>
+            </div>
+            
+            <div>
+              <h3 className="font-bold text-slate-900">3. DAS OBRIGAÇÕES DA PLATAFORMA</h3>
+              <p>A MatchImóvel compromete-se a:</p>
+              <ul className="list-disc pl-5 space-y-1">
+                <li>Manter o sigilo absoluto dos dados de contato do COMPRADOR, não os compartilhando com corretores parceiros, proprietários ou terceiros;</li>
+                <li>Realizar curadoria prévia de todas as oportunidades antes de apresentá-las ao COMPRADOR, assegurando aderência ao perfil cadastrado;</li>
+                <li>Intermediar toda comunicação inicial entre COMPRADOR e corretor parceiro, preservando a privacidade de ambos;</li>
+                <li>Agendar visitas somente após validação do match pela equipe de curadoria;</li>
+                <li>Atender o COMPRADOR com transparência, informando o estágio de sua busca sempre que solicitado;</li>
+                <li>Não cobrar qualquer valor do COMPRADOR pelo serviço de cadastro, busca e curadoria.</li>
+              </ul>
+            </div>
+            
+            <div>
+              <h3 className="font-bold text-slate-900">4. DAS OBRIGAÇÕES DO COMPRADOR</h3>
+              <p>O COMPRADOR compromete-se a:</p>
+              <ul className="list-disc pl-5 space-y-1">
+                <li>Fornecer informações verdadeiras no cadastro, especialmente no que se refere ao perfil de busca, capacidade financeira e intenção real de compra;</li>
+                <li>Comparecer às visitas agendadas ou comunicar o cancelamento com antecedência mínima de 24 horas;</li>
+                <li>Comunicar à MatchImóvel imediatamente caso tome conhecimento, por qualquer meio, de um imóvel que possa ter sido originado através da rede de parceiros da plataforma;</li>
+                <li>Manter o sigilo sobre dados, metodologia e informações operacionais da plataforma que venha a conhecer durante o uso do serviço.</li>
+              </ul>
+            </div>
+            
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+              <h3 className="font-bold text-slate-900">5. DA PROTEÇÃO DA INTERMEDIAÇÃO E DA COMISSÃO</h3>
+              <ul className="list-disc pl-5 space-y-2">
+                <li>O COMPRADOR reconhece que qualquer imóvel apresentado pela MatchImóvel — seja por meio de visita agendada, envio de informações, indicação de endereço ou qualquer outra forma de apresentação documentada — foi originado através da rede de intermediação da PLATAFORMA;</li>
+                <li>Caso o COMPRADOR realize negócio sobre imóvel originado pela MatchImóvel por qualquer meio, incluindo contato direto com o corretor parceiro, contato direto com o proprietário, indicação para terceiros que realizem a compra, ou qualquer outra forma que resulte na transferência do bem, fica desde já obrigado ao pagamento da comissão de intermediação no percentual de <strong>6% sobre o valor do negócio</strong>;</li>
+                <li>A obrigação prevista na alínea anterior persiste pelo prazo de <strong>18 meses</strong> contados da data da apresentação do imóvel pela MatchImóvel, independentemente de como se deu o contato posterior;</li>
+                <li>O não pagamento da comissão nos casos previstos nesta cláusula sujeitará o COMPRADOR à cobrança judicial, acrescida de multa de 20% e honorários advocatícios.</li>
+              </ul>
+            </div>
+            
+            <div>
+              <h3 className="font-bold text-slate-900">6. DA VISITA E DO PROTOCOLO DE APRESENTAÇÃO</h3>
+              <ul className="list-disc pl-5 space-y-1">
+                <li>Toda visita agendada pela MatchImóvel gerará automaticamente um Registro de Apresentação, documento que comprova que determinado imóvel foi originado e apresentado pela plataforma;</li>
+                <li>O COMPRADOR receberá cópia do Registro de Apresentação por email após cada visita realizada;</li>
+                <li>O Registro de Apresentação é o instrumento probatório da intermediação para fins da cláusula 5.</li>
+              </ul>
+            </div>
+            
+            <div>
+              <h3 className="font-bold text-slate-900">7. DA PRIVACIDADE E PROTEÇÃO DE DADOS</h3>
+              <p>Em conformidade com a Lei Geral de Proteção de Dados (Lei nº 13.709/2018):</p>
+              <ul className="list-disc pl-5 space-y-1">
+                <li>Os dados do COMPRADOR serão utilizados exclusivamente para as finalidades descritas neste termo;</li>
+                <li>Não serão compartilhados com terceiros sem consentimento expresso, exceto com corretores parceiros para fins de match — e mesmo nesses casos sem exposição dos dados de contato direto;</li>
+                <li>O COMPRADOR pode solicitar a exclusão de seus dados a qualquer momento pelo email suporte@matchimovel.com.br.</li>
+              </ul>
+            </div>
+            
+            <div>
+              <h3 className="font-bold text-slate-900">8. DO ACEITE ELETRÔNICO</h3>
+              <p>O aceite deste termo se dá pelo clique no botão "Li e aceito os Termos de Uso" no momento do cadastro ou quando enviado por link para confirmação. O sistema registrará automaticamente a data, hora e endereço IP do aceite, vinculando-o ao CPF e email cadastrados, constituindo prova válida nos termos do Marco Civil da Internet.</p>
+            </div>
+            
+            <div>
+              <h3 className="font-bold text-slate-900">9. DO FORO</h3>
+              <p>Fica eleito o foro da comarca de Jundiaí - SP para dirimir quaisquer controvérsias oriundas deste instrumento.</p>
+            </div>
+            
+            <p className="text-center font-medium text-slate-600 pt-4 border-t">
+              Ao clicar em "Li e aceito os Termos de Uso", o COMPRADOR declara ter lido, compreendido e concordado com todas as cláusulas deste instrumento.
+            </p>
+          </div>
+        </div>
+        
+        <div className="p-4 border-t bg-slate-50 rounded-b-2xl">
+          <Button onClick={onClose} className="w-full rounded-full bg-gradient-to-r from-indigo-600 to-purple-600">
+            Fechar e Voltar
+          </Button>
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+};
+
 const InterestFormModal = ({ isOpen, onClose, onSuccess, userInfo }) => {
   const [currentStep, setCurrentStep] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [termsAccepted, setTermsAccepted] = useState(false);
+  const [showTermsModal, setShowTermsModal] = useState(false);
   
   const [formData, setFormData] = useState({
     profile_type: '',
@@ -82,13 +222,20 @@ const InterestFormModal = ({ isOpen, onClose, onSuccess, userInfo }) => {
   };
 
   const handleSubmit = async () => {
+    if (!termsAccepted) {
+      toast.error('Você precisa aceitar os Termos de Uso para continuar');
+      return;
+    }
+    
     setIsSubmitting(true);
     try {
       await axios.post(`${API}/interests/create-full`, {
         ...formData,
         name: userInfo?.name || formData.name,
         phone: userInfo?.phone || formData.phone,
-        email: userInfo?.email || formData.email
+        email: userInfo?.email || formData.email,
+        terms_accepted: true,
+        terms_version: "1.0"
       });
       toast.success('Interesse cadastrado com sucesso!');
       onSuccess?.();
@@ -376,12 +523,45 @@ const InterestFormModal = ({ isOpen, onClose, onSuccess, userInfo }) => {
               value={formData.experience_fears}
               onChange={(e) => setFormData(prev => ({ ...prev, experience_fears: e.target.value }))}
               placeholder="Ex: Preciso de espaço para pets, tenho home office, prefiro andar alto, aceito permuta..."
-              className="min-h-[80px] text-sm rounded-lg border-2 resize-none mb-4"
+              className="min-h-[70px] text-sm rounded-lg border-2 resize-none mb-4"
             />
+            
+            {/* Terms of Use Acceptance */}
+            <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 mb-4 text-left">
+              <div className="flex items-start gap-3">
+                <Checkbox
+                  id="terms-checkbox"
+                  checked={termsAccepted}
+                  onCheckedChange={(checked) => setTermsAccepted(checked)}
+                  className="mt-0.5 data-[state=checked]:bg-indigo-600 data-[state=checked]:border-indigo-600"
+                />
+                <label htmlFor="terms-checkbox" className="text-xs text-slate-600 leading-relaxed cursor-pointer">
+                  Li e aceito os{' '}
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      setShowTermsModal(true);
+                    }}
+                    className="text-indigo-600 font-semibold hover:text-indigo-700 underline inline-flex items-center gap-0.5"
+                  >
+                    Termos de Uso e Compromisso de Intermediação
+                    <ExternalLink className="w-3 h-3" />
+                  </button>
+                </label>
+              </div>
+              {!termsAccepted && (
+                <p className="text-[10px] text-amber-600 mt-2 flex items-center gap-1">
+                  <FileText className="w-3 h-3" />
+                  Obrigatório para finalizar o cadastro
+                </p>
+              )}
+            </div>
+            
             <Button
               onClick={handleSubmit}
-              disabled={isSubmitting}
-              className="w-full h-10 rounded-full bg-gradient-to-r from-indigo-600 to-purple-600 text-sm"
+              disabled={isSubmitting || !termsAccepted}
+              className="w-full h-10 rounded-full bg-gradient-to-r from-indigo-600 to-purple-600 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isSubmitting ? 'Cadastrando...' : 'Finalizar Cadastro'}
             </Button>
