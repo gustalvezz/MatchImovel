@@ -176,6 +176,7 @@ class Match(BaseModel):
     interest_id: str
     status: str = "pending_info"
     property_info: Optional[dict] = None
+    ai_compatibility: Optional[dict] = None  # {score: int, justificativa: str, property_description: str}
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
@@ -187,6 +188,7 @@ class MatchCreateWithProperty(BaseModel):
     buyer_id: str
     interest_id: str
     property_info: PropertyInfo
+    ai_compatibility: Optional[dict] = None  # {score: int, justificativa: str, property_description: str}
 
 
 # ============ VISIT MODELS ============

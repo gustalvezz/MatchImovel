@@ -76,7 +76,8 @@ const AgentDashboard = () => {
       await axios.post(`${API}/agents/match`, {
         buyer_id: selectedInterest.buyer_id,
         interest_id: selectedInterest.interest_id,
-        property_info: propertyInfo
+        property_info: propertyInfo,
+        ai_compatibility: selectedInterest.ai_compatibility || null
       });
       toast.success('Seu Match foi enviado com sucesso e está em análise, aguarde o nosso contato.');
       setShowPropertyModal(false);
@@ -130,7 +131,12 @@ const AgentDashboard = () => {
       interest_id: result.comprador_id,
       buyer_name: result.buyer_name,
       property_type: result.property_type,
-      location: result.location
+      location: result.location,
+      ai_compatibility: {
+        score: result.score,
+        justificativa: result.justificativa,
+        property_description: propertyDescription
+      }
     });
     setShowPropertyModal(true);
   };

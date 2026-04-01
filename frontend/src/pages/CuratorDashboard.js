@@ -13,7 +13,7 @@ import { useAuth } from '@/context/AuthContext';
 import { 
   Home, LogOut, Users, Heart, Building2, CheckCircle, XCircle, 
   Clock, MessageSquare, Phone, MapPin, DollarSign, BedDouble, 
-  Car, Bath, ChevronDown, ChevronUp, Calendar, Link as LinkIcon, Ruler, ExternalLink
+  Car, Bath, ChevronDown, ChevronUp, Calendar, Link as LinkIcon, Ruler, ExternalLink, Sparkles
 } from 'lucide-react';
 import { toast } from 'sonner';
 import MatchFollowUp from '@/components/MatchFollowUp';
@@ -296,6 +296,26 @@ const CuratorDashboard = () => {
               Ver anúncio
               <ExternalLink className="w-3 h-3" />
             </a>
+          )}
+        </div>
+      )}
+
+      {/* AI Compatibility */}
+      {match.ai_compatibility && (
+        <div className="bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-200 p-4 rounded-xl mb-4">
+          <div className="flex items-center gap-2 mb-2">
+            <Sparkles className="w-5 h-5 text-indigo-600" />
+            <span className="font-semibold text-indigo-700">Análise da IA</span>
+            <Badge className={`ml-auto rounded-full ${match.ai_compatibility.score >= 80 ? 'bg-green-500' : match.ai_compatibility.score >= 60 ? 'bg-yellow-500' : 'bg-orange-500'} text-white`}>
+              {match.ai_compatibility.score}% compatível
+            </Badge>
+          </div>
+          <p className="text-sm text-slate-700">{match.ai_compatibility.justificativa}</p>
+          {match.ai_compatibility.property_description && (
+            <div className="mt-3 pt-3 border-t border-indigo-200">
+              <p className="text-xs text-muted-foreground mb-1">Descrição do imóvel que originou o match:</p>
+              <p className="text-sm italic text-slate-600">"{match.ai_compatibility.property_description}"</p>
+            </div>
           )}
         </div>
       )}

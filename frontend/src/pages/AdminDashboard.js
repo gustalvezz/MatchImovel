@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/context/AuthContext';
-import { Home, LogOut, Users, Heart, Building2, TrendingUp, CheckCircle, XCircle, Clock, UserPlus, MessageSquare, BarChart3, Shield, AlertTriangle } from 'lucide-react';
+import { Home, LogOut, Users, Heart, Building2, TrendingUp, CheckCircle, XCircle, Clock, UserPlus, MessageSquare, BarChart3, Shield, AlertTriangle, MapPin, DollarSign, Sparkles, UserCog } from 'lucide-react';
 import { toast } from 'sonner';
 import CreateCuratorModal from '@/components/CreateCuratorModal';
 import MatchFollowUp from '@/components/MatchFollowUp';
@@ -24,6 +24,7 @@ const AdminDashboard = () => {
   const [stats, setStats] = useState({});
   const [buyers, setBuyers] = useState([]);
   const [agents, setAgents] = useState([]);
+  const [curators, setCurators] = useState([]);
   const [interests, setInterests] = useState([]);
   const [matches, setMatches] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -49,16 +50,18 @@ const AdminDashboard = () => {
 
   const fetchData = async () => {
     try {
-      const [statsRes, buyersRes, agentsRes, interestsRes, matchesRes] = await Promise.all([
+      const [statsRes, buyersRes, agentsRes, curatorsRes, interestsRes, matchesRes] = await Promise.all([
         axios.get(`${API}/admin/stats`),
         axios.get(`${API}/admin/buyers`),
         axios.get(`${API}/admin/agents`),
+        axios.get(`${API}/admin/curators`).catch(() => ({ data: [] })),
         axios.get(`${API}/admin/interests`),
         axios.get(`${API}/admin/matches`)
       ]);
       setStats(statsRes.data);
       setBuyers(buyersRes.data);
       setAgents(agentsRes.data);
+      setCurators(curatorsRes.data);
       setInterests(interestsRes.data);
       setMatches(matchesRes.data);
     } catch (error) {
@@ -233,6 +236,10 @@ const AdminDashboard = () => {
             <TabsTrigger value="all-matches" className="rounded-lg" data-testid="admin-tab-matches">Matches</TabsTrigger>
             <TabsTrigger value="buyers" className="rounded-lg" data-testid="admin-tab-buyers">Compradores</TabsTrigger>
             <TabsTrigger value="agents" className="rounded-lg" data-testid="admin-tab-agents">Corretores</TabsTrigger>
+            <TabsTrigger value="curators" className="rounded-lg" data-testid="admin-tab-curators">
+              <UserCog className="w-4 h-4 mr-1" />
+              Curadores
+            </TabsTrigger>
             <TabsTrigger value="interests" className="rounded-lg" data-testid="admin-tab-interests">Interesses</TabsTrigger>
             {user?.role === 'admin' && (
               <TabsTrigger value="analytics" className="rounded-lg" data-testid="admin-tab-analytics">
@@ -288,6 +295,26 @@ const AdminDashboard = () => {
                         )}
                       </div>
                     </div>
+
+                    {/* AI Compatibility */}
+                    {match.ai_compatibility && (
+                      <div className="bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-900/20 dark:to-purple-900/20 p-4 rounded-xl mb-4 border border-indigo-200">
+                        <div className="flex items-center gap-2 mb-2">
+                          <Sparkles className="w-5 h-5 text-indigo-600" />
+                          <span className="font-semibold text-indigo-700">Análise da IA</span>
+                          <Badge className={`ml-auto rounded-full ${match.ai_compatibility.score >= 80 ? 'bg-green-500' : match.ai_compatibility.score >= 60 ? 'bg-yellow-500' : 'bg-orange-500'} text-white`}>
+                            {match.ai_compatibility.score}% compatível
+                          </Badge>
+                        </div>
+                        <p className="text-sm text-slate-700 dark:text-slate-300">{match.ai_compatibility.justificativa}</p>
+                        {match.ai_compatibility.property_description && (
+                          <div className="mt-3 pt-3 border-t border-indigo-200">
+                            <p className="text-xs text-muted-foreground mb-1">Descrição do imóvel pelo corretor:</p>
+                            <p className="text-sm italic text-slate-600 dark:text-slate-400">"{match.ai_compatibility.property_description}"</p>
+                          </div>
+                        )}
+                      </div>
+                    )}
 
                     <div className="bg-slate-50 dark:bg-slate-900/50 p-4 rounded-xl mb-4">
                       <p className="text-sm text-muted-foreground mb-2">Criado em</p>
@@ -372,6 +399,20 @@ const AdminDashboard = () => {
                   <p className="text-sm text-muted-foreground mb-4">
                     {match.interest.property_type} em {match.interest.location}
                   </p>
+                )}
+                
+                {/* AI Compatibility */}
+                {match.ai_compatibility && (
+                  <div className="bg-gradient-to-r from-indigo-50 to-purple-50 p-3 rounded-xl mb-4 border border-indigo-200">
+                    <div className="flex items-center gap-2 mb-1">
+                      <Sparkles className="w-4 h-4 text-indigo-600" />
+                      <span className="text-sm font-semibold text-indigo-700">Análise da IA</span>
+                      <Badge className={`ml-auto rounded-full text-xs ${match.ai_compatibility.score >= 80 ? 'bg-green-500' : match.ai_compatibility.score >= 60 ? 'bg-yellow-500' : 'bg-orange-500'} text-white`}>
+                        {match.ai_compatibility.score}%
+                      </Badge>
+                    </div>
+                    <p className="text-sm text-slate-600">{match.ai_compatibility.justificativa}</p>
+                  </div>
                 )}
                 
                 {match.status === 'approved' && (
@@ -519,22 +560,207 @@ const AdminDashboard = () => {
             ))}
           </TabsContent>
 
-          <TabsContent value="interests" className="space-y-4">
-            {interests.map((interest) => (
-              <Card key={interest.id} className="p-6 rounded-2xl" data-testid={`interest-${interest.id}`}>
-                <div className="flex justify-between items-start mb-3">
-                  <div>
-                    <h3 className="text-lg font-semibold">{interest.property_type}</h3>
-                    <p className="text-sm text-muted-foreground">{interest.location}</p>
-                    <p className="text-xs text-muted-foreground mt-1">Por: {interest.buyer_name}</p>
-                  </div>
-                  <Badge className="rounded-full">{interest.status}</Badge>
-                </div>
-                <p className="text-sm">
-                  R$ {interest.min_price?.toLocaleString()} - R$ {interest.max_price?.toLocaleString()}
-                </p>
+          {/* Curators Tab */}
+          <TabsContent value="curators" className="space-y-4">
+            {curators.length === 0 ? (
+              <Card className="p-12 rounded-3xl text-center">
+                <UserCog className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
+                <h3 className="text-xl font-semibold mb-2">Nenhum curador cadastrado</h3>
+                <p className="text-muted-foreground mb-4">Crie o primeiro curador para começar a avaliar matches</p>
+                <Button onClick={() => setShowCreateCurator(true)} className="rounded-full">
+                  <UserPlus className="w-4 h-4 mr-2" />
+                  Criar Curador
+                </Button>
               </Card>
-            ))}
+            ) : (
+              curators.map((curator) => {
+                const curatorMatches = matches.filter(m => m.curator_id === curator.id);
+                const pendingCount = curatorMatches.filter(m => m.status === 'pending_approval').length;
+                const approvedCount = curatorMatches.filter(m => ['approved', 'visit_scheduled', 'completed'].includes(m.status)).length;
+                const rejectedCount = curatorMatches.filter(m => m.status === 'rejected').length;
+                
+                return (
+                  <Card key={curator.id} className="p-6 rounded-2xl" data-testid={`curator-${curator.id}`}>
+                    <div className="flex justify-between items-start mb-4">
+                      <div>
+                        <h3 className="text-lg font-semibold flex items-center gap-2">
+                          <UserCog className="w-5 h-5 text-indigo-600" />
+                          {curator.name}
+                        </h3>
+                        <p className="text-sm text-muted-foreground">{curator.email}</p>
+                        {curator.phone && <p className="text-sm text-muted-foreground">{curator.phone}</p>}
+                      </div>
+                      <Badge className="rounded-full bg-indigo-100 text-indigo-700">
+                        {curator.curated_matches || 0} matches curados
+                      </Badge>
+                    </div>
+                    
+                    <div className="grid grid-cols-3 gap-4 mb-4">
+                      <div className="bg-orange-50 p-3 rounded-xl text-center">
+                        <p className="text-2xl font-bold text-orange-600">{pendingCount}</p>
+                        <p className="text-xs text-muted-foreground">Pendentes</p>
+                      </div>
+                      <div className="bg-green-50 p-3 rounded-xl text-center">
+                        <p className="text-2xl font-bold text-green-600">{approvedCount}</p>
+                        <p className="text-xs text-muted-foreground">Aprovados</p>
+                      </div>
+                      <div className="bg-red-50 p-3 rounded-xl text-center">
+                        <p className="text-2xl font-bold text-red-600">{rejectedCount}</p>
+                        <p className="text-xs text-muted-foreground">Rejeitados</p>
+                      </div>
+                    </div>
+                    
+                    {curatorMatches.length > 0 && (
+                      <div className="border-t pt-4">
+                        <p className="text-sm font-semibold mb-2">Últimos matches avaliados:</p>
+                        <div className="space-y-2">
+                          {curatorMatches.slice(0, 3).map(match => (
+                            <div key={match.id} className="flex items-center justify-between bg-slate-50 p-2 rounded-lg text-sm">
+                              <span>{match.buyer?.name} ↔ {match.agent?.name}</span>
+                              <Badge className={`rounded-full text-xs ${
+                                match.status === 'approved' ? 'bg-green-100 text-green-700' :
+                                match.status === 'rejected' ? 'bg-red-100 text-red-700' :
+                                'bg-orange-100 text-orange-700'
+                              }`}>
+                                {match.status === 'pending_approval' ? 'Pendente' :
+                                 match.status === 'approved' ? 'Aprovado' :
+                                 match.status === 'rejected' ? 'Rejeitado' : match.status}
+                              </Badge>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </Card>
+                );
+              })
+            )}
+          </TabsContent>
+
+          <TabsContent value="interests" className="space-y-4">
+            {interests.map((interest) => {
+              const budgetLabels = {
+                'ate_400k': 'Até R$ 400 mil',
+                '400k_550k': 'R$ 400 a 550 mil',
+                '550k_700k': 'R$ 550 a 700 mil',
+                '700k_800k': 'R$ 700 a 800 mil',
+                '800k_1500k': 'R$ 800 mil a 1,5 mi',
+                'acima_1500k': 'Acima de R$ 1,5 mi'
+              };
+              const ambianceLabels = {
+                'aconchegante': 'Aconchegante com plantas e madeira',
+                'amplo_moderno': 'Amplo e moderno com luz natural',
+                'minimalista': 'Minimalista e funcional',
+                'casa_campo': 'Tranquilidade de casa de campo',
+                'alto_padrao': 'Sofisticação e alto padrão'
+              };
+              const profileLabels = {
+                'primeiro_imovel': 'Primeiro Imóvel',
+                'sair_aluguel': 'Sair do Aluguel',
+                'melhor_localizacao': 'Mudança por Localização',
+                'familia_cresceu': 'Família Cresceu',
+                'investidor': 'Investidor'
+              };
+              
+              return (
+                <Card key={interest.id} className="p-6 rounded-2xl" data-testid={`interest-${interest.id}`}>
+                  <div className="flex justify-between items-start mb-4">
+                    <div>
+                      <div className="flex items-center gap-2 mb-1">
+                        <Building2 className="w-5 h-5 text-indigo-600" />
+                        <h3 className="text-lg font-semibold">{interest.property_type}</h3>
+                      </div>
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <MapPin className="w-4 h-4" />
+                        {interest.location}
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <Badge className={`rounded-full ${interest.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-slate-100'}`}>
+                        {interest.status === 'active' ? 'Ativo' : interest.status}
+                      </Badge>
+                      {interest.ai_profile && (
+                        <Badge className="rounded-full bg-gradient-to-r from-indigo-500 to-purple-500 text-white text-xs mt-1 block">
+                          {interest.ai_profile}
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+                    <div className="bg-slate-50 p-3 rounded-xl">
+                      <p className="text-xs text-muted-foreground">Comprador</p>
+                      <p className="font-semibold text-sm">{interest.buyer?.name || 'N/A'}</p>
+                    </div>
+                    <div className="bg-slate-50 p-3 rounded-xl">
+                      <p className="text-xs text-muted-foreground">Orçamento</p>
+                      <p className="font-semibold text-sm flex items-center gap-1">
+                        <DollarSign className="w-3 h-3" />
+                        {budgetLabels[interest.budget_range] || `${interest.min_price?.toLocaleString()} - ${interest.max_price?.toLocaleString()}`}
+                      </p>
+                    </div>
+                    <div className="bg-slate-50 p-3 rounded-xl">
+                      <p className="text-xs text-muted-foreground">Perfil</p>
+                      <p className="font-semibold text-sm">{profileLabels[interest.profile_type] || interest.profile_type || 'N/A'}</p>
+                    </div>
+                    <div className="bg-slate-50 p-3 rounded-xl">
+                      <p className="text-xs text-muted-foreground">Quartos</p>
+                      <p className="font-semibold text-sm">{interest.bedrooms || 'Não especificado'}</p>
+                    </div>
+                  </div>
+                  
+                  {interest.ambiance && (
+                    <div className="bg-indigo-50 p-3 rounded-xl mb-3">
+                      <p className="text-xs text-muted-foreground mb-1">Ambiente Ideal</p>
+                      <p className="text-sm">{ambianceLabels[interest.ambiance] || interest.ambiance}</p>
+                    </div>
+                  )}
+                  
+                  {interest.deal_breakers && interest.deal_breakers.length > 0 && (
+                    <div className="mb-3">
+                      <p className="text-xs text-muted-foreground mb-2">Não aceita:</p>
+                      <div className="flex flex-wrap gap-1">
+                        {interest.deal_breakers.map((item, idx) => (
+                          <Badge key={idx} variant="outline" className="rounded-full text-xs bg-red-50 text-red-700 border-red-200">
+                            {item.split('—')[0].trim()}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  
+                  {interest.features && interest.features.length > 0 && (
+                    <div className="mb-3">
+                      <p className="text-xs text-muted-foreground mb-2">Características desejadas:</p>
+                      <div className="flex flex-wrap gap-1">
+                        {interest.features.map((feature, idx) => (
+                          <Badge key={idx} variant="secondary" className="rounded-full text-xs">
+                            {feature}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  
+                  {interest.proximity_needs && interest.proximity_needs.length > 0 && (
+                    <div className="mb-3">
+                      <p className="text-xs text-muted-foreground mb-2">Precisa proximidade de:</p>
+                      <div className="flex flex-wrap gap-1">
+                        {interest.proximity_needs.map((item, idx) => (
+                          <Badge key={idx} variant="outline" className="rounded-full text-xs bg-green-50 text-green-700 border-green-200">
+                            {item}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  
+                  <div className="text-xs text-muted-foreground pt-3 border-t">
+                    Cadastrado em {new Date(interest.created_at).toLocaleDateString('pt-BR')}
+                  </div>
+                </Card>
+              );
+            })}
           </TabsContent>
 
           {user?.role === 'admin' && (
