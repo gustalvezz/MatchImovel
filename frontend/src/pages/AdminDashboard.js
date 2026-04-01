@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/context/AuthContext';
-import { Home, LogOut, Users, Heart, Building2, TrendingUp, CheckCircle, XCircle, Clock, UserPlus, MessageSquare, BarChart3, Shield, AlertTriangle, MapPin, DollarSign, Sparkles, UserCog } from 'lucide-react';
+import { Home, LogOut, Users, Heart, Building2, TrendingUp, CheckCircle, XCircle, Clock, UserPlus, MessageSquare, BarChart3, Shield, AlertTriangle, MapPin, DollarSign, Sparkles, UserCog, FileCheck } from 'lucide-react';
 import { toast } from 'sonner';
 import CreateCuratorModal from '@/components/CreateCuratorModal';
 import MatchFollowUp from '@/components/MatchFollowUp';
@@ -751,6 +751,33 @@ const AdminDashboard = () => {
                             {item}
                           </Badge>
                         ))}
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Compliance - Termos de Uso */}
+                  {interest.terms_accepted && (
+                    <div className="bg-emerald-50 border border-emerald-200 p-3 rounded-xl mb-3">
+                      <div className="flex items-center gap-2 mb-2">
+                        <FileCheck className="w-4 h-4 text-emerald-600" />
+                        <p className="text-xs font-semibold text-emerald-700">Termos de Uso Aceitos</p>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        <div>
+                          <span className="text-muted-foreground">Data/Hora: </span>
+                          <span className="font-medium">
+                            {interest.terms_accepted_at 
+                              ? new Date(interest.terms_accepted_at).toLocaleString('pt-BR', { 
+                                  day: '2-digit', month: '2-digit', year: 'numeric',
+                                  hour: '2-digit', minute: '2-digit'
+                                })
+                              : 'N/A'}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground">IP: </span>
+                          <span className="font-mono font-medium">{interest.terms_accepted_ip || 'N/A'}</span>
+                        </div>
                       </div>
                     </div>
                   )}

@@ -153,6 +153,7 @@ Plataforma imobiliária que conecta compradores interessados a corretores atrav�
   - Backend captura e salva: `terms_accepted` (bool), `terms_accepted_at` (timestamp), `terms_accepted_ip` (IP do cliente)
   - Endpoint `/api/interests/create-full` atualizado com `Request` para capturar IP
   - Schema `FullInterestCreate` atualizado com campos de termos
+  - **Compliance no Admin Dashboard**: Card de interesse exibe seção verde "Termos de Uso Aceitos" com data/hora e IP registrados
 
 - **Fluxo de Redefinição de Senha**:
   - `POST /api/auth/forgot-password` - Solicita reset (envia email com link)
