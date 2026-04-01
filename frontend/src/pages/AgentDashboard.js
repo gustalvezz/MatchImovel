@@ -87,6 +87,12 @@ const AgentDashboard = () => {
     navigate('/');
   };
 
+  // Helper function to normalize text (remove accents)
+  const normalizeText = (text) => {
+    if (!text) return '';
+    return text.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  };
+
   const filteredBuyers = buyers.filter(buyer => {
     // Filter out buyers that already have a match with this agent
     const hasMatchWithThisAgent = myMatches.some(
@@ -97,11 +103,12 @@ const AgentDashboard = () => {
       return false;
     }
     
-    // Apply search filter
+    // Apply search filter with normalized text (ignores accents)
+    const searchNormalized = normalizeText(searchTerm);
     return (
-      buyer.location?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      buyer.property_type?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      buyer.buyer_name?.toLowerCase().includes(searchTerm.toLowerCase())
+      normalizeText(buyer.location).includes(searchNormalized) ||
+      normalizeText(buyer.property_type).includes(searchNormalized) ||
+      normalizeText(buyer.buyer_name).includes(searchNormalized)
     );
   });
 

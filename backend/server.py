@@ -17,6 +17,9 @@ import aiosmtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from emergentintegrations.llm.chat import LlmChat, UserMessage
+import httpx
+import asyncio
+import unicodedata
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -449,6 +452,9 @@ class UserRegister(BaseModel):
     role: Literal["buyer", "agent", "curator", "admin"]
     name: str
     phone: Optional[str] = None
+    creci: Optional[str] = None  # For agents: CRECI number
+    creci_uf: Optional[str] = None  # For agents: State (UF)
+    creci_completo: Optional[str] = None  # Full CRECI returned by API
 
 class UserLogin(BaseModel):
     email: EmailStr
@@ -651,6 +657,146 @@ class AgentProfile(BaseModel):
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 # AUTH ENDPOINTS
+# ============ CRECI VALIDATION ============
+
+BUSCACRECI_API = "https://api.buscacreci.com.br"
+
+class CreciValidationRequest(BaseModel):
+    creci: str  # Ex: 12345F
+    uf: str  # Ex: SP
+
+class CreciValidationResponse(BaseModel):
+    valid: bool
+    creci_completo: Optional[str] = None
+    nome_completo: Optional[str] = None
+    situacao: Optional[str] = None
+    error: Optional[str] = None
+
+@api_router.post("/validate-creci", response_model=CreciValidationResponse)
+async def validate_creci(data: CreciValidationRequest):
+    """
+    Validate CRECI using BuscaCRECI API.
+    Rules:
+    - Reject CRECI with suffix J (only PF accepted)
+    - Reject CRECI with situacao != 'Ativo'
+    """
+    
+    creci = data.creci.strip().upper()
+    uf = data.uf.strip().upper()
+    
+    # Check for J suffix (Pessoa Jurídica)
+    if creci.endswith('J'):
+        return CreciValidationResponse(
+            valid=False,
+            error="CRECI de Pessoa Jurídica (J) não é aceito. Apenas CRECI de Pessoa Física (F)."
+        )
+    
+    # Format CRECI for API: UF + number + suffix (e.g., SP12345F)
+    creci_formatted = f"{uf}{creci}"
+    
+    try:
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            # Step 1: Send CRECI for consultation
+            response = await client.get(f"{BUSCACRECI_API}/?creci={creci_formatted}")
+            
+            if response.status_code != 200:
+                return CreciValidationResponse(
+                    valid=False,
+                    error="Erro ao consultar CRECI. Tente novamente."
+                )
+            
+            result = response.json()
+            codigo_solicitacao = result.get("codigo_solicitacao")
+            
+            if not codigo_solicitacao:
+                return CreciValidationResponse(
+                    valid=False,
+                    error="Não foi possível iniciar a consulta do CRECI."
+                )
+            
+            # Step 2: Poll status until FINALIZADO (max 30 seconds)
+            creci_id = None
+            creci_completo = None
+            max_attempts = 15  # 15 attempts * 2 seconds = 30 seconds max
+            
+            for _ in range(max_attempts):
+                await asyncio.sleep(2)
+                
+                status_response = await client.get(
+                    f"{BUSCACRECI_API}/status",
+                    params={"codigo_solicitacao": codigo_solicitacao}
+                )
+                
+                if status_response.status_code != 200:
+                    continue
+                
+                status_data = status_response.json()
+                status = status_data.get("status")
+                
+                if status == "FINALIZADO":
+                    creci_id = status_data.get("creciID")
+                    creci_completo = status_data.get("creciCompleto")
+                    break
+                elif status == "ERRO":
+                    return CreciValidationResponse(
+                        valid=False,
+                        error=status_data.get("mensagem", "Erro na consulta do CRECI.")
+                    )
+            
+            if not creci_id:
+                return CreciValidationResponse(
+                    valid=False,
+                    error="Tempo limite excedido. Tente novamente."
+                )
+            
+            # Step 3: Get CRECI details
+            details_response = await client.get(
+                f"{BUSCACRECI_API}/creci",
+                params={"id": creci_id}
+            )
+            
+            if details_response.status_code != 200:
+                return CreciValidationResponse(
+                    valid=False,
+                    error="Erro ao obter detalhes do CRECI."
+                )
+            
+            details = details_response.json()
+            situacao = details.get("situacao", "").strip()
+            nome_completo = details.get("nomeCompleto", "")
+            
+            # Check if CRECI is active
+            if situacao.lower() != "ativo":
+                return CreciValidationResponse(
+                    valid=False,
+                    creci_completo=creci_completo,
+                    nome_completo=nome_completo,
+                    situacao=situacao,
+                    error=f"CRECI não está ativo. Situação atual: {situacao}"
+                )
+            
+            # CRECI is valid and active
+            return CreciValidationResponse(
+                valid=True,
+                creci_completo=creci_completo,
+                nome_completo=nome_completo,
+                situacao=situacao
+            )
+            
+    except httpx.TimeoutException:
+        return CreciValidationResponse(
+            valid=False,
+            error="Tempo limite excedido na consulta. Tente novamente."
+        )
+    except Exception as e:
+        logger.error(f"Error validating CRECI: {str(e)}")
+        return CreciValidationResponse(
+            valid=False,
+            error="Erro interno ao validar CRECI. Tente novamente."
+        )
+
+# ============ AUTH ENDPOINTS ============
+
 @api_router.post("/auth/register", response_model=AuthResponse)
 async def register(user_data: UserRegister):
     # Check if user exists
@@ -689,7 +835,9 @@ async def register(user_data: UserRegister):
             "name": user_data.name,
             "email": user_data.email,
             "phone": user_data.phone,
-            "creci": None,
+            "creci": user_data.creci,
+            "creci_uf": user_data.creci_uf,
+            "creci_completo": user_data.creci_completo,
             "company": None,
             "created_at": datetime.now(timezone.utc).isoformat()
         }
@@ -1078,6 +1226,14 @@ async def smart_search_buyers(
     if current_user["role"] not in ["agent", "curator", "admin"]:
         raise HTTPException(status_code=403, detail="Acesso negado")
     
+    def normalize_text(text: str) -> str:
+        """Remove accents and normalize text for comparison"""
+        # Normalize to NFD form (decomposed)
+        normalized = unicodedata.normalize('NFD', text)
+        # Remove diacritical marks
+        without_accents = ''.join(c for c in normalized if unicodedata.category(c) != 'Mn')
+        return without_accents.lower().strip()
+    
     # Get all active interests
     interests = await db.interests.find({"status": "active"}, {"_id": 0}).to_list(1000)
     
@@ -1091,20 +1247,21 @@ async def smart_search_buyers(
                 interest['buyer_name'] = buyer.get("name")
         return interests
     
-    # Normalize query for comparison
-    query_lower = query.lower().strip()
-    query_words = set(query_lower.replace(',', ' ').replace('-', ' ').split())
+    # Normalize query for comparison (removes accents)
+    query_normalized = normalize_text(query)
+    query_words = set(query_normalized.replace(',', ' ').replace('-', ' ').split())
     
     results = []
     for interest in interests:
-        location = interest.get('location', '').lower()
-        location_words = set(location.replace(',', ' ').replace('-', ' ').split())
+        location = interest.get('location', '')
+        location_normalized = normalize_text(location)
+        location_words = set(location_normalized.replace(',', ' ').replace('-', ' ').split())
         
         # Calculate match score
         score = 0
         
-        # Direct substring match (highest score)
-        if query_lower in location:
+        # Direct substring match (highest score) - using normalized text
+        if query_normalized in location_normalized:
             score += 100
         
         # Word intersection
@@ -1121,7 +1278,7 @@ async def smart_search_buyers(
         # Budget range matching (if query contains price keywords)
         budget_keywords = ['400', '500', '550', '600', '700', '800']
         for bk in budget_keywords:
-            if bk in query_lower:
+            if bk in query_normalized:
                 budget_range = interest.get('budget_range', '')
                 if bk in budget_range:
                     score += 20

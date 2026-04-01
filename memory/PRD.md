@@ -26,8 +26,18 @@ Plataforma imobiliária que conecta compradores interessados a corretores atrav�
 - [x] Login JWT para todos os papéis
 - [x] Admin login separado (/admin/login)
 - [x] Curador login via área admin
+- [x] **Validação de CRECI para corretores** (via API BuscaCRECI)
 
-### Formulário de Interesse (v3) - Atualizado 16/03/2026
+### Validação de CRECI - Implementado 16/03/2026
+- [x] Campo UF (dropdown com todos estados, SP como padrão)
+- [x] Campo número CRECI (ex: 123456-F)
+- [x] Botão "Validar CRECI" com loading (até 30s)
+- [x] Rejeita CRECI com sufixo J (apenas PF aceito)
+- [x] Rejeita CRECI com situação diferente de "Ativo"
+- [x] Feedback visual (borda verde/vermelha, ícones, mensagens)
+- [x] Salva creci_completo retornado pela API no banco
+
+### Formulário de Interesse (v3)
 - [x] **Tela 1**: Perfil (5 opções incluindo "Quero sair do aluguel")
 - [x] **Tela 2**: Urgência (3, 12 meses ou sem prazo)
 - [x] **Tela 3**: Localização (campo livre)
@@ -41,7 +51,7 @@ Plataforma imobiliária que conecta compradores interessados a corretores atrav�
 
 ### Dashboard do Corretor
 - [x] Listagem de compradores com perfil IA
-- [x] Busca inteligente com IA
+- [x] **Busca inteligente ignorando acentos** (sao paulo → São Paulo)
 - [x] Modal de match com informações do imóvel (descrição obrigatória)
 - [x] Aba "Meus Matches" com coração vermelho e borda colorida
 - [x] Status do match (Em Análise, Aprovado, Visita Agendada, etc.)
@@ -61,29 +71,27 @@ Plataforma imobiliária que conecta compradores interessados a corretores atrav�
 - [x] Analytics com métricas da plataforma
 - [x] Visualização de todos os matches
 
-### Sistema de Notificações por Email - Atualizado 16/03/2026
-- [x] Email ao comprador: Interesse cadastrado (com próximos passos e explicação sobre curador)
-- [x] Email ao comprador: Match aprovado ("Wohoo! Um novo match foi encontrado!")
-- [x] Email ao corretor: Match aprovado (aguardar contato da equipe)
-- [x] Email ao curador: Interesse excluído pelo comprador (com motivo e dados)
-- [x] Email ao curador: Match excluído pelo corretor (com motivo e dados)
+### Sistema de Notificações por Email
+- [x] Email ao comprador: Interesse cadastrado (com próximos passos)
+- [x] Email ao comprador: Match aprovado ("Wohoo!")
+- [x] Email ao corretor: Match aprovado
+- [x] Email ao curador: Interesse/Match excluído (com motivo)
 - [x] Email ao agendar visita (comprador e corretor)
 - [x] Endpoint para lembrete 2h antes da visita
 
-### Modais de Exclusão - Atualizado 16/03/2026
+### Modais de Exclusão
 **Exclusão de Interesse (Comprador):**
-- Opções: "Já comprei um imóvel", "Mudei de planos", "Não tenho mais interesse", "Outro motivo"
-- Descrição obrigatória apenas para "Outro motivo"
+- Opções: "Já comprei", "Mudei de planos", "Não tenho mais interesse", "Outro"
+- Descrição obrigatória apenas para "Outro"
 
 **Exclusão de Match (Corretor):**
-- Opções: "Imóvel já vendeu", "Proprietário desistiu da venda", "Outro motivo"
+- Opções: "Imóvel vendeu", "Proprietário desistiu", "Outro"
 - Descrição SEMPRE obrigatória
 
 ### SEO e Landing Page
 - [x] Meta tags, Open Graph, Twitter Cards
 - [x] JSON-LD structured data
 - [x] Menu sticky com anchor links
-- [x] CTAs para compradores e corretores
 
 ---
 
@@ -93,73 +101,49 @@ Plataforma imobiliária que conecta compradores interessados a corretores atrav�
 - **Database**: MongoDB
 - **AI**: OpenAI via emergentintegrations (Emergent LLM Key)
 - **Email**: SMTP (Hostgator) via aiosmtplib
+- **CRECI**: API BuscaCRECI (https://api.buscacreci.com.br)
 
 ## Credenciais de Teste
 - **Admin**: admin@matchimob.com / admin123
 - **URL Admin**: /admin/login
-
-## Arquivos Principais
-- `/app/backend/server.py` - API completa (~2100 linhas)
-- `/app/frontend/src/components/InterestFormModal.js` - Formulário de interesse (10 telas)
-- `/app/frontend/src/components/PropertyInfoModal.js` - Modal info imóvel
-- `/app/frontend/src/components/DeleteConfirmModal.js` - Modal de exclusão
-- `/app/frontend/src/pages/CuratorDashboard.js` - Dashboard curador
-- `/app/frontend/src/pages/AgentDashboard.js` - Dashboard corretor
 
 ---
 
 ## Backlog / Tarefas Futuras
 
 ### P1 - Alta Prioridade
-- [ ] Configurar cron job para enviar lembretes de visita 2h antes
+- [ ] Configurar cron job para lembretes de visita 2h antes
 - [ ] Refatorar server.py em módulos (routes, models, services)
 
 ### P2 - Média Prioridade
 - [ ] Analytics expandido para performance de curadores
 - [ ] Histórico de visitas no dashboard do curador
-- [ ] Filtros avançados na busca de compradores
 
 ### P3 - Baixa Prioridade
 - [ ] Seção FAQ na landing page
 - [ ] Notificações push (web push)
-- [ ] App mobile (PWA)
-
-### P4 - Melhorias Futuras
-- [ ] Integração com portais imobiliários
-- [ ] Chat interno entre curador e partes
-- [ ] Relatórios de conversão
 
 ---
 
 ## Changelog
 
-### 16/03/2026
-- Modais de exclusão atualizados:
-  - Interesse: removida opção "Imóvel já foi vendido", descrição obrigatória para "Outro"
-  - Match: apenas 3 opções, descrição SEMPRE obrigatória
-- Sistema completo de notificações por email:
-  - Email ao cadastrar interesse (com explicação sobre curador e próximos passos)
-  - Email "Wohoo!" ao comprador quando match aprovado
-  - Email ao corretor quando match aprovado
-  - Email ao curador quando interesse/match excluído (com motivo e dados)
+### 16/03/2026 (Tarde)
+- Implementada validação de CRECI para corretores:
+  - Integração com API BuscaCRECI
+  - Campos UF e número CRECI no formulário
+  - Rejeita CRECI de PJ (sufixo J) e inativos
+  - Loading visual durante validação
+  - Salva creci_completo no banco
+- Corrigida busca de interesses para ignorar acentos
+  - "sao paulo" agora encontra "São Paulo"
+
+### 16/03/2026 (Manhã)
+- Modais de exclusão atualizados
+- Sistema completo de notificações por email
 
 ### 15/03/2026
 - Reformulação completa do formulário de interesse (v3)
-- Adicionada opção "Quero sair do aluguel" na tela 1
-- Mudado prazo de 6 para 12 meses na tela 2
-- Nova tela 5 "O que está procurando?" com 8 tipos de imóvel
-- Atualizadas opções de indispensável (tela 6) e ambiente (tela 7)
-- Adicionada opção "Tanto faz" na tela 9
-- Removida tela de estilo pessoal
 - Modal de informações do imóvel ao dar match
-- Coração vermelho no card de matches do corretor
-- Exibição de property_info no dashboard do curador
-- Agendamento de visitas com notificações por email
-- SEO implementado na landing page
-- Limpeza completa do banco de dados (apenas admin mantido)
-
-### 10/03/2026
-- Implementação inicial do formulário multi-step (v2)
-- Integração com IA para geração de perfil
-- Dashboards para todos os papéis
-- Sistema de matches e curadoria
+- Coração vermelho no card de matches
+- Agendamento de visitas
+- SEO implementado
