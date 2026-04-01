@@ -106,6 +106,234 @@ async def smart_search_buyers(query: str = "", current_user: dict = Depends(get_
     return results
 
 
+# ============ AI DISCOVERY ENDPOINT ============
+
+from pydantic import BaseModel
+from typing import List, Optional
+import json
+
+class AIDiscoveryRequest(BaseModel):
+    property_description: str
+
+class BuyerMatch(BaseModel):
+    comprador_id: str
+    buyer_id: str
+    buyer_name: str
+    score: int
+    justificativa: str
+    property_type: str
+    location: str
+    budget_range: Optional[str] = None
+    ai_profile: Optional[str] = None
+
+class AIDiscoveryResponse(BaseModel):
+    matches: List[BuyerMatch]
+    total_evaluated: int
+
+
+@router.post("/agents/ai-discovery", response_model=AIDiscoveryResponse)
+async def ai_discovery(request: AIDiscoveryRequest, current_user: dict = Depends(get_current_user)):
+    """
+    AI-powered buyer discovery. Takes a property description and returns
+    compatible buyers scored by Claude AI.
+    """
+    from emergentintegrations.llm.chat import LlmChat, UserMessage
+    
+    if current_user["role"] != "agent":
+        raise HTTPException(status_code=403, detail="Apenas corretores podem usar esta funcionalidade")
+    
+    if not request.property_description or len(request.property_description.strip()) < 20:
+        raise HTTPException(
+            status_code=400, 
+            detail="Por favor, descreva o imóvel com mais detalhes (mínimo 20 caracteres)"
+        )
+    
+    # Get API key
+    api_key = os.environ.get('EMERGENT_LLM_KEY')
+    if not api_key:
+        raise HTTPException(status_code=500, detail="Serviço de IA não configurado")
+    
+    # Get all active interests
+    interests = await db.interests.find({"status": "active"}, {"_id": 0}).to_list(1000)
+    
+    if not interests:
+        return AIDiscoveryResponse(matches=[], total_evaluated=0)
+    
+    # Get agent's existing matches to exclude
+    existing_matches = await db.matches.find(
+        {"agent_id": current_user["user_id"]}, 
+        {"interest_id": 1, "_id": 0}
+    ).to_list(1000)
+    matched_interest_ids = {m["interest_id"] for m in existing_matches}
+    
+    # Filter out already matched interests
+    available_interests = [i for i in interests if i["id"] not in matched_interest_ids]
+    
+    if not available_interests:
+        return AIDiscoveryResponse(matches=[], total_evaluated=0)
+    
+    # Enrich with buyer names
+    for interest in available_interests:
+        buyer = await db.buyers.find_one({"user_id": interest["buyer_id"]}, {"_id": 0})
+        interest['buyer_name'] = buyer.get("name", "Comprador") if buyer else "Comprador"
+    
+    # Build buyer profiles for AI
+    buyer_profiles = []
+    for interest in available_interests:
+        # Map ambiance codes to descriptions
+        ambiance_map = {
+            'aconchegante': 'Busca ambiente aconchegante com plantas e madeira',
+            'amplo_moderno': 'Quer ambiente amplo e moderno com luz natural',
+            'minimalista': 'Prefere estilo minimalista e funcional',
+            'casa_campo': 'Sonha com tranquilidade tipo casa de campo',
+            'alto_padrao': 'Busca sofisticação e alto padrão'
+        }
+        
+        # Map profile types
+        profile_map = {
+            'primeiro_imovel': 'Comprando primeiro imóvel',
+            'sair_aluguel': 'Quer sair do aluguel',
+            'melhor_localizacao': 'Busca melhor localização',
+            'familia_cresceu': 'Família cresceu, precisa de mais espaço',
+            'investidor': 'Investidor'
+        }
+        
+        # Map budget ranges
+        budget_map = {
+            'ate_400k': 'Até R$ 400 mil',
+            '400k_550k': 'R$ 400 a 550 mil',
+            '550k_700k': 'R$ 550 a 700 mil',
+            '700k_800k': 'R$ 700 a 800 mil',
+            '800k_1500k': 'R$ 800 mil a 1,5 milhão',
+            'acima_1500k': 'Acima de R$ 1,5 milhão'
+        }
+        
+        profile = {
+            "id": interest["id"],
+            "buyer_id": interest["buyer_id"],
+            "nome": interest.get("buyer_name", "Comprador"),
+            "tipo_imovel_desejado": interest.get("property_type", "Não especificado"),
+            "localizacao_desejada": interest.get("location", "Não especificada"),
+            "orcamento": budget_map.get(interest.get("budget_range", ""), f"R$ {interest.get('min_price', 0):,.0f} - R$ {interest.get('max_price', 0):,.0f}"),
+            "quartos_minimos": interest.get("bedrooms"),
+            "perfil_comprador": profile_map.get(interest.get("profile_type", ""), interest.get("profile_type", "")),
+            "ambiente_ideal": ambiance_map.get(interest.get("ambiance", ""), interest.get("ambiance", "")),
+            "caracteristicas_desejaveis": interest.get("features", []),
+            "o_que_nao_aceita": interest.get("deal_breakers", []),
+            "precisa_proximidade_de": interest.get("proximity_needs", []),
+            "perfil_ia": interest.get("ai_profile", "")
+        }
+        buyer_profiles.append(profile)
+    
+    # Build prompt for Claude
+    profiles_json = json.dumps(buyer_profiles, ensure_ascii=False, indent=2)
+    
+    prompt = f"""Você é um especialista em mercado imobiliário. Analise a compatibilidade entre um imóvel e vários perfis de compradores.
+
+## IMÓVEL OFERECIDO PELO CORRETOR:
+{request.property_description}
+
+## PERFIS DOS COMPRADORES CADASTRADOS:
+{profiles_json}
+
+## INSTRUÇÕES DE AVALIAÇÃO:
+
+1. **FILTROS ELIMINATÓRIOS** (campos estruturados):
+   - Se o tipo de imóvel é incompatível (ex: comprador quer apartamento, imóvel é casa): score máximo 30
+   - Se a localização é claramente incompatível: reduza 20-40 pontos
+   - Se o orçamento parece muito abaixo do padrão do imóvel descrito: reduza 30 pontos
+
+2. **DIFERENCIADORES POSITIVOS** (campos qualitativos):
+   - Ambiente ideal combina com descrição do imóvel: +15 pontos
+   - Características desejáveis presentes no imóvel: +5 pontos cada (máx 20)
+   - Nenhum deal breaker presente: +10 pontos
+   - Proximidades necessárias atendidas: +10 pontos
+
+3. **JUSTIFICATIVA**:
+   - Cite elementos ESPECÍFICOS do perfil do comprador
+   - Cite elementos ESPECÍFICOS da descrição do imóvel
+   - Explique por que combinam ou não em 2-3 frases
+
+## FORMATO DE RESPOSTA:
+Responda APENAS com um JSON válido, sem markdown, no formato:
+[
+  {{
+    "comprador_id": "id do interest",
+    "score": 0-100,
+    "justificativa": "2-3 frases explicando a compatibilidade"
+  }}
+]
+
+Inclua TODOS os compradores na resposta, mesmo os com score baixo."""
+
+    try:
+        # Call Claude via Emergent
+        chat = LlmChat(
+            api_key=api_key,
+            session_id=f"discovery-{current_user['user_id']}-{uuid.uuid4()}",
+            system_message="Você é um especialista em matching imobiliário. Sempre responda em JSON válido."
+        ).with_model("anthropic", "claude-sonnet-4-5-20250929")
+        
+        response = await chat.send_message(UserMessage(text=prompt))
+        
+        # Parse response
+        try:
+            # Clean response - remove markdown if present
+            clean_response = response.strip()
+            if clean_response.startswith("```"):
+                clean_response = clean_response.split("```")[1]
+                if clean_response.startswith("json"):
+                    clean_response = clean_response[4:]
+            clean_response = clean_response.strip()
+            
+            ai_results = json.loads(clean_response)
+        except json.JSONDecodeError:
+            logger.error(f"Failed to parse AI response: {response[:500]}")
+            raise HTTPException(
+                status_code=500, 
+                detail="Erro ao processar resposta da IA. Tente novamente."
+            )
+        
+        # Filter and enrich results
+        matches = []
+        for result in ai_results:
+            if result.get("score", 0) >= 50:
+                # Find the original interest data
+                interest_data = next(
+                    (i for i in available_interests if i["id"] == result["comprador_id"]), 
+                    None
+                )
+                if interest_data:
+                    matches.append(BuyerMatch(
+                        comprador_id=result["comprador_id"],
+                        buyer_id=interest_data["buyer_id"],
+                        buyer_name=interest_data.get("buyer_name", "Comprador"),
+                        score=result["score"],
+                        justificativa=result["justificativa"],
+                        property_type=interest_data.get("property_type", ""),
+                        location=interest_data.get("location", ""),
+                        budget_range=interest_data.get("budget_range"),
+                        ai_profile=interest_data.get("ai_profile")
+                    ))
+        
+        # Sort by score descending
+        matches.sort(key=lambda x: x.score, reverse=True)
+        
+        return AIDiscoveryResponse(
+            matches=matches,
+            total_evaluated=len(available_interests)
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"AI Discovery error: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail="Erro ao processar busca inteligente. Por favor, tente novamente."
+        )
+
+
 @router.post("/agents/match", response_model=Match)
 async def create_match(match_data: MatchCreateWithProperty, current_user: dict = Depends(get_current_user)):
     if current_user["role"] != "agent":

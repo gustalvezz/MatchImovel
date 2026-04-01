@@ -147,6 +147,16 @@ Plataforma imobiliária que conecta compradores interessados a corretores atrav�
 ## Changelog
 
 ### 01/04/2026
+- **Sistema de Descoberta Inteligente por IA (Claude)**:
+  - Substituiu busca por palavra-chave por matching inteligente
+  - Corretor descreve o imóvel em texto livre
+  - IA (Claude Sonnet via Emergent LLM Key) avalia compatibilidade com cada comprador
+  - Retorna compradores com score > 50% ordenados por compatibilidade
+  - Justificativa em linguagem natural citando elementos específicos
+  - Badge visual de score (verde 80+, amarelo 60-79)
+  - Modal de "Dar Match" existente mantido intacto
+  - Novo endpoint: `POST /api/agents/ai-discovery`
+
 - **Refatoração completa do backend (v2.0.0)**:
   - server.py (2531 linhas) dividido em 11 arquivos modulares
   - Separação em: config, database, auth, models, services, routes

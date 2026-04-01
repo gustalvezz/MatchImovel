@@ -5,10 +5,10 @@ import axios from 'axios';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Textarea } from '@/components/ui/textarea';
 import { useAuth } from '@/context/AuthContext';
-import { Home, LogOut, Users, Heart, Search, DollarSign, MapPin, Building2, Trash2 } from 'lucide-react';
+import { Home, LogOut, Users, Heart, DollarSign, MapPin, Building2, Trash2, Sparkles, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import DeleteConfirmModal from '@/components/DeleteConfirmModal';
 import PropertyInfoModal from '@/components/PropertyInfoModal';
@@ -22,11 +22,17 @@ const AgentDashboard = () => {
   const [buyers, setBuyers] = useState([]);
   const [myMatches, setMyMatches] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [selectedMatch, setSelectedMatch] = useState(null);
   const [showPropertyModal, setShowPropertyModal] = useState(false);
   const [selectedInterest, setSelectedInterest] = useState(null);
+  
+  // AI Discovery state
+  const [propertyDescription, setPropertyDescription] = useState('');
+  const [aiResults, setAiResults] = useState([]);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [hasSearched, setHasSearched] = useState(false);
+  const [totalEvaluated, setTotalEvaluated] = useState(0);
 
   useEffect(() => {
     fetchData();
@@ -87,30 +93,54 @@ const AgentDashboard = () => {
     navigate('/');
   };
 
-  // Helper function to normalize text (remove accents)
-  const normalizeText = (text) => {
-    if (!text) return '';
-    return text.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
-  };
-
-  const filteredBuyers = buyers.filter(buyer => {
-    // Filter out buyers that already have a match with this agent
-    const hasMatchWithThisAgent = myMatches.some(
-      match => match.interest_id === buyer.id
-    );
-    
-    if (hasMatchWithThisAgent) {
-      return false;
+  // AI Discovery function
+  const handleAIDiscovery = async () => {
+    if (!propertyDescription || propertyDescription.trim().length < 20) {
+      toast.error('Por favor, descreva o imóvel com mais detalhes (mínimo 20 caracteres)');
+      return;
     }
     
-    // Apply search filter with normalized text (ignores accents)
-    const searchNormalized = normalizeText(searchTerm);
-    return (
-      normalizeText(buyer.location).includes(searchNormalized) ||
-      normalizeText(buyer.property_type).includes(searchNormalized) ||
-      normalizeText(buyer.buyer_name).includes(searchNormalized)
-    );
-  });
+    setAiLoading(true);
+    setHasSearched(true);
+    
+    try {
+      const response = await axios.post(`${API}/agents/ai-discovery`, {
+        property_description: propertyDescription
+      });
+      
+      setAiResults(response.data.matches);
+      setTotalEvaluated(response.data.total_evaluated);
+      
+      if (response.data.matches.length > 0) {
+        toast.success(`Encontramos ${response.data.matches.length} compradores compatíveis!`);
+      }
+    } catch (error) {
+      toast.error(error.response?.data?.detail || 'Erro ao buscar compradores. Tente novamente.');
+      setAiResults([]);
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
+  // Handle match from AI results
+  const handleMatchFromAI = (result) => {
+    setSelectedInterest({
+      id: result.comprador_id,
+      buyer_id: result.buyer_id,
+      interest_id: result.comprador_id,
+      buyer_name: result.buyer_name,
+      property_type: result.property_type,
+      location: result.location
+    });
+    setShowPropertyModal(true);
+  };
+
+  // Get score badge color
+  const getScoreBadgeClass = (score) => {
+    if (score >= 80) return 'bg-green-500 text-white';
+    if (score >= 60) return 'bg-yellow-500 text-white';
+    return 'bg-orange-500 text-white';
+  };
 
   if (loading) {
     return (
@@ -211,161 +241,156 @@ const AgentDashboard = () => {
         </div>
 
         {/* Tabs */}
-        <Tabs defaultValue="buyers" className="w-full">
+        <Tabs defaultValue="discover" className="w-full">
           <TabsList className="grid w-full md:w-auto grid-cols-2 mb-6 rounded-xl" data-testid="agent-dashboard-tabs">
-            <TabsTrigger value="buyers" className="rounded-lg" data-testid="agent-tab-buyers">Buscar Compradores</TabsTrigger>
+            <TabsTrigger value="discover" className="rounded-lg" data-testid="agent-tab-discover">
+              <Sparkles className="w-4 h-4 mr-2" />
+              Descobrir Compradores
+            </TabsTrigger>
             <TabsTrigger value="my-matches" className="rounded-lg" data-testid="agent-tab-matches">Meus Matches</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="buyers" className="space-y-4">
-            {/* Search */}
-            <Card className="p-4 rounded-2xl mb-6">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-                <Input
-                  data-testid="agent-search-input"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 h-12 rounded-xl"
-                  placeholder="Buscar por localização, tipo de imóvel..."
-                />
+          <TabsContent value="discover" className="space-y-6">
+            {/* AI Discovery Input */}
+            <Card className="p-6 rounded-2xl" data-testid="ai-discovery-card">
+              <div className="flex items-start gap-3 mb-4">
+                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center flex-shrink-0">
+                  <Sparkles className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-slate-900">Descoberta Inteligente</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Nossa IA irá cruzar o perfil do imóvel descrito com os perfis dos compradores já cadastrados para encontrar possíveis matches para seu imóvel.
+                  </p>
+                </div>
               </div>
+              
+              <Textarea
+                data-testid="property-description-input"
+                value={propertyDescription}
+                onChange={(e) => setPropertyDescription(e.target.value)}
+                className="min-h-[150px] rounded-xl mb-4 resize-none"
+                placeholder="Descreva o imóvel que você quer ofertar: localização, características, diferenciais, estado de conservação, o que torna esse imóvel especial...
+
+Dica: quanto mais você descrever — localização, entorno, luz, silêncio, estado de conservação, diferenciais, limitações — mais preciso será o matching. Não se preocupe com formato."
+              />
+              
+              <Button
+                data-testid="ai-discovery-button"
+                onClick={handleAIDiscovery}
+                disabled={aiLoading || propertyDescription.trim().length < 20}
+                className="w-full h-12 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500"
+              >
+                {aiLoading ? (
+                  <>
+                    <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                    Analisando perfis...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="w-5 h-5 mr-2" />
+                    Encontrar compradores compatíveis
+                  </>
+                )}
+              </Button>
             </Card>
 
-            {filteredBuyers.length === 0 ? (
-              <Card className="p-12 rounded-3xl text-center" data-testid="no-buyers-message">
-                <Users className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
-                <h3 className="text-xl font-semibold mb-2">Nenhum comprador encontrado</h3>
-                <p className="text-muted-foreground">Tente ajustar sua busca</p>
-              </Card>
-            ) : (
-              filteredBuyers.map((interest) => (
-                <motion.div
-                  key={interest.id}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                >
-                  <Card className="p-6 rounded-2xl hover:shadow-lg transition-all" data-testid={`buyer-card-${interest.id}`}>
-                    <div className="flex justify-between items-start mb-4">
-                      <div className="flex-1">
-                        {/* AI Profile Badge */}
-                        {interest.ai_profile && (
-                          <div className="mb-3">
-                            <Badge className="rounded-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white text-sm px-3 py-1">
-                              {interest.ai_profile}
-                            </Badge>
-                          </div>
-                        )}
-                        <div className="flex items-center gap-3 mb-2">
-                          <h3 className="text-xl font-semibold">{interest.property_type}</h3>
-                          <Badge className="rounded-full" variant="secondary">
-                            {interest.buyer_name || 'Comprador'}
-                          </Badge>
-                          {interest.urgency && (
-                            <Badge className={`rounded-full text-xs ${
-                              interest.urgency === '3_meses' ? 'bg-red-100 text-red-700' :
-                              interest.urgency === '6_meses' ? 'bg-orange-100 text-orange-700' :
-                              'bg-slate-100 text-slate-700'
-                            }`}>
-                              {interest.urgency === '3_meses' ? 'Urgente' :
-                               interest.urgency === '6_meses' ? '6 meses' : 'Pesquisando'}
-                            </Badge>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-2 text-muted-foreground mb-3">
-                          <MapPin className="w-4 h-4" />
-                          <span>{interest.location}</span>
-                        </div>
-                      </div>
-                      <Button
-                        data-testid={`match-button-${interest.id}`}
-                        onClick={() => handleMatch(interest.buyer_id, interest.id)}
-                        className="rounded-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500"
-                      >
-                        <Heart className="w-4 h-4 mr-2" />
-                        Dar Match
-                      </Button>
-                    </div>
-                    
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-                      <div>
-                        <p className="text-sm text-muted-foreground">Orçamento</p>
-                        <p className="font-semibold text-sm flex items-center gap-1">
-                          <DollarSign className="w-3 h-3" />
-                          R$ {interest.min_price?.toLocaleString()} - {interest.max_price?.toLocaleString()}
-                        </p>
-                      </div>
-                      {interest.bedrooms && (
-                        <div>
-                          <p className="text-sm text-muted-foreground">Quartos</p>
-                          <p className="font-semibold">{interest.bedrooms}</p>
-                        </div>
-                      )}
-                      {interest.bathrooms && (
-                        <div>
-                          <p className="text-sm text-muted-foreground">Banheiros</p>
-                          <p className="font-semibold">{interest.bathrooms}</p>
-                        </div>
-                      )}
-                      {interest.parking_spaces && (
-                        <div>
-                          <p className="text-sm text-muted-foreground">Vagas</p>
-                          <p className="font-semibold">{interest.parking_spaces}</p>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Additional info from new form */}
-                    {interest.ambiance && (
-                      <div className="mb-3 p-3 bg-slate-50 rounded-xl">
-                        <p className="text-sm text-muted-foreground mb-1">Ambiente Ideal</p>
-                        <p className="text-sm">
-                          {interest.ambiance === 'aconchegante' && 'Busca espaço aconchegante com plantas e madeira'}
-                          {interest.ambiance === 'amplo_moderno' && 'Quer ambiente amplo e moderno com luz natural'}
-                          {interest.ambiance === 'apartamento_clean' && 'Prefere apartamento moderno e clean'}
-                          {interest.ambiance === 'casa_quintal' && 'Sonha com casa com quintal e tranquilidade'}
-                          {interest.ambiance === 'casa_padrao' && 'Busca casa bem localizada e prática'}
-                        </p>
-                      </div>
-                    )}
-
-                    {interest.deal_breakers && interest.deal_breakers.length > 0 && (
-                      <div className="mb-3">
-                        <p className="text-sm text-muted-foreground mb-2">Não aceita</p>
-                        <div className="flex flex-wrap gap-2">
-                          {interest.deal_breakers.slice(0, 3).map((item, idx) => (
-                            <Badge key={idx} variant="outline" className="rounded-full text-xs bg-red-50 text-red-700 border-red-200">
-                              {item.split('—')[0].trim()}
-                            </Badge>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {interest.neighborhoods && interest.neighborhoods.length > 0 && (
-                      <div className="mb-3">
-                        <p className="text-sm text-muted-foreground mb-2">Bairros</p>
-                        <div className="flex flex-wrap gap-2">
-                          {interest.neighborhoods.map((n, idx) => (
-                            <Badge key={idx} variant="outline" className="rounded-full text-xs">{n}</Badge>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {interest.features && interest.features.length > 0 && (
-                      <div>
-                        <p className="text-sm text-muted-foreground mb-2">Características</p>
-                        <div className="flex flex-wrap gap-2">
-                          {interest.features.map((f, idx) => (
-                            <Badge key={idx} variant="secondary" className="rounded-full text-xs">{f}</Badge>
-                          ))}
-                        </div>
-                      </div>
+            {/* AI Results */}
+            {hasSearched && !aiLoading && (
+              <>
+                {aiResults.length === 0 ? (
+                  <Card className="p-12 rounded-3xl text-center" data-testid="no-ai-results">
+                    <Users className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
+                    <h3 className="text-xl font-semibold mb-2">Nenhum comprador compatível no momento</h3>
+                    <p className="text-muted-foreground max-w-md mx-auto">
+                      Tente descrever outros aspectos do imóvel ou aguarde novos cadastros de compradores.
+                    </p>
+                    {totalEvaluated > 0 && (
+                      <p className="text-sm text-muted-foreground mt-4">
+                        {totalEvaluated} perfis foram avaliados
+                      </p>
                     )}
                   </Card>
-                </motion.div>
-              ))
+                ) : (
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-lg font-semibold text-slate-900">
+                        {aiResults.length} compradores compatíveis encontrados
+                      </h3>
+                      <Badge variant="outline" className="rounded-full">
+                        {totalEvaluated} perfis avaliados
+                      </Badge>
+                    </div>
+                    
+                    {aiResults.map((result, index) => (
+                      <motion.div
+                        key={result.comprador_id}
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: index * 0.1 }}
+                      >
+                        <Card className="p-6 rounded-2xl hover:shadow-lg transition-all border-l-4 border-l-indigo-500" data-testid={`ai-result-${result.comprador_id}`}>
+                          <div className="flex justify-between items-start mb-4">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-3 mb-2">
+                                <Badge className={`rounded-full text-sm px-3 py-1 ${getScoreBadgeClass(result.score)}`}>
+                                  {result.score}% compatível
+                                </Badge>
+                                <h3 className="text-lg font-semibold">{result.buyer_name}</h3>
+                              </div>
+                              
+                              {result.ai_profile && (
+                                <Badge className="rounded-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white text-xs px-3 py-1 mb-2">
+                                  {result.ai_profile}
+                                </Badge>
+                              )}
+                              
+                              <div className="flex items-center gap-4 text-sm text-muted-foreground mb-3">
+                                <span className="flex items-center gap-1">
+                                  <Building2 className="w-4 h-4" />
+                                  {result.property_type}
+                                </span>
+                                <span className="flex items-center gap-1">
+                                  <MapPin className="w-4 h-4" />
+                                  {result.location}
+                                </span>
+                              </div>
+                            </div>
+                            
+                            <Button
+                              data-testid={`match-button-ai-${result.comprador_id}`}
+                              onClick={() => handleMatchFromAI(result)}
+                              className="rounded-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500"
+                            >
+                              <Heart className="w-4 h-4 mr-2" />
+                              Dar Match
+                            </Button>
+                          </div>
+                          
+                          {/* AI Justification */}
+                          <div className="bg-slate-50 rounded-xl p-4">
+                            <p className="text-sm text-slate-700 flex items-start gap-2">
+                              <Sparkles className="w-4 h-4 text-indigo-500 mt-0.5 flex-shrink-0" />
+                              <span>{result.justificativa}</span>
+                            </p>
+                          </div>
+                        </Card>
+                      </motion.div>
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
+            
+            {/* Initial state - no search yet */}
+            {!hasSearched && !aiLoading && (
+              <Card className="p-12 rounded-3xl text-center bg-gradient-to-br from-indigo-50 to-purple-50" data-testid="ai-discovery-initial">
+                <Sparkles className="w-16 h-16 text-indigo-400 mx-auto mb-4" />
+                <h3 className="text-xl font-semibold mb-2">Descreva seu imóvel acima</h3>
+                <p className="text-muted-foreground max-w-md mx-auto">
+                  Nossa IA irá analisar os perfis dos compradores cadastrados e encontrar os mais compatíveis com o imóvel que você está oferecendo.
+                </p>
+              </Card>
             )}
           </TabsContent>
 
