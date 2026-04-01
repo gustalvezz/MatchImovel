@@ -160,10 +160,59 @@ async def send_interest_registered_email(buyer_email: str, buyer_name: str, inte
     return await send_email(buyer_email, subject, html_content)
 
 
-async def send_match_approved_buyer_email(buyer_email: str, buyer_name: str) -> bool:
+async def send_match_approved_buyer_email(
+    buyer_email: str, 
+    buyer_name: str,
+    ai_compatibility: dict = None,
+    property_info: dict = None
+) -> bool:
     """Send email to buyer when a match is approved"""
     
     subject = "Wohoo! Um novo match foi encontrado! - MatchImovel"
+    
+    # Build AI compatibility section
+    ai_section = ""
+    if ai_compatibility:
+        score = ai_compatibility.get('score', 0)
+        justificativa = ai_compatibility.get('justificativa', '')
+        score_color = '#22c55e' if score >= 80 else '#eab308' if score >= 60 else '#f97316'
+        
+        ai_section = f"""
+        <div style="background: linear-gradient(135deg, #eef2ff, #e0e7ff); padding: 24px; border-radius: 16px; margin: 24px 0; border: 2px solid #818cf8;">
+            <div style="text-align: center; margin-bottom: 16px;">
+                <div style="display: inline-block; width: 80px; height: 80px; border-radius: 50%; background: {score_color}; color: white; font-size: 28px; font-weight: bold; line-height: 80px;">
+                    {score}%
+                </div>
+            </div>
+            <h3 style="margin: 0 0 12px 0; color: #4f46e5; font-size: 18px; text-align: center;">✨ Compatibilidade com seu perfil</h3>
+            <p style="margin: 0; color: #374151; font-size: 15px; line-height: 1.6; text-align: center;">{justificativa}</p>
+        </div>
+        """
+    
+    # Build property info section
+    property_section = ""
+    if property_info:
+        details = []
+        if property_info.get('bedrooms'):
+            details.append(f"🛏️ {property_info['bedrooms']} quartos")
+        if property_info.get('bathrooms'):
+            details.append(f"🚿 {property_info['bathrooms']} banheiros")
+        if property_info.get('area_m2'):
+            details.append(f"📐 {property_info['area_m2']} m²")
+        if property_info.get('price'):
+            details.append(f"💰 R$ {property_info['price']:,.0f}".replace(',', '.'))
+        
+        details_html = " • ".join(details) if details else ""
+        address_html = f"<p style='margin: 12px 0 0 0; color: #6b7280; font-size: 14px;'>📍 {property_info.get('address', '')}</p>" if property_info.get('address') else ""
+        
+        property_section = f"""
+        <div style="background: #f0fdf4; padding: 24px; border-radius: 16px; margin: 24px 0; border: 2px solid #86efac;">
+            <h3 style="margin: 0 0 12px 0; color: #166534; font-size: 18px;">🏠 Sobre o imóvel</h3>
+            <p style="margin: 0 0 12px 0; color: #374151; font-size: 15px;">{property_info.get('description', '')}</p>
+            <p style="margin: 0; color: #166534; font-size: 14px; font-weight: 500;">{details_html}</p>
+            {address_html}
+        </div>
+        """
     
     html_content = f"""
     <!DOCTYPE html>
@@ -176,11 +225,11 @@ async def send_match_approved_buyer_email(buyer_email: str, buyer_name: str) -> 
             .header {{ background: linear-gradient(135deg, #10b981, #059669); padding: 40px 30px; text-align: center; border-radius: 16px 16px 0 0; }}
             .header h1 {{ color: white; margin: 0; font-size: 32px; }}
             .celebration {{ font-size: 48px; margin-bottom: 10px; }}
-            .content {{ background: white; padding: 40px 30px; border-radius: 0 0 16px 16px; text-align: center; }}
-            .greeting {{ font-size: 22px; font-weight: 600; color: #1e293b; margin-bottom: 20px; }}
-            .message-box {{ background: linear-gradient(135deg, #ecfdf5, #d1fae5); padding: 30px; border-radius: 16px; margin: 24px 0; }}
+            .content {{ background: white; padding: 40px 30px; border-radius: 0 0 16px 16px; }}
+            .greeting {{ font-size: 22px; font-weight: 600; color: #1e293b; margin-bottom: 20px; text-align: center; }}
+            .message-box {{ background: linear-gradient(135deg, #ecfdf5, #d1fae5); padding: 30px; border-radius: 16px; margin: 24px 0; text-align: center; }}
             .message-box p {{ margin: 0; font-size: 18px; color: #065f46; }}
-            .whatsapp-info {{ background: #dcfce7; padding: 20px; border-radius: 12px; margin: 24px 0; border: 2px solid #22c55e; }}
+            .whatsapp-info {{ background: #dcfce7; padding: 20px; border-radius: 12px; margin: 24px 0; border: 2px solid #22c55e; text-align: center; }}
             .whatsapp-info p {{ margin: 0; color: #166534; font-weight: 500; }}
             .footer {{ text-align: center; margin-top: 30px; color: #64748b; font-size: 12px; }}
         </style>
@@ -199,13 +248,17 @@ async def send_match_approved_buyer_email(buyer_email: str, buyer_name: str) -> 
                     <p style="margin-top: 16px;">Um corretor parceiro encontrou um imóvel que pode ser perfeito para o que você procura! 🏠</p>
                 </div>
                 
+                {ai_section}
+                
+                {property_section}
+                
                 <div class="whatsapp-info">
                     <p>📱 <strong>Seu curador irá enviar mais detalhes do imóvel via WhatsApp em breve!</strong></p>
                 </div>
                 
-                <p>Fique de olho no seu celular e prepare-se para conhecer essa oportunidade!</p>
+                <p style="text-align: center;">Fique de olho no seu celular e prepare-se para conhecer essa oportunidade!</p>
                 
-                <p style="margin-top: 30px;">Abraços,<br><strong>Equipe MatchImovel</strong></p>
+                <p style="margin-top: 30px; text-align: center;">Abraços,<br><strong>Equipe MatchImovel</strong></p>
             </div>
             <div class="footer">
                 <p>&copy; 2026 MatchImovel - Todos os direitos reservados</p>

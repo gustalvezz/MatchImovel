@@ -148,6 +148,44 @@ const AgentDashboard = () => {
     return 'bg-orange-500 text-white';
   };
 
+  // Check if there's an existing match for this interest
+  const getMatchStatus = (interestId) => {
+    const match = myMatches.find(m => m.interest_id === interestId);
+    if (!match) return null;
+    return match.status;
+  };
+
+  // Get button config based on match status
+  const getMatchButtonConfig = (interestId) => {
+    const status = getMatchStatus(interestId);
+    
+    if (!status) {
+      return {
+        disabled: false,
+        className: "rounded-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500",
+        icon: <Heart className="w-4 h-4 mr-2" />,
+        text: "Dar Match"
+      };
+    }
+    
+    if (status === 'approved' || status === 'visit_scheduled' || status === 'completed') {
+      return {
+        disabled: true,
+        className: "rounded-full bg-green-500 text-white cursor-not-allowed",
+        icon: <Heart className="w-4 h-4 mr-2 fill-white" />,
+        text: "Match Aprovado"
+      };
+    }
+    
+    // pending_approval or pending_info
+    return {
+      disabled: true,
+      className: "rounded-full bg-red-500 text-white cursor-not-allowed",
+      icon: <Heart className="w-4 h-4 mr-2 fill-white" />,
+      text: "Match em Análise"
+    };
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -363,14 +401,20 @@ Dica: quanto mais você descrever — localização, entorno, luz, silêncio, es
                               </div>
                             </div>
                             
-                            <Button
-                              data-testid={`match-button-ai-${result.comprador_id}`}
-                              onClick={() => handleMatchFromAI(result)}
-                              className="rounded-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500"
-                            >
-                              <Heart className="w-4 h-4 mr-2" />
-                              Dar Match
-                            </Button>
+                            {(() => {
+                              const config = getMatchButtonConfig(result.comprador_id);
+                              return (
+                                <Button
+                                  data-testid={`match-button-ai-${result.comprador_id}`}
+                                  onClick={() => !config.disabled && handleMatchFromAI(result)}
+                                  disabled={config.disabled}
+                                  className={config.className}
+                                >
+                                  {config.icon}
+                                  {config.text}
+                                </Button>
+                              );
+                            })()}
                           </div>
                           
                           {/* AI Justification */}
@@ -458,6 +502,23 @@ Dica: quanto mais você descrever — localização, entorno, luz, silêncio, es
                           <MapPin className="w-4 h-4" />
                           <span>{match.interest.location}</span>
                         </div>
+                      </div>
+                    )}
+
+                    {/* AI Compatibility */}
+                    {match.ai_compatibility && (
+                      <div className="bg-gradient-to-r from-indigo-50 to-purple-50 p-4 rounded-xl mb-4 border border-indigo-200">
+                        <div className="flex items-center gap-2 mb-2">
+                          <Sparkles className="w-4 h-4 text-indigo-600" />
+                          <span className="text-sm font-semibold text-indigo-700">Compatibilidade da IA</span>
+                          <Badge className={`ml-auto rounded-full text-xs ${
+                            match.ai_compatibility.score >= 80 ? 'bg-green-500' : 
+                            match.ai_compatibility.score >= 60 ? 'bg-yellow-500' : 'bg-orange-500'
+                          } text-white`}>
+                            {match.ai_compatibility.score}%
+                          </Badge>
+                        </div>
+                        <p className="text-sm text-slate-600">{match.ai_compatibility.justificativa}</p>
                       </div>
                     )}
 

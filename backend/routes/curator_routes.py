@@ -88,7 +88,9 @@ async def decide_match(match_id: str, decision: CurationDecision, current_user: 
         if buyer and buyer.get("email"):
             email_results["buyer"] = await send_match_approved_buyer_email(
                 buyer_email=buyer["email"],
-                buyer_name=buyer.get("name", "Comprador")
+                buyer_name=buyer.get("name", "Comprador"),
+                ai_compatibility=match.get("ai_compatibility"),
+                property_info=match.get("property_info")
             )
         
         if agent and agent.get("email"):

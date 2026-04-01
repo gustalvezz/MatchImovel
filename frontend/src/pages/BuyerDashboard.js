@@ -7,7 +7,7 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/context/AuthContext';
-import { Home, Plus, Heart, Calendar, LogOut, Building2, MapPin, DollarSign, Edit, Trash2 } from 'lucide-react';
+import { Home, Plus, Heart, Calendar, LogOut, Building2, MapPin, DollarSign, Edit, Trash2, Sparkles, BedDouble, Bath, Ruler, ExternalLink, Link as LinkIcon } from 'lucide-react';
 import { toast } from 'sonner';
 import InterestFormModal from '@/components/InterestFormModal';
 import EditInterestModal from '@/components/EditInterestModal';
@@ -307,25 +307,121 @@ const BuyerDashboard = () => {
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                 >
-                  <Card className="p-6 rounded-2xl hover:shadow-lg transition-all" data-testid={`match-card-${match.id}`}>
+                  <Card className="p-6 rounded-2xl hover:shadow-lg transition-all border-l-4 border-l-indigo-500" data-testid={`match-card-${match.id}`}>
                     <div className="flex justify-between items-start mb-4">
                       <div>
-                        <h3 className="text-xl font-semibold mb-2">Novo Match!</h3>
-                        <p className="text-muted-foreground">Corretor: {match.agent?.name || 'Não disponível'}</p>
+                        <div className="flex items-center gap-3 mb-2">
+                          <div className="w-12 h-12 rounded-full bg-gradient-to-br from-pink-500 to-red-500 flex items-center justify-center">
+                            <Heart className="w-6 h-6 text-white fill-white" />
+                          </div>
+                          <div>
+                            <h3 className="text-xl font-semibold">Novo Match!</h3>
+                            <p className="text-sm text-muted-foreground">Corretor: {match.agent?.name || 'Não disponível'}</p>
+                          </div>
+                        </div>
                       </div>
                       {getStatusBadge(match.status)}
                     </div>
 
+                    {/* AI Compatibility - Destaque principal */}
+                    {match.ai_compatibility && (
+                      <div className="bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-200 p-5 rounded-2xl mb-4">
+                        <div className="flex items-center gap-3 mb-3">
+                          <div className={`w-14 h-14 rounded-full flex items-center justify-center text-white font-bold text-lg ${
+                            match.ai_compatibility.score >= 80 ? 'bg-gradient-to-br from-green-400 to-green-600' : 
+                            match.ai_compatibility.score >= 60 ? 'bg-gradient-to-br from-yellow-400 to-yellow-600' : 
+                            'bg-gradient-to-br from-orange-400 to-orange-600'
+                          }`}>
+                            {match.ai_compatibility.score}%
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <Sparkles className="w-5 h-5 text-indigo-600" />
+                              <span className="font-semibold text-indigo-700">Compatibilidade com seu perfil</span>
+                            </div>
+                            <p className="text-sm text-muted-foreground">Análise feita por inteligência artificial</p>
+                          </div>
+                        </div>
+                        <p className="text-slate-700 leading-relaxed">{match.ai_compatibility.justificativa}</p>
+                      </div>
+                    )}
+
+                    {/* Property Info from Agent */}
+                    {match.property_info && (
+                      <div className="bg-green-50 border border-green-200 p-4 rounded-xl mb-4">
+                        <h4 className="font-semibold mb-3 flex items-center gap-2 text-green-700">
+                          <Home className="w-5 h-5" />
+                          Imóvel Oferecido
+                        </h4>
+                        
+                        <p className="text-sm text-slate-700 mb-3 whitespace-pre-wrap">{match.property_info.description}</p>
+                        
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+                          {match.property_info.bedrooms && (
+                            <div className="flex items-center gap-1 text-slate-600">
+                              <BedDouble className="w-4 h-4 text-green-500" />
+                              <span>{match.property_info.bedrooms} quartos</span>
+                            </div>
+                          )}
+                          {match.property_info.bathrooms && (
+                            <div className="flex items-center gap-1 text-slate-600">
+                              <Bath className="w-4 h-4 text-green-500" />
+                              <span>{match.property_info.bathrooms} banheiros</span>
+                            </div>
+                          )}
+                          {match.property_info.area_m2 && (
+                            <div className="flex items-center gap-1 text-slate-600">
+                              <Ruler className="w-4 h-4 text-green-500" />
+                              <span>{match.property_info.area_m2} m²</span>
+                            </div>
+                          )}
+                          {match.property_info.price && (
+                            <div className="flex items-center gap-1 text-slate-600">
+                              <DollarSign className="w-4 h-4 text-green-500" />
+                              <span>R$ {match.property_info.price.toLocaleString()}</span>
+                            </div>
+                          )}
+                        </div>
+                        
+                        {match.property_info.address && (
+                          <p className="flex items-center gap-2 mt-3 text-sm text-slate-600">
+                            <MapPin className="w-4 h-4 text-green-500" />
+                            {match.property_info.address}
+                          </p>
+                        )}
+                        
+                        {match.property_info.link && (
+                          <a 
+                            href={match.property_info.link}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-2 mt-3 text-sm text-blue-600 hover:text-blue-700 font-medium"
+                          >
+                            <LinkIcon className="w-4 h-4" />
+                            Ver anúncio
+                            <ExternalLink className="w-3 h-3" />
+                          </a>
+                        )}
+                      </div>
+                    )}
+
                     {match.interest && (
                       <div className="bg-slate-50 dark:bg-slate-900/50 p-4 rounded-xl mb-4">
-                        <p className="text-sm text-muted-foreground mb-1">Interesse relacionado</p>
+                        <p className="text-sm text-muted-foreground mb-1">Seu interesse relacionado</p>
                         <p className="font-semibold">{match.interest.property_type} em {match.interest.location}</p>
                       </div>
                     )}
 
-                    <p className="text-sm text-muted-foreground">
-                      Criado em: {new Date(match.created_at).toLocaleDateString('pt-BR')}
-                    </p>
+                    <div className="flex items-center justify-between pt-3 border-t">
+                      <p className="text-sm text-muted-foreground">
+                        Criado em: {new Date(match.created_at).toLocaleDateString('pt-BR')}
+                      </p>
+                      {match.status === 'approved' && (
+                        <p className="text-sm text-green-600 font-medium">
+                          ✨ Em breve nosso curador entrará em contato!
+                        </p>
+                      )}
+                    </div>
                   </Card>
                 </motion.div>
               ))
