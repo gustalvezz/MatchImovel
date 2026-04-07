@@ -182,6 +182,12 @@ Plataforma imobiliária que conecta compradores interessados a corretores atrav�
   - Badge visual de score (verde 80+, amarelo 60-79)
   - Modal de "Dar Match" existente mantido intacto
   - Novo endpoint: `POST /api/agents/ai-discovery`
+  - **Pré-filtro para economia de tokens**:
+    - Filtro por orçamento: elimina compradores com max_price < 75% do valor do imóvel
+    - Filtro por tipo: elimina compradores que buscam tipo incompatível (apartamento vs casa vs terreno vs comercial)
+    - Campos opcionais no frontend: "Valor do Imóvel" e "Tipo do Imóvel"
+    - Logging de métricas: total disponíveis → filtrados por orçamento → filtrados por tipo → enviados para IA
+    - Response inclui: `total_before_prefilter`, `filtered_by_budget`, `filtered_by_type`, `sent_to_ai`
 
 - **Refatoração completa do backend (v2.0.0)**:
   - server.py (2531 linhas) dividido em 11 arquivos modulares

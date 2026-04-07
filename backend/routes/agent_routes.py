@@ -114,6 +114,8 @@ import json
 
 class AIDiscoveryRequest(BaseModel):
     property_description: str
+    property_price: Optional[float] = None  # Preço do imóvel para pré-filtro
+    property_type: Optional[str] = None     # Tipo do imóvel para pré-filtro (apartamento, casa, etc)
 
 class BuyerMatch(BaseModel):
     comprador_id: str
@@ -129,6 +131,11 @@ class BuyerMatch(BaseModel):
 class AIDiscoveryResponse(BaseModel):
     matches: List[BuyerMatch]
     total_evaluated: int
+    # Pre-filter metrics
+    total_before_prefilter: int = 0
+    filtered_by_budget: int = 0
+    filtered_by_type: int = 0
+    sent_to_ai: int = 0
 
 
 @router.post("/agents/ai-discovery", response_model=AIDiscoveryResponse)
@@ -157,7 +164,7 @@ async def ai_discovery(request: AIDiscoveryRequest, current_user: dict = Depends
     interests = await db.interests.find({"status": "active"}, {"_id": 0}).to_list(1000)
     
     if not interests:
-        return AIDiscoveryResponse(matches=[], total_evaluated=0)
+        return AIDiscoveryResponse(matches=[], total_evaluated=0, total_before_prefilter=0)
     
     # Get agent's existing matches to exclude
     existing_matches = await db.matches.find(
@@ -170,16 +177,84 @@ async def ai_discovery(request: AIDiscoveryRequest, current_user: dict = Depends
     available_interests = [i for i in interests if i["id"] not in matched_interest_ids]
     
     if not available_interests:
-        return AIDiscoveryResponse(matches=[], total_evaluated=0)
+        return AIDiscoveryResponse(matches=[], total_evaluated=0, total_before_prefilter=len(interests))
+    
+    # ========== PRE-FILTER TO REDUCE AI TOKEN USAGE ==========
+    total_before_prefilter = len(available_interests)
+    filtered_by_budget = 0
+    filtered_by_type = 0
+    
+    # Property type mapping for comparison
+    property_type_groups = {
+        'apartamento': ['apartamento', 'studio', 'loft', 'studio/loft', 'flat'],
+        'casa': ['casa', 'casa de condomínio', 'casa_condominio', 'sobrado', 'village'],
+        'terreno': ['terreno', 'terreno de condomínio', 'terreno_condominio', 'lote'],
+        'comercial': ['sala comercial', 'sala_comercial', 'prédio comercial', 'predio_comercial', 'loja', 'galpão']
+    }
+    
+    def get_type_group(prop_type: str) -> str:
+        """Return the group a property type belongs to"""
+        if not prop_type:
+            return None
+        prop_type_lower = prop_type.lower().strip()
+        for group, types in property_type_groups.items():
+            if prop_type_lower in types or any(t in prop_type_lower for t in types):
+                return group
+        return None
+    
+    prefiltered_interests = []
+    
+    for interest in available_interests:
+        exclude = False
+        
+        # BUDGET PRE-FILTER: Exclude if max_price < 75% of property price
+        if request.property_price and request.property_price > 0:
+            buyer_max_price = interest.get('max_price', 0)
+            threshold = request.property_price * 0.75
+            if buyer_max_price > 0 and buyer_max_price < threshold:
+                filtered_by_budget += 1
+                exclude = True
+                logger.debug(f"Pre-filter: Excluded interest {interest['id']} - budget {buyer_max_price} < threshold {threshold}")
+        
+        # TYPE PRE-FILTER: Exclude if property types are incompatible
+        if not exclude and request.property_type:
+            offered_type_group = get_type_group(request.property_type)
+            desired_type = interest.get('property_type') or interest.get('property_type_key')
+            desired_type_group = get_type_group(desired_type)
+            
+            # Only exclude if both types are clearly defined and incompatible
+            if offered_type_group and desired_type_group and offered_type_group != desired_type_group:
+                filtered_by_type += 1
+                exclude = True
+                logger.debug(f"Pre-filter: Excluded interest {interest['id']} - type mismatch: {offered_type_group} vs {desired_type_group}")
+        
+        if not exclude:
+            prefiltered_interests.append(interest)
+    
+    # Log pre-filter results
+    sent_to_ai = len(prefiltered_interests)
+    logger.info(f"AI Discovery Pre-filter: {total_before_prefilter} available -> {filtered_by_budget} filtered by budget, {filtered_by_type} filtered by type -> {sent_to_ai} sent to AI")
+    
+    if not prefiltered_interests:
+        return AIDiscoveryResponse(
+            matches=[], 
+            total_evaluated=0,
+            total_before_prefilter=total_before_prefilter,
+            filtered_by_budget=filtered_by_budget,
+            filtered_by_type=filtered_by_type,
+            sent_to_ai=0
+        )
+    
+    # ========== END PRE-FILTER ==========
     
     # Enrich with buyer names
-    for interest in available_interests:
+    for interest in prefiltered_interests:
         buyer = await db.buyers.find_one({"user_id": interest["buyer_id"]}, {"_id": 0})
         interest['buyer_name'] = buyer.get("name", "Comprador") if buyer else "Comprador"
     
     # Build buyer profiles for AI
     buyer_profiles = []
-    for interest in available_interests:
+    for interest in prefiltered_interests:
         # Map ambiance codes to descriptions
         ambiance_map = {
             'aconchegante': 'Busca ambiente aconchegante com plantas e madeira',
@@ -300,7 +375,7 @@ Inclua TODOS os compradores na resposta, mesmo os com score baixo."""
             if result.get("score", 0) >= 50:
                 # Find the original interest data
                 interest_data = next(
-                    (i for i in available_interests if i["id"] == result["comprador_id"]), 
+                    (i for i in prefiltered_interests if i["id"] == result["comprador_id"]), 
                     None
                 )
                 if interest_data:
@@ -321,7 +396,11 @@ Inclua TODOS os compradores na resposta, mesmo os com score baixo."""
         
         return AIDiscoveryResponse(
             matches=matches,
-            total_evaluated=len(available_interests)
+            total_evaluated=sent_to_ai,
+            total_before_prefilter=total_before_prefilter,
+            filtered_by_budget=filtered_by_budget,
+            filtered_by_type=filtered_by_type,
+            sent_to_ai=sent_to_ai
         )
         
     except HTTPException:

@@ -8,10 +8,11 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import { useAuth } from '@/context/AuthContext';
-import { Home, LogOut, Users, Heart, DollarSign, MapPin, Building2, Trash2, Sparkles, Loader2 } from 'lucide-react';
+import { Home, LogOut, Users, Heart, DollarSign, MapPin, Building2, Trash2, Sparkles, Loader2, ChevronDown, ChevronUp, Filter } from 'lucide-react';
 import { toast } from 'sonner';
 import DeleteConfirmModal from '@/components/DeleteConfirmModal';
 import PropertyInfoModal from '@/components/PropertyInfoModal';
+import { Input } from '@/components/ui/input';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
@@ -29,10 +30,14 @@ const AgentDashboard = () => {
   
   // AI Discovery state
   const [propertyDescription, setPropertyDescription] = useState('');
+  const [propertyPrice, setPropertyPrice] = useState('');
+  const [propertyType, setPropertyType] = useState('');
+  const [showFilters, setShowFilters] = useState(false);
   const [aiResults, setAiResults] = useState([]);
   const [aiLoading, setAiLoading] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
   const [totalEvaluated, setTotalEvaluated] = useState(0);
+  const [prefilterStats, setPrefilterStats] = useState(null);
 
   useEffect(() => {
     fetchData();
@@ -105,12 +110,33 @@ const AgentDashboard = () => {
     setHasSearched(true);
     
     try {
-      const response = await axios.post(`${API}/agents/ai-discovery`, {
+      // Build request payload with optional pre-filter fields
+      const payload = {
         property_description: propertyDescription
-      });
+      };
+      
+      // Add price if provided (for pre-filtering)
+      if (propertyPrice && parseFloat(propertyPrice) > 0) {
+        payload.property_price = parseFloat(propertyPrice);
+      }
+      
+      // Add property type if provided (for pre-filtering)
+      if (propertyType) {
+        payload.property_type = propertyType;
+      }
+      
+      const response = await axios.post(`${API}/agents/ai-discovery`, payload);
       
       setAiResults(response.data.matches);
       setTotalEvaluated(response.data.total_evaluated);
+      
+      // Store pre-filter stats
+      setPrefilterStats({
+        total_before_prefilter: response.data.total_before_prefilter,
+        filtered_by_budget: response.data.filtered_by_budget,
+        filtered_by_type: response.data.filtered_by_type,
+        sent_to_ai: response.data.sent_to_ai
+      });
       
       if (response.data.matches.length > 0) {
         toast.success(`Encontramos ${response.data.matches.length} compradores compatíveis!`);
@@ -118,6 +144,7 @@ const AgentDashboard = () => {
     } catch (error) {
       toast.error(error.response?.data?.detail || 'Erro ao buscar compradores. Tente novamente.');
       setAiResults([]);
+      setPrefilterStats(null);
     } finally {
       setAiLoading(false);
     }
@@ -319,6 +346,70 @@ const AgentDashboard = () => {
 Dica: quanto mais você descrever — localização, entorno, luz, silêncio, estado de conservação, diferenciais, limitações — mais preciso será o matching. Não se preocupe com formato."
               />
               
+              {/* Optional Pre-filter Fields */}
+              <div className="mb-4">
+                <button
+                  type="button"
+                  onClick={() => setShowFilters(!showFilters)}
+                  className="flex items-center gap-2 text-sm text-indigo-600 hover:text-indigo-700 font-medium"
+                >
+                  <Filter className="w-4 h-4" />
+                  Filtros opcionais (economiza tokens)
+                  {showFilters ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                </button>
+                
+                {showFilters && (
+                  <div className="mt-3 p-4 bg-slate-50 rounded-xl space-y-4">
+                    <p className="text-xs text-muted-foreground">
+                      Preencha para pré-filtrar compradores antes da análise da IA, reduzindo custos.
+                    </p>
+                    
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-sm font-medium text-slate-700 mb-1 block">
+                          Valor do Imóvel (R$)
+                        </label>
+                        <Input
+                          type="number"
+                          value={propertyPrice}
+                          onChange={(e) => setPropertyPrice(e.target.value)}
+                          placeholder="Ex: 500000"
+                          className="rounded-lg"
+                          data-testid="property-price-input"
+                        />
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Elimina compradores com orçamento &lt; 75% deste valor
+                        </p>
+                      </div>
+                      
+                      <div>
+                        <label className="text-sm font-medium text-slate-700 mb-1 block">
+                          Tipo do Imóvel
+                        </label>
+                        <select
+                          value={propertyType}
+                          onChange={(e) => setPropertyType(e.target.value)}
+                          className="w-full h-10 px-3 rounded-lg border border-slate-200 focus:border-indigo-500 focus:outline-none bg-white text-sm"
+                          data-testid="property-type-select"
+                        >
+                          <option value="">Não especificar</option>
+                          <option value="apartamento">Apartamento</option>
+                          <option value="casa">Casa</option>
+                          <option value="casa_condominio">Casa de Condomínio</option>
+                          <option value="terreno">Terreno</option>
+                          <option value="terreno_condominio">Terreno de Condomínio</option>
+                          <option value="sala_comercial">Sala Comercial</option>
+                          <option value="studio_loft">Studio/Loft</option>
+                        </select>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Elimina compradores que buscam tipo incompatível
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+              
               <Button
                 data-testid="ai-discovery-button"
                 onClick={handleAIDiscovery}
@@ -349,21 +440,35 @@ Dica: quanto mais você descrever — localização, entorno, luz, silêncio, es
                     <p className="text-muted-foreground max-w-md mx-auto">
                       Tente descrever outros aspectos do imóvel ou aguarde novos cadastros de compradores.
                     </p>
-                    {totalEvaluated > 0 && (
-                      <p className="text-sm text-muted-foreground mt-4">
-                        {totalEvaluated} perfis foram avaliados
-                      </p>
+                    {prefilterStats && (
+                      <div className="mt-4 p-3 bg-slate-50 rounded-lg text-xs text-muted-foreground">
+                        <p>{prefilterStats.total_before_prefilter} compradores disponíveis</p>
+                        {prefilterStats.filtered_by_budget > 0 && (
+                          <p>• {prefilterStats.filtered_by_budget} filtrados por orçamento</p>
+                        )}
+                        {prefilterStats.filtered_by_type > 0 && (
+                          <p>• {prefilterStats.filtered_by_type} filtrados por tipo</p>
+                        )}
+                        <p>• {prefilterStats.sent_to_ai} enviados para análise da IA</p>
+                      </div>
                     )}
                   </Card>
                 ) : (
                   <div className="space-y-4">
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-between flex-wrap gap-2">
                       <h3 className="text-lg font-semibold text-slate-900">
                         {aiResults.length} compradores compatíveis encontrados
                       </h3>
-                      <Badge variant="outline" className="rounded-full">
-                        {totalEvaluated} perfis avaliados
-                      </Badge>
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline" className="rounded-full">
+                          {totalEvaluated} perfis avaliados
+                        </Badge>
+                        {prefilterStats && prefilterStats.total_before_prefilter > prefilterStats.sent_to_ai && (
+                          <Badge variant="secondary" className="rounded-full text-xs">
+                            {prefilterStats.total_before_prefilter - prefilterStats.sent_to_ai} pré-filtrados
+                          </Badge>
+                        )}
+                      </div>
                     </div>
                     
                     {aiResults.map((result, index) => (
