@@ -13,6 +13,7 @@ import { toast } from 'sonner';
 import DeleteConfirmModal from '@/components/DeleteConfirmModal';
 import PropertyInfoModal from '@/components/PropertyInfoModal';
 import { Input } from '@/components/ui/input';
+import DashboardLoading from '@/components/DashboardLoading';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
@@ -214,11 +215,7 @@ const AgentDashboard = () => {
   };
 
   if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-lg text-muted-foreground">Carregando...</div>
-      </div>
-    );
+    return <DashboardLoading message="Carregando seu painel..." />;
   }
 
   return (

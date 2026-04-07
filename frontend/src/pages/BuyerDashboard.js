@@ -12,6 +12,7 @@ import { toast } from 'sonner';
 import InterestFormModal from '@/components/InterestFormModal';
 import EditInterestModal from '@/components/EditInterestModal';
 import DeleteConfirmModal from '@/components/DeleteConfirmModal';
+import DashboardLoading from '@/components/DashboardLoading';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
@@ -87,11 +88,7 @@ const BuyerDashboard = () => {
   };
 
   if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-lg text-muted-foreground">Carregando...</div>
-      </div>
-    );
+    return <DashboardLoading message="Carregando seus interesses..." />;
   }
 
   return (

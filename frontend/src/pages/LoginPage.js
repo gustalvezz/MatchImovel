@@ -15,7 +15,7 @@ const API = `${BACKEND_URL}/api`;
 
 const LoginPage = () => {
   const navigate = useNavigate();
-  const { login } = useAuth();
+  const { login, getRedirectPath } = useAuth();
   
   const [formData, setFormData] = useState({
     email: '',
@@ -32,18 +32,14 @@ const LoginPage = () => {
       const response = await axios.post(`${API}/auth/login`, formData);
       const { token, user_id, role, name } = response.data;
       
-      login(token, { id: user_id, role, name, email: formData.email });
+      // Wait for login to complete before navigating
+      await login(token, { id: user_id, role, name, email: formData.email });
+      
       toast.success('Login realizado com sucesso!');
       
-      if (role === 'buyer') {
-        navigate('/dashboard/buyer');
-      } else if (role === 'agent') {
-        navigate('/dashboard/agent');
-      } else if (role === 'admin') {
-        navigate('/admin/dashboard');
-      } else {
-        navigate('/dashboard/curator');
-      }
+      // Use the helper to get correct path
+      const redirectPath = getRedirectPath(role);
+      navigate(redirectPath, { replace: true });
     } catch (error) {
       toast.error(error.response?.data?.detail || 'Email ou senha incorretos');
     } finally {

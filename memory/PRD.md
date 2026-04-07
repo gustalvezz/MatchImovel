@@ -146,6 +146,26 @@ Plataforma imobiliária que conecta compradores interessados a corretores atrav�
 
 ## Changelog
 
+### 07/04/2026
+- **Correção do Bug de Redirecionamento Após Login**:
+  - Problema: Usuário era redirecionado para `/` ao invés do dashboard após login
+  - Causa: Race condition entre `login()` e `navigate()` - o estado do React não atualizava a tempo
+  - Solução: 
+    - `AuthContext.js`: `login()` agora retorna uma Promise que resolve após o estado ser atualizado
+    - `LoginPage.js`: Usa `await login()` antes de chamar `navigate()`
+    - `App.js`: Adicionado `PublicRoute` para redirecionar usuários já logados que tentam acessar login/register
+    - `ProtectedRoute` agora redireciona para o dashboard correto baseado no role (em vez de `/`)
+  - Helper `getRedirectPath(role)` centraliza a lógica de redirecionamento
+
+- **Tela de Loading Animada**:
+  - Criado componente `DashboardLoading.js` com:
+    - Logo MatchImovel animado
+    - Spinner circular com animação de rotação
+    - Mensagem de loading contextual
+    - Dots animados pulsando
+  - Aplicado em todos os dashboards: Buyer, Agent, Curator, Admin
+  - Substitui a tela branca/texto simples "Carregando..."
+
 ### 01/04/2026
 - **Termos de Uso para Compradores**:
   - Checkbox obrigatório na última tela do formulário de interesse (Step 10)

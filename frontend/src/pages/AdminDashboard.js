@@ -14,6 +14,7 @@ import { toast } from 'sonner';
 import CreateCuratorModal from '@/components/CreateCuratorModal';
 import MatchFollowUp from '@/components/MatchFollowUp';
 import AnalyticsDashboard from '@/components/AnalyticsDashboard';
+import DashboardLoading from '@/components/DashboardLoading';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
@@ -105,11 +106,7 @@ const AdminDashboard = () => {
   };
 
   if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-lg text-muted-foreground">Carregando...</div>
-      </div>
-    );
+    return <DashboardLoading message="Carregando painel administrativo..." />;
   }
 
   const pendingMatches = matches.filter(m => m.status === 'pending_approval');

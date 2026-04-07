@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import MatchFollowUp from '@/components/MatchFollowUp';
+import DashboardLoading from '@/components/DashboardLoading';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
@@ -134,11 +135,7 @@ const CuratorDashboard = () => {
   };
 
   if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-lg text-muted-foreground">Carregando...</div>
-      </div>
-    );
+    return <DashboardLoading message="Carregando curadoria..." />;
   }
 
   const MatchCard = ({ match, showActions = false }) => (

@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 
 const AuthContext = createContext(null);
@@ -20,28 +20,57 @@ export const AuthProvider = ({ children }) => {
     const userData = localStorage.getItem('user');
     
     if (token && userData) {
-      setUser(JSON.parse(userData));
-      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+      try {
+        const parsedUser = JSON.parse(userData);
+        setUser(parsedUser);
+        axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+      } catch (e) {
+        // Invalid user data, clear storage
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+      }
     }
     setLoading(false);
   }, []);
 
-  const login = (token, userData) => {
+  const login = useCallback((token, userData) => {
+    // Set localStorage first
     localStorage.setItem('token', token);
     localStorage.setItem('user', JSON.stringify(userData));
-    setUser(userData);
+    
+    // Set axios header
     axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-  };
+    
+    // Update state - this will trigger re-render
+    setUser(userData);
+    
+    // Return a promise that resolves after state is set
+    return new Promise((resolve) => {
+      // Use setTimeout to ensure state update is processed
+      setTimeout(() => resolve(userData), 0);
+    });
+  }, []);
 
-  const logout = () => {
+  const logout = useCallback(() => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     setUser(null);
     delete axios.defaults.headers.common['Authorization'];
-  };
+  }, []);
+
+  // Helper to get redirect path based on role
+  const getRedirectPath = useCallback((role) => {
+    switch (role) {
+      case 'buyer': return '/dashboard/buyer';
+      case 'agent': return '/dashboard/agent';
+      case 'curator': return '/dashboard/curator';
+      case 'admin': return '/admin/dashboard';
+      default: return '/';
+    }
+  }, []);
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, loading }}>
+    <AuthContext.Provider value={{ user, login, logout, loading, getRedirectPath }}>
       {children}
     </AuthContext.Provider>
   );
