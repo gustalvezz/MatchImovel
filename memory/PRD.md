@@ -146,6 +146,19 @@ Plataforma imobiliária que conecta compradores interessados a corretores atrav�
 
 ## Changelog
 
+### 08/04/2026
+- **Setup de Cron Externo para Lembretes de Visita**:
+  - Endpoint: `POST /api/internal/send-visit-reminders`
+  - Segurança: Validação via header `X-Internal-Key` (configurado em `INTERNAL_API_KEY` no `.env`)
+  - Funcionalidade: Envia email de lembrete 2h antes da visita para comprador e corretor
+  - Logging detalhado: visits_checked, reminders_sent, errors
+  - Documentação completa em `/app/docs/CRON_SETUP.md` com exemplos para:
+    - cron-job.org (gratuito)
+    - EasyCron
+    - AWS EventBridge + Lambda
+    - Google Cloud Scheduler
+    - Servidor Linux com crontab
+
 ### 07/04/2026
 - **Correção do Bug de Redirecionamento Após Login**:
   - Problema: Usuário era redirecionado para `/` ao invés do dashboard após login

@@ -2,10 +2,11 @@
 Curator routes
 Handles curation decisions, follow-ups, and visit scheduling
 """
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Request
 from datetime import datetime, timezone, timedelta
 import uuid
 import logging
+import os
 
 from database import db
 from auth import get_current_user
@@ -309,16 +310,42 @@ async def cancel_visit(visit_id: str, current_user: dict = Depends(get_current_u
 
 
 @router.post("/internal/send-visit-reminders")
-async def send_visit_reminders():
-    """Internal endpoint to send 2h visit reminders - call this from a scheduler"""
-    now = datetime.now(timezone.utc)
+async def send_visit_reminders(request: Request):
+    """
+    Internal endpoint to send 2h visit reminders - call this from an external scheduler.
     
+    Security: Validates INTERNAL_API_KEY header to prevent unauthorized access.
+    
+    Usage with cron (example using curl):
+    */15 * * * * curl -X POST https://your-domain.com/api/internal/send-visit-reminders -H "X-Internal-Key: your-secret-key"
+    
+    Or use services like:
+    - cron-job.org (free)
+    - EasyCron
+    - AWS EventBridge + Lambda
+    - Google Cloud Scheduler
+    """
+    # Validate internal API key (optional security layer)
+    internal_key = request.headers.get("X-Internal-Key")
+    expected_key = os.environ.get("INTERNAL_API_KEY")
+    
+    if expected_key and internal_key != expected_key:
+        logger.warning("Unauthorized attempt to call send-visit-reminders endpoint")
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    
+    now = datetime.now(timezone.utc)
+    logger.info(f"Starting visit reminders check at {now.isoformat()}")
+    
+    # Find visits scheduled that haven't received 2h reminder yet
     visits = await db.visits.find({
         "status": "scheduled",
-        "reminder_2h_sent": False
+        "reminder_2h_sent": {"$ne": True}
     }, {"_id": 0}).to_list(100)
     
+    logger.info(f"Found {len(visits)} scheduled visits to check")
+    
     reminders_sent = 0
+    errors = 0
     
     for visit in visits:
         try:
@@ -327,6 +354,8 @@ async def send_visit_reminders():
             visit_datetime = visit_datetime.replace(tzinfo=timezone.utc)
             
             time_diff = visit_datetime - now
+            
+            # Send reminder if visit is between now and 2h15m from now
             if timedelta(hours=0) <= time_diff <= timedelta(hours=2, minutes=15):
                 match = await db.matches.find_one({"id": visit["match_id"]}, {"_id": 0})
                 if match:
@@ -335,8 +364,11 @@ async def send_visit_reminders():
                     
                     property_address = match.get("property_info", {}).get("address", "Endereço a confirmar")
                     
+                    buyer_sent = False
+                    agent_sent = False
+                    
                     if buyer and buyer.get("email"):
-                        await send_visit_notification(
+                        buyer_sent = await send_visit_notification(
                             to_email=buyer["email"],
                             to_name=buyer.get("name", "Comprador"),
                             visit_date=visit["visit_date"],
@@ -346,7 +378,7 @@ async def send_visit_reminders():
                         )
                     
                     if agent and agent.get("email"):
-                        await send_visit_notification(
+                        agent_sent = await send_visit_notification(
                             to_email=agent["email"],
                             to_name=agent.get("name", "Corretor"),
                             visit_date=visit["visit_date"],
@@ -355,12 +387,25 @@ async def send_visit_reminders():
                             is_2h_reminder=True
                         )
                     
-                    await db.visits.update_one(
-                        {"id": visit["id"]},
-                        {"$set": {"reminder_2h_sent": True}}
-                    )
-                    reminders_sent += 1
+                    # Mark as sent if at least one email was successful
+                    if buyer_sent or agent_sent:
+                        await db.visits.update_one(
+                            {"id": visit["id"]},
+                            {"$set": {"reminder_2h_sent": True, "reminder_sent_at": now.isoformat()}}
+                        )
+                        reminders_sent += 1
+                        logger.info(f"Sent 2h reminder for visit {visit['id']} - buyer: {buyer_sent}, agent: {agent_sent}")
         except Exception as e:
-            logger.error(f"Error sending reminder for visit {visit['id']}: {str(e)}")
+            errors += 1
+            logger.error(f"Error sending reminder for visit {visit.get('id', 'unknown')}: {str(e)}")
     
-    return {"reminders_sent": reminders_sent}
+    result = {
+        "status": "success",
+        "checked_at": now.isoformat(),
+        "visits_checked": len(visits),
+        "reminders_sent": reminders_sent,
+        "errors": errors
+    }
+    
+    logger.info(f"Visit reminders completed: {result}")
+    return result
