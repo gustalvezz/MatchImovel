@@ -343,11 +343,10 @@ Inclua TODOS os compradores na resposta, mesmo os com score baixo."""
 
     try:
 
-        # Build messages list from conversation history
-        messages = [{"role": "system", "content": "Você é um especialista em matching imobiliário. Sempre responda em JSON válido."}]
-        for msg in conversation.get("messages", []):
-            messages.append({"role": msg["role"], "content": msg["content"]})
-        messages.append({"role": "user", "content": request.message})
+        messages = [
+            {"role": "system", "content": "Você é um especialista em matching imobiliário. Sempre responda em JSON válido."},
+            {"role": "user", "content": prompt}
+        ]
 
         client = AsyncOpenAI(api_key=api_key)
         completion = await client.chat.completions.create(
