@@ -91,11 +91,10 @@ Responda APENAS com o perfil, nada mais. Use formato: "CATEGORIA - Descrição c
         if not api_key:
             return f"{profile_base.upper()} - Perfil em análise"
 
-        # Build messages list from conversation history
-        messages = [{"role": "system", "content": "Você é um especialista em criar perfis curtos de compradores de imóveis."}]
-        for msg in conversation.get("messages", []):
-            messages.append({"role": msg["role"], "content": msg["content"]})
-        messages.append({"role": "user", "content": request.message})
+        messages = [
+            {"role": "system", "content": "Você é um especialista em criar perfis curtos de compradores de imóveis."},
+            {"role": "user", "content": prompt}
+        ]
 
         client = AsyncOpenAI(api_key=api_key)
         completion = await client.chat.completions.create(
