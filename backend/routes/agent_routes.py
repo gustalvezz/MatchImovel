@@ -144,7 +144,7 @@ async def ai_discovery(request: AIDiscoveryRequest, current_user: dict = Depends
     AI-powered buyer discovery. Takes a property description and returns
     compatible buyers scored by Claude AI.
     """
-    from emergentintegrations.llm.chat import LlmChat, UserMessage
+    from openai import AsyncOpenAI
     
     if current_user["role"] != "agent":
         raise HTTPException(status_code=403, detail="Apenas corretores podem usar esta funcionalidade")
@@ -156,7 +156,7 @@ async def ai_discovery(request: AIDiscoveryRequest, current_user: dict = Depends
         )
     
     # Get API key
-    api_key = os.environ.get('EMERGENT_LLM_KEY')
+    api_key = os.environ.get('OPENAI_API_KEY')
     if not api_key:
         raise HTTPException(status_code=500, detail="Serviço de IA não configurado")
     
@@ -342,15 +342,20 @@ Responda APENAS com um JSON válido, sem markdown, no formato:
 Inclua TODOS os compradores na resposta, mesmo os com score baixo."""
 
     try:
-        # Call Claude via Emergent
-        chat = LlmChat(
-            api_key=api_key,
-            session_id=f"discovery-{current_user['user_id']}-{uuid.uuid4()}",
-            system_message="Você é um especialista em matching imobiliário. Sempre responda em JSON válido."
-        ).with_model("anthropic", "claude-sonnet-4-5-20250929")
-        
-        response = await chat.send_message(UserMessage(text=prompt))
-        
+
+        # Build messages list from conversation history
+        messages = [{"role": "system", "content": "Você é um especialista em matching imobiliário. Sempre responda em JSON válido."}]
+        for msg in conversation.get("messages", []):
+            messages.append({"role": msg["role"], "content": msg["content"]})
+        messages.append({"role": "user", "content": request.message})
+
+        client = AsyncOpenAI(api_key=api_key)
+        completion = await client.chat.completions.create(
+            model="gpt-4o",
+            messages=messages,
+        )
+        response = completion.choices[0].message.content
+
         # Parse response
         try:
             # Clean response - remove markdown if present
@@ -544,7 +549,7 @@ async def get_match_conversation(match_id: str, current_user: dict = Depends(get
 @router.post("/matches/{match_id}/send-message")
 async def send_bot_message(match_id: str, request: SendMessageRequest, current_user: dict = Depends(get_current_user)):
     """Process user message with AI and extract property info"""
-    from emergentintegrations.llm.chat import LlmChat, UserMessage
+    from openai import AsyncOpenAI
     
     if current_user["role"] != "agent":
         raise HTTPException(status_code=403, detail="Apenas corretores podem interagir")
@@ -560,13 +565,13 @@ async def send_bot_message(match_id: str, request: SendMessageRequest, current_u
     if not conversation:
         raise HTTPException(status_code=404, detail="Conversa não encontrada")
     
-    api_key = os.environ.get('EMERGENT_LLM_KEY')
+    api_key = os.environ.get('OPENAI_API_KEY')
     if not api_key:
         raise HTTPException(status_code=500, detail="LLM API key not configured")
     
     interest = await db.interests.find_one({"id": match["interest_id"]}, {"_id": 0})
     buyer = await db.buyers.find_one({"user_id": match["buyer_id"]}, {"_id": 0})
-    
+
     buyer_context = f"""
     Informações do comprador:
     - Nome: {buyer.get('name', 'Não informado') if buyer else 'Não informado'}
@@ -576,12 +581,9 @@ async def send_bot_message(match_id: str, request: SendMessageRequest, current_u
     - Quartos desejados: {interest.get('bedrooms', 'Não especificado') if interest else 'Não especificado'}
     - Características desejadas: {', '.join(interest.get('features', [])) if interest else 'Nenhuma'}
     """
-    
-    chat = LlmChat(
-        api_key=api_key,
-        session_id=f"match-{match_id}",
-        system_message=f"""Você é um assistente especializado em conectar corretores com compradores de imóveis.
-        
+
+    messages = [{"role": "system", "content": f"""Você é um assistente especializado em conectar corretores com compradores de imóveis.
+
 {buyer_context}
 
 Seu objetivo é ajudar o corretor a fornecer informações sobre o imóvel que ele quer oferecer.
@@ -596,14 +598,18 @@ Extraia as seguintes informações do imóvel quando fornecidas:
 - Vagas de garagem
 - Características especiais
 
-Seja direto e objetivo. Quando tiver informações suficientes, confirme os dados com o corretor."""
-    ).with_model("openai", "gpt-4o-mini")
-    
+Seja direto e objetivo. Quando tiver informações suficientes, confirme os dados com o corretor."""}]
+
     for msg in conversation.get('messages', []):
-        if msg['role'] == 'user':
-            await chat.send_message(UserMessage(text=msg['content']))
-    
-    response = await chat.send_message(UserMessage(text=request.message))
+        messages.append({"role": msg["role"], "content": msg["content"]})
+    messages.append({"role": "user", "content": request.message})
+
+    client = AsyncOpenAI(api_key=api_key)
+    completion = await client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=messages,
+    )
+    response = completion.choices[0].message.content
     
     await db.bot_conversations.update_one(
         {"match_id": match_id},

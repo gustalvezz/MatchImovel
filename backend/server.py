@@ -22,7 +22,17 @@ logger = logging.getLogger(__name__)
 app = FastAPI(
     title="MatchImovel API",
     description="API para plataforma de conexão entre compradores e corretores de imóveis",
-    version="2.0.0"
+    version="2.0.0",
+    redirect_slashes=False
+)
+
+# CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_credentials=True,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 # Include all routers with /api prefix
@@ -31,15 +41,6 @@ app.include_router(buyer_router, prefix="/api")
 app.include_router(agent_router, prefix="/api")
 app.include_router(curator_router, prefix="/api")
 app.include_router(admin_router, prefix="/api")
-
-# CORS middleware
-app.add_middleware(
-    CORSMiddleware,
-    allow_credentials=True,
-    allow_origins=CORS_ORIGINS,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
 
 @app.get("/api/health")
 async def health_check():

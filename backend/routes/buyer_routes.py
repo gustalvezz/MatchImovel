@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 async def generate_ai_profile(form_data: dict) -> str:
     """Generate a buyer profile using AI based on form responses"""
     try:
-        from emergentintegrations.llm.chat import LlmChat, UserMessage
+        from openai import AsyncOpenAI
         
         profile_labels = {
             'primeiro_imovel': 'Primeiro Imóvel',
@@ -87,18 +87,23 @@ Exemplos de perfis:
 Responda APENAS com o perfil, nada mais. Use formato: "CATEGORIA - Descrição curta"
 """
         
-        api_key = os.environ.get('EMERGENT_LLM_KEY')
+        api_key = os.environ.get('OPENAI_API_KEY')
         if not api_key:
             return f"{profile_base.upper()} - Perfil em análise"
-        
-        chat = LlmChat(
-            api_key=api_key,
-            session_id=f"profile-{uuid.uuid4()}",
-            system_message="Você é um especialista em criar perfis curtos de compradores de imóveis."
-        ).with_model("openai", "gpt-4o-mini")
-        
-        response = await chat.send_message(UserMessage(text=prompt))
-        
+
+        # Build messages list from conversation history
+        messages = [{"role": "system", "content": "Você é um especialista em criar perfis curtos de compradores de imóveis."}]
+        for msg in conversation.get("messages", []):
+            messages.append({"role": msg["role"], "content": msg["content"]})
+        messages.append({"role": "user", "content": request.message})
+
+        client = AsyncOpenAI(api_key=api_key)
+        completion = await client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=messages,
+        )
+        response = completion.choices[0].message.content
+
         profile = response.strip().strip('"').strip("'")
         if len(profile) > 60:
             profile = profile[:60]
