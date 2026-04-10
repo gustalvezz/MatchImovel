@@ -335,6 +335,8 @@ async def ai_discovery(request: AIDiscoveryRequest, current_user: dict = Depends
                         budget_range=interest_data.get("budget_range"),
                         ai_profile=interest_data.get("ai_profile")
                     ))
+                else:
+                    logger.warning(f"Interest not found for comprador_id: {result['comprador_id']}. Available IDs: {[i['id'] for i in prefiltered_interests]}")
         
         # Sort by score descending
         matches.sort(key=lambda x: x.score, reverse=True)
