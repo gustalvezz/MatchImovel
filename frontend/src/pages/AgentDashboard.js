@@ -211,6 +211,16 @@ const AgentDashboard = () => {
         property_info: propertyInfo,
         ai_compatibility: selectedInterest.ai_compatibility || null
       });
+      
+      // Remove result from saved search if it came from one
+      if (selectedInterest._searchId) {
+        try {
+          await axios.patch(`${API}/agents/searches/${selectedInterest._searchId}/remove-result/${selectedInterest.interest_id}`);
+        } catch (err) {
+          console.warn('Failed to remove result from search:', err);
+        }
+      }
+      
       toast.success('Seu Match foi enviado com sucesso e está em análise, aguarde o nosso contato.');
       setShowPropertyModal(false);
       setSelectedInterest(null);
@@ -289,10 +299,11 @@ const AgentDashboard = () => {
       buyer_name: result.buyer_name,
       property_type: result.property_type,
       location: result.location,
+      _searchId: result._searchId, // Track which search this came from
       ai_compatibility: {
         score: result.score,
         justificativa: result.justificativa,
-        property_description: propertyDescription
+        property_description: propertyDescription || result.property_description
       }
     });
     setShowPropertyModal(true);
@@ -463,14 +474,30 @@ const AgentDashboard = () => {
                   </div>
                 </div>
                 
-                <div className="space-y-3">
+                <div className="space-y-4">
                   {savedSearches.map((search) => (
                     <div 
                       key={search.id}
-                      className="p-4 bg-slate-50 rounded-xl border border-slate-200"
+                      className={`p-4 rounded-xl border ${
+                        search.has_new_results && search.pending_results?.length > 0
+                          ? 'bg-gradient-to-r from-green-50 to-emerald-50 border-green-300'
+                          : 'bg-slate-50 border-slate-200'
+                      }`}
                     >
                       <div className="flex items-start justify-between gap-4">
                         <div className="flex-1 min-w-0">
+                          {/* New results badge */}
+                          {search.has_new_results && search.pending_results?.length > 0 && (
+                            <div className="flex items-center gap-2 mb-2">
+                              <Badge className="bg-green-500 text-white animate-pulse">
+                                <Sparkles className="w-3 h-3 mr-1" />
+                                {search.results_source === 'automatic_cron' 
+                                  ? 'Novos matches encontrados automaticamente!' 
+                                  : `${search.pending_results.length} resultado(s) encontrado(s)`}
+                              </Badge>
+                            </div>
+                          )}
+                          
                           <p className="text-sm text-slate-800 font-medium line-clamp-2 mb-2">
                             {search.property_description}
                           </p>
@@ -509,6 +536,61 @@ const AgentDashboard = () => {
                           Desativar
                         </Button>
                       </div>
+                      
+                      {/* Pending results for this search */}
+                      {search.pending_results?.length > 0 && (
+                        <div className="mt-4 pt-4 border-t border-slate-200 space-y-3">
+                          <p className="text-xs font-medium text-slate-600 flex items-center gap-1">
+                            <Users className="w-3 h-3" />
+                            Compradores compatíveis encontrados:
+                          </p>
+                          {search.pending_results.map((result) => (
+                            <div 
+                              key={result.comprador_id}
+                              className="p-3 bg-white rounded-lg border border-slate-200 shadow-sm"
+                            >
+                              <div className="flex items-center justify-between gap-3">
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-2 mb-1">
+                                    <Badge className={`rounded-full text-xs px-2 py-0.5 ${
+                                      result.score >= 80 ? 'bg-green-500 text-white' :
+                                      result.score >= 60 ? 'bg-yellow-500 text-white' :
+                                      'bg-orange-500 text-white'
+                                    }`}>
+                                      {result.score}%
+                                    </Badge>
+                                    <span className="font-medium text-sm">{result.buyer_name}</span>
+                                  </div>
+                                  <p className="text-xs text-muted-foreground line-clamp-1">
+                                    {result.property_type} • {result.location}
+                                  </p>
+                                </div>
+                                {(() => {
+                                  const config = getMatchButtonConfig(result.comprador_id);
+                                  return (
+                                    <Button
+                                      size="sm"
+                                      onClick={() => {
+                                        if (!config.disabled) {
+                                          handleMatchFromAI({
+                                            ...result,
+                                            _searchId: search.id
+                                          });
+                                        }
+                                      }}
+                                      disabled={config.disabled}
+                                      className={`${config.className} text-xs px-3`}
+                                    >
+                                      {config.icon}
+                                      {config.text}
+                                    </Button>
+                                  );
+                                })()}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>

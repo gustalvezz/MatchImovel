@@ -341,9 +341,12 @@ async def ai_discovery(request: AIDiscoveryRequest, current_user: dict = Depends
         # Sort by score descending
         matches.sort(key=lambda x: x.score, reverse=True)
         
-        # ========== SAVE SEARCH CRITERIA ==========
+        # ========== SAVE SEARCH CRITERIA WITH RESULTS ==========
         search_id = str(uuid.uuid4())
         now = datetime.now(timezone.utc).isoformat()
+        
+        # Convert matches to dict for storage
+        matches_data = [m.model_dump() for m in matches] if matches else []
         
         search_doc = {
             "id": search_id,
@@ -356,11 +359,15 @@ async def ai_discovery(request: AIDiscoveryRequest, current_user: dict = Depends
             "created_at": now,
             "last_match_found_at": now if matches else None,
             "deactivation_reason": None,
-            "deactivated_at": None
+            "deactivated_at": None,
+            # Store found results
+            "pending_results": matches_data,
+            "has_new_results": True if matches else False,
+            "results_source": "manual_search"
         }
         
         await db.agent_searches.insert_one(search_doc)
-        logger.info(f"Saved search {search_id} for agent {current_user['user_id']}")
+        logger.info(f"Saved search {search_id} for agent {current_user['user_id']} with {len(matches)} results")
         # ========== END SAVE SEARCH ==========
         
         return AIDiscoveryResponse(
@@ -455,6 +462,60 @@ async def deactivate_search(
     logger.info(f"Search {search_id} deactivated by agent {current_user['user_id']}: {deactivation_reason}")
     
     return {"status": "success", "message": "Busca desativada com sucesso"}
+
+
+@router.patch("/agents/searches/{search_id}/mark-seen")
+async def mark_search_results_seen(
+    search_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """Mark search results as seen (remove the 'new' highlight)"""
+    if current_user["role"] != "agent":
+        raise HTTPException(status_code=403, detail="Acesso negado")
+    
+    search = await db.agent_searches.find_one(
+        {"id": search_id, "agent_id": current_user["user_id"]},
+        {"_id": 0}
+    )
+    
+    if not search:
+        raise HTTPException(status_code=404, detail="Busca não encontrada")
+    
+    await db.agent_searches.update_one(
+        {"id": search_id},
+        {"$set": {"has_new_results": False}}
+    )
+    
+    return {"status": "success"}
+
+
+@router.patch("/agents/searches/{search_id}/remove-result/{interest_id}")
+async def remove_result_from_search(
+    search_id: str,
+    interest_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """Remove a specific result from pending_results (called after match is created)"""
+    if current_user["role"] != "agent":
+        raise HTTPException(status_code=403, detail="Acesso negado")
+    
+    search = await db.agent_searches.find_one(
+        {"id": search_id, "agent_id": current_user["user_id"]},
+        {"_id": 0}
+    )
+    
+    if not search:
+        raise HTTPException(status_code=404, detail="Busca não encontrada")
+    
+    pending_results = search.get("pending_results", [])
+    updated_results = [r for r in pending_results if r.get("comprador_id") != interest_id]
+    
+    await db.agent_searches.update_one(
+        {"id": search_id},
+        {"$set": {"pending_results": updated_results}}
+    )
+    
+    return {"status": "success", "remaining_results": len(updated_results)}
 
 
 @router.post("/internal/process-saved-searches")
@@ -598,16 +659,31 @@ async def process_saved_searches(request: Request):
                     # Filter matches with score >= 50
                     for result in ai_results:
                         if result.get("score", 0) >= 50:
-                            new_matches.append(result)
-                            results["matches_found"] += 1
+                            # Enrich with buyer info
+                            interest_data = next(
+                                (i for i in compatible_interests if i["id"] == result["comprador_id"]),
+                                None
+                            )
+                            if interest_data:
+                                result["buyer_id"] = interest_data["buyer_id"]
+                                result["buyer_name"] = interest_data.get("buyer_name", "Comprador")
+                                result["property_type"] = interest_data.get("property_type", "")
+                                result["location"] = interest_data.get("location", "")
+                                result["budget_range"] = interest_data.get("budget_range")
+                                result["ai_profile"] = interest_data.get("ai_profile")
+                                new_matches.append(result)
+                                results["matches_found"] += 1
                             
                 except Exception as e:
                     logger.error(f"AI evaluation failed for search {search_id}: {e}")
             
-            # Update last_checked_at and last_match_found_at
+            # Update search with results
             update_data = {"last_checked_at": now.isoformat()}
             if new_matches:
                 update_data["last_match_found_at"] = now.isoformat()
+                update_data["pending_results"] = new_matches
+                update_data["has_new_results"] = True
+                update_data["results_source"] = "automatic_cron"
             
             await db.agent_searches.update_one(
                 {"id": search_id},
@@ -644,7 +720,7 @@ async def process_saved_searches(request: Request):
     }
 
 
-
+@router.post("/agents/match")
 async def create_match(match_data: MatchCreateWithProperty, current_user: dict = Depends(get_current_user)):
     if current_user["role"] != "agent":
         raise HTTPException(status_code=403, detail="Apenas corretores podem criar matches")
