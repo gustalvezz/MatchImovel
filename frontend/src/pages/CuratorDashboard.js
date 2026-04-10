@@ -9,11 +9,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
+import { Checkbox } from '@/components/ui/checkbox';
 import { useAuth } from '@/context/AuthContext';
 import { 
   Home, LogOut, Users, Heart, Building2, CheckCircle, XCircle, 
   Clock, MessageSquare, Phone, MapPin, DollarSign, BedDouble, 
-  Car, Bath, ChevronDown, ChevronUp, Calendar, Link as LinkIcon, Ruler, ExternalLink, Sparkles
+  Car, Bath, ChevronDown, ChevronUp, Calendar, Link as LinkIcon, Ruler, ExternalLink, Sparkles, BadgeCheck
 } from 'lucide-react';
 import { toast } from 'sonner';
 import MatchFollowUp from '@/components/MatchFollowUp';
@@ -113,6 +114,18 @@ const CuratorDashboard = () => {
       fetchData();
     } catch (error) {
       toast.error('Erro ao agendar visita');
+    }
+  };
+
+  const handleToggleSold = async (matchId, currentValue) => {
+    try {
+      await axios.patch(`${API}/curator/matches/${matchId}/sold`, {
+        sold_through_platform: !currentValue
+      });
+      toast.success(!currentValue ? 'Venda registrada!' : 'Marcação removida');
+      fetchData();
+    } catch (error) {
+      toast.error('Erro ao atualizar status de venda');
     }
   };
 
@@ -387,6 +400,27 @@ const CuratorDashboard = () => {
 
       {!showActions && match.status === 'approved' && (
         <div className="border-t pt-4 space-y-4">
+          {/* Sold Through Platform Checkbox */}
+          <div className={`flex items-center gap-3 p-3 rounded-xl ${match.sold_through_platform ? 'bg-emerald-50 border border-emerald-200' : 'bg-slate-50'}`}>
+            <Checkbox
+              id={`sold-${match.id}`}
+              checked={match.sold_through_platform || false}
+              onCheckedChange={() => handleToggleSold(match.id, match.sold_through_platform)}
+              className="data-[state=checked]:bg-emerald-600 data-[state=checked]:border-emerald-600"
+            />
+            <label htmlFor={`sold-${match.id}`} className="flex items-center gap-2 cursor-pointer">
+              <BadgeCheck className={`w-5 h-5 ${match.sold_through_platform ? 'text-emerald-600' : 'text-slate-400'}`} />
+              <span className={`text-sm font-medium ${match.sold_through_platform ? 'text-emerald-700' : 'text-slate-600'}`}>
+                Vendido pela plataforma
+              </span>
+              {match.sold_through_platform && match.sold_at && (
+                <span className="text-xs text-emerald-600">
+                  ({new Date(match.sold_at).toLocaleDateString('pt-BR')})
+                </span>
+              )}
+            </label>
+          </div>
+
           {/* Visit Scheduling Section */}
           {schedulingVisit === match.id ? (
             <div className="bg-blue-50 p-4 rounded-xl space-y-4">

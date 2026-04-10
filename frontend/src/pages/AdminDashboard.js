@@ -205,6 +205,23 @@ const AdminDashboard = () => {
             <p className="text-2xl font-bold text-green-600">{stats.approved_matches}</p>
             <p className="text-xs text-muted-foreground">Aprovados</p>
           </Card>
+
+          <Card className="p-4 rounded-2xl bg-emerald-50 border-2 border-emerald-200" data-testid="admin-stat-sold">
+            <div className="flex items-center justify-between mb-2">
+              <DollarSign className="w-5 h-5 text-emerald-600" />
+              <Sparkles className="w-4 h-4 text-emerald-500" />
+            </div>
+            <p className="text-2xl font-bold text-emerald-600">{stats.sold_through_platform || 0}</p>
+            <p className="text-xs text-muted-foreground">Vendidos</p>
+          </Card>
+
+          <Card className="p-4 rounded-2xl" data-testid="admin-stat-conversion">
+            <div className="flex items-center justify-between mb-2">
+              <TrendingUp className="w-5 h-5 text-cyan-600" />
+            </div>
+            <p className="text-2xl font-bold text-cyan-600">{stats.conversion_rate || 0}%</p>
+            <p className="text-xs text-muted-foreground">Conversão</p>
+          </Card>
         </div>
 
         {pendingMatches.length > 0 && (

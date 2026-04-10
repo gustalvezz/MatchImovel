@@ -183,6 +183,8 @@ class Match(BaseModel):
     status: str = "pending_info"
     property_info: Optional[dict] = None
     ai_compatibility: Optional[dict] = None  # {score: int, justificativa: str, property_description: str}
+    sold_through_platform: bool = False  # Only curator can set this
+    sold_at: Optional[datetime] = None  # Automatically set when sold_through_platform is True
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
@@ -256,3 +258,31 @@ class FollowUp(BaseModel):
     content: str
     contact_type: str
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+
+
+# ============ AGENT SEARCHES MODELS ============
+
+class AgentSearchCreate(BaseModel):
+    """Created automatically when agent uses ai-discovery"""
+    property_type: str
+    property_price: float
+    property_description: str
+
+class AgentSearchDeactivate(BaseModel):
+    """Request to deactivate a saved search"""
+    deactivation_reason: str
+
+class AgentSearchResponse(BaseModel):
+    """Response model for saved searches"""
+    id: str
+    agent_id: str
+    property_type: str
+    property_price: float
+    property_description: str
+    status: str  # "active" | "inactive"
+    last_checked_at: Optional[str] = None
+    created_at: str
+    deactivation_reason: Optional[str] = None
+    deactivated_at: Optional[str] = None
+    days_until_auto_deactivation: Optional[int] = None
