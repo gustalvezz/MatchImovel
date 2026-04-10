@@ -508,6 +508,10 @@ const InterestFormModal = ({ isOpen, onClose, onSuccess, userInfo }) => {
 
       // TELA 10: Campo aberto - Última tela
       case 9:
+        const minChars = 20;
+        const currentChars = formData.experience_fears?.length || 0;
+        const isFieldValid = currentChars >= minChars;
+        
         return (
           <div className="text-center py-2">
             <motion.div
@@ -518,13 +522,16 @@ const InterestFormModal = ({ isOpen, onClose, onSuccess, userInfo }) => {
               <Home className="w-6 h-6 text-white" />
             </motion.div>
             <h2 className="text-base md:text-lg font-bold mb-1">Quase lá!</h2>
-            <p className="text-slate-500 mb-3 text-xs">Informação extra para nos ajudar na busca (opcional)</p>
+            <p className="text-slate-500 mb-3 text-xs">Conte mais sobre o que você precisa *</p>
             <Textarea
               value={formData.experience_fears}
               onChange={(e) => setFormData(prev => ({ ...prev, experience_fears: e.target.value }))}
               placeholder="Ex: Preciso de espaço para pets, tenho home office, prefiro andar alto, aceito permuta..."
-              className="min-h-[70px] text-sm rounded-lg border-2 resize-none mb-4"
+              className={`min-h-[70px] text-sm rounded-lg border-2 resize-none mb-2 ${!isFieldValid && currentChars > 0 ? 'border-amber-400' : ''}`}
             />
+            <p className={`text-xs mb-4 ${isFieldValid ? 'text-green-600' : 'text-slate-400'}`}>
+              {currentChars}/{minChars} caracteres mínimos
+            </p>
             
             {/* Terms of Use Acceptance */}
             <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 mb-4 text-left">
@@ -560,7 +567,7 @@ const InterestFormModal = ({ isOpen, onClose, onSuccess, userInfo }) => {
             
             <Button
               onClick={handleSubmit}
-              disabled={isSubmitting || !termsAccepted}
+              disabled={isSubmitting || !termsAccepted || !isFieldValid}
               className="w-full h-10 rounded-full bg-gradient-to-r from-indigo-600 to-purple-600 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isSubmitting ? 'Cadastrando...' : 'Finalizar Cadastro'}

@@ -628,3 +628,91 @@ async def send_visit_notification(
     """
     
     return await send_email(to_email, subject, email_html)
+
+
+
+async def send_saved_search_results_email(
+    to_email: str,
+    agent_name: str,
+    property_description: str,
+    matches_found: int,
+    days_remaining: int
+) -> bool:
+    """Send email notification about saved search results"""
+    
+    if matches_found > 0:
+        subject = f"MatchImovel: Encontramos {matches_found} novos compradores para seu imóvel!"
+        result_message = f"""
+            <p style="font-size: 18px; color: #059669; font-weight: bold;">
+                Boas notícias! Encontramos {matches_found} novo(s) comprador(es) compatível(is) com seu imóvel.
+            </p>
+            <p>
+                Acesse sua conta no MatchImovel para verificar os detalhes e dar match com os compradores interessados.
+            </p>
+        """
+        cta_text = "Ver Compradores Compatíveis"
+        cta_color = "#059669"
+    else:
+        subject = "MatchImovel: Atualização da sua busca automática"
+        result_message = f"""
+            <p>
+                Rodamos sua busca automática em todos os novos compradores cadastrados e, 
+                infelizmente, não encontramos matches compatíveis desta vez.
+            </p>
+            <p style="color: #d97706; font-weight: 500;">
+                Sua busca será executada automaticamente novamente em 7 dias. 
+                Restam <strong>{days_remaining} dias</strong> antes da desativação automática por inatividade.
+            </p>
+        """
+        cta_text = "Acessar Meu Painel"
+        cta_color = "#6366f1"
+    
+    email_html = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="utf-8">
+        <style>
+            body {{ font-family: 'Segoe UI', Arial, sans-serif; line-height: 1.6; color: #333; }}
+            .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
+            .header {{ background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); color: white; padding: 30px; text-align: center; border-radius: 12px 12px 0 0; }}
+            .content {{ background: #ffffff; padding: 30px; border: 1px solid #e5e7eb; }}
+            .property-box {{ background: #f8fafc; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #6366f1; }}
+            .cta {{ display: inline-block; background: {cta_color}; color: white; padding: 14px 28px; text-decoration: none; border-radius: 8px; margin: 20px 0; font-weight: 600; }}
+            .footer {{ text-align: center; padding: 20px; color: #6b7280; font-size: 12px; }}
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="header">
+                <h1 style="margin: 0;">MatchImovel</h1>
+                <p style="margin: 10px 0 0 0; opacity: 0.9;">Busca Automática de Compradores</p>
+            </div>
+            <div class="content">
+                <p>Olá, <strong>{agent_name}</strong>!</p>
+                
+                {result_message}
+                
+                <div class="property-box">
+                    <strong>Imóvel buscado:</strong>
+                    <p style="margin: 10px 0 0 0; color: #4b5563;">{property_description}</p>
+                </div>
+                
+                <div style="text-align: center;">
+                    <a href="https://matchimob.com/dashboard/agent" class="cta">{cta_text}</a>
+                </div>
+                
+                <p style="font-size: 13px; color: #6b7280; margin-top: 30px;">
+                    Esta é uma notificação automática do sistema de buscas salvas. 
+                    Para desativar esta busca, acesse seu painel e clique em "Desativar" na seção "Minhas Buscas Ativas".
+                </p>
+            </div>
+            <div class="footer">
+                <p>&copy; 2026 MatchImovel - Todos os direitos reservados</p>
+            </div>
+        </div>
+    </body>
+    </html>
+    """
+    
+    return await send_email(to_email, subject, email_html)

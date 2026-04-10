@@ -90,20 +90,19 @@ Responda APENAS com o perfil, nada mais. Use formato: "CATEGORIA - Descrição c
         api_key = os.environ.get('OPENAI_API_KEY')
         if not api_key:
             return f"{profile_base.upper()} - Perfil em análise"
-
-        messages = [
-            {"role": "system", "content": "Você é um especialista em criar perfis curtos de compradores de imóveis."},
-            {"role": "user", "content": prompt}
-        ]
-
+        
         client = AsyncOpenAI(api_key=api_key)
-        completion = await client.chat.completions.create(
+        response = await client.chat.completions.create(
             model="gpt-4o-mini",
-            messages=messages,
+            messages=[
+                {"role": "system", "content": "Você é um especialista em criar perfis curtos de compradores de imóveis."},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.7,
+            max_tokens=50
         )
-        response = completion.choices[0].message.content
-
-        profile = response.strip().strip('"').strip("'")
+        
+        profile = response.choices[0].message.content.strip().strip('"').strip("'")
         if len(profile) > 60:
             profile = profile[:60]
         

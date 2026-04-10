@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { Button } from '@/components/ui/button';
@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import { useAuth } from '@/context/AuthContext';
-import { Home, LogOut, Users, Heart, DollarSign, MapPin, Building2, Trash2, Sparkles, Loader2, ChevronDown, ChevronUp, Filter } from 'lucide-react';
+import { Home, LogOut, Users, Heart, DollarSign, MapPin, Building2, Trash2, Sparkles, Loader2, Filter, Search, X, Clock, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
 import DeleteConfirmModal from '@/components/DeleteConfirmModal';
 import PropertyInfoModal from '@/components/PropertyInfoModal';
@@ -17,6 +17,110 @@ import DashboardLoading from '@/components/DashboardLoading';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
+
+// Deactivation Modal Component
+const DeactivationModal = ({ isOpen, onClose, onConfirm, searchDescription }) => {
+  const [reason, setReason] = useState('');
+  const [customReason, setCustomReason] = useState('');
+  
+  const reasons = [
+    { value: 'Imóvel vendido por outro canal', label: 'Imóvel vendido por outro canal' },
+    { value: 'Imóvel retirado da venda', label: 'Imóvel retirado da venda' },
+    { value: 'outro', label: 'Outro' }
+  ];
+  
+  const handleConfirm = () => {
+    const finalReason = reason === 'outro' ? customReason : reason;
+    if (!finalReason.trim()) {
+      toast.error('Por favor, informe o motivo');
+      return;
+    }
+    onConfirm(finalReason);
+    setReason('');
+    setCustomReason('');
+  };
+  
+  if (!isOpen) return null;
+  
+  return (
+    <AnimatePresence>
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+        onClick={onClose}
+      >
+        <motion.div
+          initial={{ scale: 0.95, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          exit={{ scale: 0.95, opacity: 0 }}
+          className="w-full max-w-md bg-white rounded-2xl shadow-2xl p-6"
+          onClick={e => e.stopPropagation()}
+        >
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-bold text-slate-900">Desativar Busca</h3>
+            <button onClick={onClose} className="text-slate-400 hover:text-slate-600">
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+          
+          <p className="text-sm text-slate-600 mb-4">
+            Você está desativando a busca automática para:
+          </p>
+          <p className="text-sm text-slate-800 bg-slate-50 p-3 rounded-lg mb-4 line-clamp-2">
+            "{searchDescription}"
+          </p>
+          
+          <p className="text-sm font-medium text-slate-700 mb-2">Qual o motivo?</p>
+          
+          <div className="space-y-2 mb-4">
+            {reasons.map(r => (
+              <label 
+                key={r.value}
+                className={`flex items-center gap-3 p-3 rounded-lg border-2 cursor-pointer transition-colors ${
+                  reason === r.value ? 'border-indigo-500 bg-indigo-50' : 'border-slate-200 hover:border-slate-300'
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="reason"
+                  value={r.value}
+                  checked={reason === r.value}
+                  onChange={() => setReason(r.value)}
+                  className="w-4 h-4 text-indigo-600"
+                />
+                <span className="text-sm text-slate-700">{r.label}</span>
+              </label>
+            ))}
+          </div>
+          
+          {reason === 'outro' && (
+            <Input
+              value={customReason}
+              onChange={(e) => setCustomReason(e.target.value)}
+              placeholder="Descreva o motivo..."
+              className="mb-4"
+            />
+          )}
+          
+          <div className="flex gap-3">
+            <Button variant="outline" onClick={onClose} className="flex-1">
+              Cancelar
+            </Button>
+            <Button 
+              onClick={handleConfirm}
+              disabled={!reason || (reason === 'outro' && !customReason.trim())}
+              className="flex-1 bg-red-600 hover:bg-red-700"
+            >
+              Desativar
+            </Button>
+          </div>
+        </motion.div>
+      </motion.div>
+    </AnimatePresence>
+  );
+};
 
 const AgentDashboard = () => {
   const { user, logout } = useAuth();
@@ -29,11 +133,15 @@ const AgentDashboard = () => {
   const [showPropertyModal, setShowPropertyModal] = useState(false);
   const [selectedInterest, setSelectedInterest] = useState(null);
   
+  // Saved searches state
+  const [savedSearches, setSavedSearches] = useState([]);
+  const [showDeactivationModal, setShowDeactivationModal] = useState(false);
+  const [searchToDeactivate, setSearchToDeactivate] = useState(null);
+  
   // AI Discovery state
   const [propertyDescription, setPropertyDescription] = useState('');
   const [propertyPrice, setPropertyPrice] = useState('');
   const [propertyType, setPropertyType] = useState('');
-  const [showFilters, setShowFilters] = useState(false);
   const [aiResults, setAiResults] = useState([]);
   const [aiLoading, setAiLoading] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
@@ -53,16 +161,34 @@ const AgentDashboard = () => {
 
   const fetchData = async () => {
     try {
-      const [buyersRes, matchesRes] = await Promise.all([
+      const [buyersRes, matchesRes, searchesRes] = await Promise.all([
         axios.get(`${API}/agents/buyers`),
-        axios.get(`${API}/agents/my-matches`)
+        axios.get(`${API}/agents/my-matches`),
+        axios.get(`${API}/agents/searches`)
       ]);
       setBuyers(buyersRes.data);
       setMyMatches(matchesRes.data);
+      setSavedSearches(searchesRes.data.filter(s => s.status === 'active'));
     } catch (error) {
       toast.error('Erro ao carregar dados');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDeactivateSearch = async (reason) => {
+    if (!searchToDeactivate) return;
+    
+    try {
+      await axios.patch(`${API}/agents/searches/${searchToDeactivate.id}`, {
+        deactivation_reason: reason
+      });
+      toast.success('Busca desativada com sucesso');
+      setShowDeactivationModal(false);
+      setSearchToDeactivate(null);
+      fetchData();
+    } catch (error) {
+      toast.error('Erro ao desativar busca');
     }
   };
 
@@ -102,6 +228,17 @@ const AgentDashboard = () => {
 
   // AI Discovery function
   const handleAIDiscovery = async () => {
+    // Validate required fields
+    if (!propertyPrice || parseFloat(propertyPrice) <= 0) {
+      toast.error('Por favor, informe o valor do imóvel');
+      return;
+    }
+    
+    if (!propertyType) {
+      toast.error('Por favor, selecione o tipo do imóvel');
+      return;
+    }
+    
     if (!propertyDescription || propertyDescription.trim().length < 20) {
       toast.error('Por favor, descreva o imóvel com mais detalhes (mínimo 20 caracteres)');
       return;
@@ -111,20 +248,12 @@ const AgentDashboard = () => {
     setHasSearched(true);
     
     try {
-      // Build request payload with optional pre-filter fields
+      // Build request payload with required pre-filter fields
       const payload = {
-        property_description: propertyDescription
+        property_description: propertyDescription,
+        property_price: parseFloat(propertyPrice),
+        property_type: propertyType
       };
-      
-      // Add price if provided (for pre-filtering)
-      if (propertyPrice && parseFloat(propertyPrice) > 0) {
-        payload.property_price = parseFloat(propertyPrice);
-      }
-      
-      // Add property type if provided (for pre-filtering)
-      if (propertyType) {
-        payload.property_type = propertyType;
-      }
       
       const response = await axios.post(`${API}/agents/ai-discovery`, payload);
       
@@ -319,6 +448,73 @@ const AgentDashboard = () => {
           </TabsList>
 
           <TabsContent value="discover" className="space-y-6">
+            {/* Saved Searches Section */}
+            {savedSearches.length > 0 && (
+              <Card className="p-6 rounded-2xl border-2 border-indigo-100" data-testid="saved-searches-card">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center flex-shrink-0">
+                    <Search className="w-5 h-5 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold text-slate-900">Minhas Buscas Ativas</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Estas buscas rodam automaticamente a cada 7 dias
+                    </p>
+                  </div>
+                </div>
+                
+                <div className="space-y-3">
+                  {savedSearches.map((search) => (
+                    <div 
+                      key={search.id}
+                      className="p-4 bg-slate-50 rounded-xl border border-slate-200"
+                    >
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm text-slate-800 font-medium line-clamp-2 mb-2">
+                            {search.property_description}
+                          </p>
+                          <div className="flex flex-wrap gap-2 text-xs">
+                            <Badge variant="outline" className="bg-white">
+                              <Building2 className="w-3 h-3 mr-1" />
+                              {search.property_type}
+                            </Badge>
+                            <Badge variant="outline" className="bg-white">
+                              <DollarSign className="w-3 h-3 mr-1" />
+                              R$ {search.property_price?.toLocaleString('pt-BR')}
+                            </Badge>
+                            <Badge variant="outline" className="bg-white">
+                              <Clock className="w-3 h-3 mr-1" />
+                              Verificado: {search.last_checked_at 
+                                ? new Date(search.last_checked_at).toLocaleDateString('pt-BR')
+                                : 'Nunca'}
+                            </Badge>
+                            {search.days_until_auto_deactivation <= 7 && (
+                              <Badge variant="destructive" className="bg-amber-100 text-amber-700 border-amber-200">
+                                <AlertTriangle className="w-3 h-3 mr-1" />
+                                {search.days_until_auto_deactivation} dias restantes
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setSearchToDeactivate(search);
+                            setShowDeactivationModal(true);
+                          }}
+                          className="text-red-600 border-red-200 hover:bg-red-50 flex-shrink-0"
+                        >
+                          Desativar
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </Card>
+            )}
+
             {/* AI Discovery Input */}
             <Card className="p-6 rounded-2xl" data-testid="ai-discovery-card">
               <div className="flex items-start gap-3 mb-4">
@@ -333,6 +529,53 @@ const AgentDashboard = () => {
                 </div>
               </div>
               
+              {/* Required Filters - Above description */}
+              <div className="mb-4 p-4 bg-slate-50 rounded-xl">
+                <div className="flex items-center gap-2 mb-3">
+                  <Filter className="w-4 h-4 text-indigo-600" />
+                  <span className="text-sm font-semibold text-slate-700">Filtros obrigatórios</span>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-sm font-medium text-slate-700 mb-1 block">
+                      Valor do Imóvel (R$) *
+                    </label>
+                    <Input
+                      type="number"
+                      value={propertyPrice}
+                      onChange={(e) => setPropertyPrice(e.target.value)}
+                      placeholder="Ex: 500000"
+                      className="rounded-lg"
+                      data-testid="property-price-input"
+                      required
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="text-sm font-medium text-slate-700 mb-1 block">
+                      Tipo do Imóvel *
+                    </label>
+                    <select
+                      value={propertyType}
+                      onChange={(e) => setPropertyType(e.target.value)}
+                      className="w-full h-10 px-3 rounded-lg border border-slate-200 focus:border-indigo-500 focus:outline-none bg-white text-sm"
+                      data-testid="property-type-select"
+                      required
+                    >
+                      <option value="">Selecione o tipo</option>
+                      <option value="apartamento">Apartamento</option>
+                      <option value="casa">Casa</option>
+                      <option value="casa_condominio">Casa de Condomínio</option>
+                      <option value="terreno">Terreno</option>
+                      <option value="terreno_condominio">Terreno de Condomínio</option>
+                      <option value="sala_comercial">Sala Comercial</option>
+                      <option value="studio_loft">Studio/Loft</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+              
               <Textarea
                 data-testid="property-description-input"
                 value={propertyDescription}
@@ -343,74 +586,10 @@ const AgentDashboard = () => {
 Dica: quanto mais você descrever — localização, entorno, luz, silêncio, estado de conservação, diferenciais, limitações — mais preciso será o matching. Não se preocupe com formato."
               />
               
-              {/* Optional Pre-filter Fields */}
-              <div className="mb-4">
-                <button
-                  type="button"
-                  onClick={() => setShowFilters(!showFilters)}
-                  className="flex items-center gap-2 text-sm text-indigo-600 hover:text-indigo-700 font-medium"
-                >
-                  <Filter className="w-4 h-4" />
-                  Filtros opcionais (economiza tokens)
-                  {showFilters ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                </button>
-                
-                {showFilters && (
-                  <div className="mt-3 p-4 bg-slate-50 rounded-xl space-y-4">
-                    <p className="text-xs text-muted-foreground">
-                      Preencha para pré-filtrar compradores antes da análise da IA, reduzindo custos.
-                    </p>
-                    
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="text-sm font-medium text-slate-700 mb-1 block">
-                          Valor do Imóvel (R$)
-                        </label>
-                        <Input
-                          type="number"
-                          value={propertyPrice}
-                          onChange={(e) => setPropertyPrice(e.target.value)}
-                          placeholder="Ex: 500000"
-                          className="rounded-lg"
-                          data-testid="property-price-input"
-                        />
-                        <p className="text-xs text-muted-foreground mt-1">
-                          Elimina compradores com orçamento &lt; 75% deste valor
-                        </p>
-                      </div>
-                      
-                      <div>
-                        <label className="text-sm font-medium text-slate-700 mb-1 block">
-                          Tipo do Imóvel
-                        </label>
-                        <select
-                          value={propertyType}
-                          onChange={(e) => setPropertyType(e.target.value)}
-                          className="w-full h-10 px-3 rounded-lg border border-slate-200 focus:border-indigo-500 focus:outline-none bg-white text-sm"
-                          data-testid="property-type-select"
-                        >
-                          <option value="">Não especificar</option>
-                          <option value="apartamento">Apartamento</option>
-                          <option value="casa">Casa</option>
-                          <option value="casa_condominio">Casa de Condomínio</option>
-                          <option value="terreno">Terreno</option>
-                          <option value="terreno_condominio">Terreno de Condomínio</option>
-                          <option value="sala_comercial">Sala Comercial</option>
-                          <option value="studio_loft">Studio/Loft</option>
-                        </select>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          Elimina compradores que buscam tipo incompatível
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-              
               <Button
                 data-testid="ai-discovery-button"
                 onClick={handleAIDiscovery}
-                disabled={aiLoading || propertyDescription.trim().length < 20}
+                disabled={aiLoading || !propertyPrice || !propertyType || propertyDescription.trim().length < 20}
                 className="w-full h-12 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500"
               >
                 {aiLoading ? (
@@ -663,6 +842,17 @@ Dica: quanto mais você descrever — localização, entorno, luz, silêncio, es
           interestLocation={selectedInterest.location}
         />
       )}
+
+      {/* Deactivation Modal */}
+      <DeactivationModal
+        isOpen={showDeactivationModal}
+        onClose={() => {
+          setShowDeactivationModal(false);
+          setSearchToDeactivate(null);
+        }}
+        onConfirm={handleDeactivateSearch}
+        searchDescription={searchToDeactivate?.property_description || ''}
+      />
     </div>
   );
 };

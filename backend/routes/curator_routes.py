@@ -309,7 +309,49 @@ async def cancel_visit(visit_id: str, current_user: dict = Depends(get_current_u
     return {"status": "success", "message": "Visita cancelada"}
 
 
-@router.post("/internal/send-visit-reminders")
+@router.patch("/curator/matches/{match_id}/sold")
+async def mark_match_as_sold(
+    match_id: str,
+    sold_data: dict,
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Mark a match as sold through the platform.
+    Only curators and admins can access this endpoint.
+    """
+    if current_user["role"] not in ["curator", "admin"]:
+        raise HTTPException(status_code=403, detail="Apenas curadores podem marcar vendas")
+    
+    match = await db.matches.find_one({"id": match_id}, {"_id": 0})
+    if not match:
+        raise HTTPException(status_code=404, detail="Match não encontrado")
+    
+    sold_through_platform = sold_data.get("sold_through_platform", False)
+    
+    update_data = {
+        "sold_through_platform": sold_through_platform,
+        "updated_at": datetime.now(timezone.utc).isoformat()
+    }
+    
+    if sold_through_platform:
+        update_data["sold_at"] = datetime.now(timezone.utc).isoformat()
+    else:
+        update_data["sold_at"] = None
+    
+    await db.matches.update_one(
+        {"id": match_id},
+        {"$set": update_data}
+    )
+    
+    logger.info(f"Match {match_id} marked as sold_through_platform={sold_through_platform} by {current_user['user_id']}")
+    
+    return {
+        "status": "success", 
+        "message": "Venda registrada com sucesso" if sold_through_platform else "Marcação de venda removida"
+    }
+
+
+
 async def send_visit_reminders(request: Request):
     """
     Internal endpoint to send 2h visit reminders - call this from an external scheduler.

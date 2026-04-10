@@ -2,7 +2,7 @@
 Agent routes
 Handles agent searches, matches, and bot conversations
 """
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Request
 from datetime import datetime, timezone
 import uuid
 import unicodedata
@@ -142,9 +142,10 @@ class AIDiscoveryResponse(BaseModel):
 async def ai_discovery(request: AIDiscoveryRequest, current_user: dict = Depends(get_current_user)):
     """
     AI-powered buyer discovery. Takes a property description and returns
-    compatible buyers scored by Claude AI.
+    compatible buyers scored by OpenAI GPT-4.
+    Also saves the search criteria for automatic reprocessing.
     """
-    from openai import AsyncOpenAI
+    from services.openai_service import evaluate_buyers_with_openai
     
     if current_user["role"] != "agent":
         raise HTTPException(status_code=403, detail="Apenas corretores podem usar esta funcionalidade")
@@ -155,7 +156,13 @@ async def ai_discovery(request: AIDiscoveryRequest, current_user: dict = Depends
             detail="Por favor, descreva o imóvel com mais detalhes (mínimo 20 caracteres)"
         )
     
-    # Get API key
+    if not request.property_price or request.property_price <= 0:
+        raise HTTPException(status_code=400, detail="Informe o valor do imóvel")
+    
+    if not request.property_type:
+        raise HTTPException(status_code=400, detail="Selecione o tipo do imóvel")
+    
+    # Check if API key is configured
     api_key = os.environ.get('OPENAI_API_KEY')
     if not api_key:
         raise HTTPException(status_code=500, detail="Serviço de IA não configurado")
@@ -300,78 +307,12 @@ async def ai_discovery(request: AIDiscoveryRequest, current_user: dict = Depends
         }
         buyer_profiles.append(profile)
     
-    # Build prompt for Claude
-    profiles_json = json.dumps(buyer_profiles, ensure_ascii=False, indent=2)
-    
-    prompt = f"""Você é um especialista em mercado imobiliário. Analise a compatibilidade entre um imóvel e vários perfis de compradores.
-
-## IMÓVEL OFERECIDO PELO CORRETOR:
-{request.property_description}
-
-## PERFIS DOS COMPRADORES CADASTRADOS:
-{profiles_json}
-
-## INSTRUÇÕES DE AVALIAÇÃO:
-
-1. **FILTROS ELIMINATÓRIOS** (campos estruturados):
-   - Se o tipo de imóvel é incompatível (ex: comprador quer apartamento, imóvel é casa): score máximo 30
-   - Se a localização é claramente incompatível: reduza 20-40 pontos
-   - Se o orçamento parece muito abaixo do padrão do imóvel descrito: reduza 30 pontos
-
-2. **DIFERENCIADORES POSITIVOS** (campos qualitativos):
-   - Ambiente ideal combina com descrição do imóvel: +15 pontos
-   - Características desejáveis presentes no imóvel: +5 pontos cada (máx 20)
-   - Nenhum deal breaker presente: +10 pontos
-   - Proximidades necessárias atendidas: +10 pontos
-
-3. **JUSTIFICATIVA**:
-   - Cite elementos ESPECÍFICOS do perfil do comprador
-   - Cite elementos ESPECÍFICOS da descrição do imóvel
-   - Explique por que combinam ou não em 2-3 frases
-
-## FORMATO DE RESPOSTA:
-Responda APENAS com um JSON válido, sem markdown, no formato:
-[
-  {{
-    "comprador_id": "id do interest",
-    "score": 0-100,
-    "justificativa": "2-3 frases explicando a compatibilidade"
-  }}
-]
-
-Inclua TODOS os compradores na resposta, mesmo os com score baixo."""
-
     try:
-
-        messages = [
-            {"role": "system", "content": "Você é um especialista em matching imobiliário. Sempre responda em JSON válido."},
-            {"role": "user", "content": prompt}
-        ]
-
-        client = AsyncOpenAI(api_key=api_key)
-        completion = await client.chat.completions.create(
-            model="gpt-4o",
-            messages=messages,
+        # Call OpenAI for evaluation
+        ai_results = await evaluate_buyers_with_openai(
+            property_description=request.property_description,
+            buyer_profiles=buyer_profiles
         )
-        response = completion.choices[0].message.content
-
-        # Parse response
-        try:
-            # Clean response - remove markdown if present
-            clean_response = response.strip()
-            if clean_response.startswith("```"):
-                clean_response = clean_response.split("```")[1]
-                if clean_response.startswith("json"):
-                    clean_response = clean_response[4:]
-            clean_response = clean_response.strip()
-            
-            ai_results = json.loads(clean_response)
-        except json.JSONDecodeError:
-            logger.error(f"Failed to parse AI response: {response[:500]}")
-            raise HTTPException(
-                status_code=500, 
-                detail="Erro ao processar resposta da IA. Tente novamente."
-            )
         
         # Filter and enrich results
         matches = []
@@ -398,6 +339,28 @@ Inclua TODOS os compradores na resposta, mesmo os com score baixo."""
         # Sort by score descending
         matches.sort(key=lambda x: x.score, reverse=True)
         
+        # ========== SAVE SEARCH CRITERIA ==========
+        search_id = str(uuid.uuid4())
+        now = datetime.now(timezone.utc).isoformat()
+        
+        search_doc = {
+            "id": search_id,
+            "agent_id": current_user["user_id"],
+            "property_type": request.property_type,
+            "property_price": request.property_price,
+            "property_description": request.property_description,
+            "status": "active",
+            "last_checked_at": now,
+            "created_at": now,
+            "last_match_found_at": now if matches else None,
+            "deactivation_reason": None,
+            "deactivated_at": None
+        }
+        
+        await db.agent_searches.insert_one(search_doc)
+        logger.info(f"Saved search {search_id} for agent {current_user['user_id']}")
+        # ========== END SAVE SEARCH ==========
+        
         return AIDiscoveryResponse(
             matches=matches,
             total_evaluated=sent_to_ai,
@@ -407,6 +370,8 @@ Inclua TODOS os compradores na resposta, mesmo os com score baixo."""
             sent_to_ai=sent_to_ai
         )
         
+    except ValueError as e:
+        raise HTTPException(status_code=500, detail=str(e))
     except HTTPException:
         raise
     except Exception as e:
@@ -417,7 +382,267 @@ Inclua TODOS os compradores na resposta, mesmo os com score baixo."""
         )
 
 
-@router.post("/agents/match", response_model=Match)
+# ========== SAVED SEARCHES ENDPOINTS ==========
+
+@router.get("/agents/searches")
+async def list_agent_searches(current_user: dict = Depends(get_current_user)):
+    """List all saved searches for the current agent"""
+    if current_user["role"] != "agent":
+        raise HTTPException(status_code=403, detail="Apenas corretores podem acessar buscas salvas")
+    
+    searches = await db.agent_searches.find(
+        {"agent_id": current_user["user_id"]},
+        {"_id": 0}
+    ).sort("created_at", -1).to_list(100)
+    
+    # Calculate days until auto-deactivation for active searches
+    now = datetime.now(timezone.utc)
+    for search in searches:
+        if search.get("status") == "active":
+            last_match_at = search.get("last_match_found_at")
+            if last_match_at:
+                last_match_date = datetime.fromisoformat(last_match_at.replace('Z', '+00:00'))
+                days_since_match = (now - last_match_date).days
+                search["days_until_auto_deactivation"] = max(0, 30 - days_since_match)
+            else:
+                created_at = datetime.fromisoformat(search["created_at"].replace('Z', '+00:00'))
+                days_since_created = (now - created_at).days
+                search["days_until_auto_deactivation"] = max(0, 30 - days_since_created)
+    
+    return searches
+
+
+@router.patch("/agents/searches/{search_id}")
+async def deactivate_search(
+    search_id: str,
+    deactivation: dict,
+    current_user: dict = Depends(get_current_user)
+):
+    """Deactivate a saved search with a reason"""
+    if current_user["role"] != "agent":
+        raise HTTPException(status_code=403, detail="Apenas corretores podem desativar buscas")
+    
+    deactivation_reason = deactivation.get("deactivation_reason")
+    if not deactivation_reason:
+        raise HTTPException(status_code=400, detail="Motivo da desativação é obrigatório")
+    
+    search = await db.agent_searches.find_one(
+        {"id": search_id, "agent_id": current_user["user_id"]},
+        {"_id": 0}
+    )
+    
+    if not search:
+        raise HTTPException(status_code=404, detail="Busca não encontrada")
+    
+    if search.get("status") == "inactive":
+        raise HTTPException(status_code=400, detail="Busca já está inativa")
+    
+    now = datetime.now(timezone.utc).isoformat()
+    
+    await db.agent_searches.update_one(
+        {"id": search_id},
+        {
+            "$set": {
+                "status": "inactive",
+                "deactivation_reason": deactivation_reason,
+                "deactivated_at": now
+            }
+        }
+    )
+    
+    logger.info(f"Search {search_id} deactivated by agent {current_user['user_id']}: {deactivation_reason}")
+    
+    return {"status": "success", "message": "Busca desativada com sucesso"}
+
+
+@router.post("/internal/process-saved-searches")
+async def process_saved_searches(request: Request):
+    """
+    Internal endpoint to process saved searches - call this from an external scheduler.
+    Runs every 7 days to check for new buyers matching saved search criteria.
+    
+    Security: Validates INTERNAL_API_KEY header.
+    
+    Usage with cron:
+    0 3 */7 * * curl -X POST https://your-domain.com/api/internal/process-saved-searches -H "X-Internal-Key: your-key"
+    """
+    from services.openai_service import evaluate_buyers_with_openai
+    from services.email_service import send_saved_search_results_email
+    
+    # Validate internal API key
+    internal_key = request.headers.get("X-Internal-Key")
+    expected_key = os.environ.get("INTERNAL_API_KEY")
+    
+    if expected_key and internal_key != expected_key:
+        logger.warning("Unauthorized attempt to call process-saved-searches endpoint")
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    
+    now = datetime.now(timezone.utc)
+    logger.info(f"Starting saved searches processing at {now.isoformat()}")
+    
+    # Get all active searches
+    active_searches = await db.agent_searches.find(
+        {"status": "active"},
+        {"_id": 0}
+    ).to_list(500)
+    
+    logger.info(f"Found {len(active_searches)} active searches to process")
+    
+    results = {
+        "processed": 0,
+        "matches_found": 0,
+        "auto_deactivated": 0,
+        "emails_sent": 0,
+        "errors": 0
+    }
+    
+    for search in active_searches:
+        try:
+            search_id = search["id"]
+            agent_id = search["agent_id"]
+            last_checked = search.get("last_checked_at")
+            last_match_found = search.get("last_match_found_at")
+            
+            # Check for auto-deactivation (30 days without matches)
+            check_date = last_match_found or search["created_at"]
+            check_datetime = datetime.fromisoformat(check_date.replace('Z', '+00:00'))
+            days_without_match = (now - check_datetime).days
+            
+            if days_without_match >= 30:
+                await db.agent_searches.update_one(
+                    {"id": search_id},
+                    {
+                        "$set": {
+                            "status": "inactive",
+                            "deactivation_reason": "inatividade automática",
+                            "deactivated_at": now.isoformat()
+                        }
+                    }
+                )
+                results["auto_deactivated"] += 1
+                logger.info(f"Auto-deactivated search {search_id} after {days_without_match} days")
+                continue
+            
+            # Find new buyers created after last check
+            query = {
+                "status": "active",
+                "max_price": {"$gte": search["property_price"] * 0.75}
+            }
+            
+            if last_checked:
+                query["created_at"] = {"$gt": last_checked}
+            
+            # Property type pre-filter
+            property_type_groups = {
+                'apartamento': ['apartamento', 'studio', 'loft', 'studio/loft', 'flat'],
+                'casa': ['casa', 'casa de condomínio', 'casa_condominio', 'sobrado', 'village'],
+                'terreno': ['terreno', 'terreno de condomínio', 'terreno_condominio', 'lote'],
+                'comercial': ['sala comercial', 'sala_comercial', 'prédio comercial', 'loja', 'galpão']
+            }
+            
+            def get_type_group(prop_type: str) -> str:
+                if not prop_type:
+                    return None
+                prop_type_lower = prop_type.lower().strip()
+                for group, types in property_type_groups.items():
+                    if prop_type_lower in types or any(t in prop_type_lower for t in types):
+                        return group
+                return None
+            
+            new_interests = await db.interests.find(query, {"_id": 0}).to_list(100)
+            
+            # Filter by property type compatibility
+            search_type_group = get_type_group(search["property_type"])
+            compatible_interests = []
+            for interest in new_interests:
+                interest_type = interest.get("property_type") or interest.get("property_type_key")
+                interest_type_group = get_type_group(interest_type)
+                if not search_type_group or not interest_type_group or search_type_group == interest_type_group:
+                    compatible_interests.append(interest)
+            
+            # Get agent info for email
+            agent = await db.agents.find_one({"user_id": agent_id}, {"_id": 0})
+            agent_email = agent.get("email") if agent else None
+            agent_name = agent.get("name", "Corretor") if agent else "Corretor"
+            
+            new_matches = []
+            
+            if compatible_interests:
+                # Enrich with buyer names
+                for interest in compatible_interests:
+                    buyer = await db.buyers.find_one({"user_id": interest["buyer_id"]}, {"_id": 0})
+                    interest['buyer_name'] = buyer.get("name", "Comprador") if buyer else "Comprador"
+                
+                # Build buyer profiles for AI
+                buyer_profiles = []
+                for interest in compatible_interests:
+                    profile = {
+                        "id": interest["id"],
+                        "buyer_id": interest["buyer_id"],
+                        "nome": interest.get("buyer_name", "Comprador"),
+                        "tipo_imovel_desejado": interest.get("property_type", "Não especificado"),
+                        "localizacao_desejada": interest.get("location", "Não especificada"),
+                        "perfil_ia": interest.get("ai_profile", "")
+                    }
+                    buyer_profiles.append(profile)
+                
+                # Call OpenAI for evaluation
+                try:
+                    ai_results = await evaluate_buyers_with_openai(
+                        property_description=search["property_description"],
+                        buyer_profiles=buyer_profiles
+                    )
+                    
+                    # Filter matches with score >= 50
+                    for result in ai_results:
+                        if result.get("score", 0) >= 50:
+                            new_matches.append(result)
+                            results["matches_found"] += 1
+                            
+                except Exception as e:
+                    logger.error(f"AI evaluation failed for search {search_id}: {e}")
+            
+            # Update last_checked_at and last_match_found_at
+            update_data = {"last_checked_at": now.isoformat()}
+            if new_matches:
+                update_data["last_match_found_at"] = now.isoformat()
+            
+            await db.agent_searches.update_one(
+                {"id": search_id},
+                {"$set": update_data}
+            )
+            
+            # Send email notification
+            if agent_email:
+                days_remaining = 30 - days_without_match
+                try:
+                    await send_saved_search_results_email(
+                        to_email=agent_email,
+                        agent_name=agent_name,
+                        property_description=search["property_description"][:100] + "...",
+                        matches_found=len(new_matches),
+                        days_remaining=days_remaining
+                    )
+                    results["emails_sent"] += 1
+                except Exception as e:
+                    logger.error(f"Failed to send email for search {search_id}: {e}")
+            
+            results["processed"] += 1
+            logger.info(f"Processed search {search_id}: {len(new_matches)} new matches from {len(compatible_interests)} candidates")
+            
+        except Exception as e:
+            results["errors"] += 1
+            logger.error(f"Error processing search {search.get('id', 'unknown')}: {e}")
+    
+    logger.info(f"Saved searches processing completed: {results}")
+    return {
+        "status": "success",
+        "processed_at": now.isoformat(),
+        **results
+    }
+
+
+
 async def create_match(match_data: MatchCreateWithProperty, current_user: dict = Depends(get_current_user)):
     if current_user["role"] != "agent":
         raise HTTPException(status_code=403, detail="Apenas corretores podem criar matches")
@@ -566,7 +791,7 @@ async def send_bot_message(match_id: str, request: SendMessageRequest, current_u
     
     api_key = os.environ.get('OPENAI_API_KEY')
     if not api_key:
-        raise HTTPException(status_code=500, detail="LLM API key not configured")
+        raise HTTPException(status_code=500, detail="OpenAI API key not configured")
     
     interest = await db.interests.find_one({"id": match["interest_id"]}, {"_id": 0})
     buyer = await db.buyers.find_one({"user_id": match["buyer_id"]}, {"_id": 0})
@@ -580,9 +805,9 @@ async def send_bot_message(match_id: str, request: SendMessageRequest, current_u
     - Quartos desejados: {interest.get('bedrooms', 'Não especificado') if interest else 'Não especificado'}
     - Características desejadas: {', '.join(interest.get('features', [])) if interest else 'Nenhuma'}
     """
-
-    messages = [{"role": "system", "content": f"""Você é um assistente especializado em conectar corretores com compradores de imóveis.
-
+    
+    system_message = f"""Você é um assistente especializado em conectar corretores com compradores de imóveis.
+        
 {buyer_context}
 
 Seu objetivo é ajudar o corretor a fornecer informações sobre o imóvel que ele quer oferecer.
@@ -597,18 +822,23 @@ Extraia as seguintes informações do imóvel quando fornecidas:
 - Vagas de garagem
 - Características especiais
 
-Seja direto e objetivo. Quando tiver informações suficientes, confirme os dados com o corretor."""}]
+Seja direto e objetivo. Quando tiver informações suficientes, confirme os dados com o corretor."""
 
+    # Build messages array from conversation history
+    messages = [{"role": "system", "content": system_message}]
     for msg in conversation.get('messages', []):
-        messages.append({"role": msg["role"], "content": msg["content"]})
+        messages.append({"role": msg['role'], "content": msg['content']})
     messages.append({"role": "user", "content": request.message})
-
+    
     client = AsyncOpenAI(api_key=api_key)
-    completion = await client.chat.completions.create(
+    response = await client.chat.completions.create(
         model="gpt-4o-mini",
         messages=messages,
+        temperature=0.7,
+        max_tokens=1000
     )
-    response = completion.choices[0].message.content
+    
+    assistant_response = response.choices[0].message.content
     
     await db.bot_conversations.update_one(
         {"match_id": match_id},
@@ -617,11 +847,11 @@ Seja direto e objetivo. Quando tiver informações suficientes, confirme os dado
                 "messages": {
                     "$each": [
                         {"role": "user", "content": request.message, "timestamp": datetime.now(timezone.utc).isoformat()},
-                        {"role": "assistant", "content": response, "timestamp": datetime.now(timezone.utc).isoformat()}
+                        {"role": "assistant", "content": assistant_response, "timestamp": datetime.now(timezone.utc).isoformat()}
                     ]
                 }
             }
         }
     )
     
-    return {"response": response}
+    return {"response": assistant_response}

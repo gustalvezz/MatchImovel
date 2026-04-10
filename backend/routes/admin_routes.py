@@ -28,17 +28,30 @@ async def get_admin_stats(current_user: dict = Depends(get_current_user)):
     if current_user["role"] not in ["admin", "curator"]:
         raise HTTPException(status_code=403, detail="Acesso negado")
     
+    # Basic stats
+    total_matches = await db.matches.count_documents({})
+    approved_matches = await db.matches.count_documents({"status": "approved"})
+    sold_through_platform = await db.matches.count_documents({"sold_through_platform": True})
+    
+    # Calculate conversion rate
+    conversion_rate = (sold_through_platform / approved_matches * 100) if approved_matches > 0 else 0
+    
     stats = {
         "total_buyers": await db.buyers.count_documents({}),
         "total_agents": await db.agents.count_documents({}),
         "total_interests": await db.interests.count_documents({}),
         "active_interests": await db.interests.count_documents({"status": "active"}),
-        "total_matches": await db.matches.count_documents({}),
+        "total_matches": total_matches,
         "pending_matches": await db.matches.count_documents({"status": "pending_approval"}),
-        "approved_matches": await db.matches.count_documents({"status": "approved"}),
+        "approved_matches": approved_matches,
         "total_curators": await db.users.count_documents({"role": "curator"}),
         "total_visits": await db.visits.count_documents({}),
-        "scheduled_visits": await db.visits.count_documents({"status": "scheduled"})
+        "scheduled_visits": await db.visits.count_documents({"status": "scheduled"}),
+        # New metrics
+        "sold_through_platform": sold_through_platform,
+        "conversion_rate": round(conversion_rate, 1),
+        "active_searches": await db.agent_searches.count_documents({"status": "active"}),
+        "inactive_searches": await db.agent_searches.count_documents({"status": "inactive"})
     }
     
     return stats
@@ -474,6 +487,40 @@ async def get_analytics(current_user: dict = Depends(get_current_user)):
         reason = deletion.get("reason", "outro")
         deletion_reasons[reason] = deletion_reasons.get(reason, 0) + 1
     
+    # ========== NEW METRICS: Sales and Search Deactivation ==========
+    
+    # Sales through platform per agent
+    sales_pipeline = [
+        {"$match": {"sold_through_platform": True}},
+        {"$group": {"_id": "$agent_id", "sales_count": {"$sum": 1}}}
+    ]
+    sales_by_agent_raw = await db.matches.aggregate(sales_pipeline).to_list(100)
+    
+    sales_by_agent = []
+    for sale in sales_by_agent_raw:
+        agent = await db.agents.find_one({"user_id": sale["_id"]}, {"_id": 0, "name": 1})
+        sales_by_agent.append({
+            "agent_id": sale["_id"],
+            "agent_name": agent.get("name", "Desconhecido") if agent else "Desconhecido",
+            "sales_count": sale["sales_count"]
+        })
+    sales_by_agent.sort(key=lambda x: x["sales_count"], reverse=True)
+    
+    # Total sales metrics
+    total_sold = await db.matches.count_documents({"sold_through_platform": True})
+    total_approved = await db.matches.count_documents({"status": {"$in": ["approved", "visit_scheduled", "completed"]}})
+    sales_conversion_rate = (total_sold / total_approved * 100) if total_approved > 0 else 0
+    
+    # Search deactivation reasons
+    deactivation_pipeline = [
+        {"$match": {"status": "inactive", "deactivation_reason": {"$exists": True, "$ne": None}}},
+        {"$group": {"_id": "$deactivation_reason", "count": {"$sum": 1}}}
+    ]
+    deactivation_reasons_raw = await db.agent_searches.aggregate(deactivation_pipeline).to_list(20)
+    deactivation_reasons = {item["_id"]: item["count"] for item in deactivation_reasons_raw}
+    
+    # ========== END NEW METRICS ==========
+    
     return {
         "overview": {
             "total_buyers": total_buyers,
@@ -488,6 +535,11 @@ async def get_analytics(current_user: dict = Depends(get_current_user)):
             "approved": approved_matches,
             "rejected": rejected_matches,
             "conversion_rate": conversion_rate
+        },
+        "sales": {
+            "total_sold": total_sold,
+            "sales_conversion_rate": round(sales_conversion_rate, 1),
+            "sales_by_agent": sales_by_agent
         },
         "followups": {
             "total": total_followups,
@@ -504,5 +556,6 @@ async def get_analytics(current_user: dict = Depends(get_current_user)):
         },
         "curator_performance": curator_performance,
         "agent_performance": agent_performance,
-        "deletion_reasons": deletion_reasons
+        "deletion_reasons": deletion_reasons,
+        "search_deactivation_reasons": deactivation_reasons
     }
