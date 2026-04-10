@@ -61,11 +61,13 @@ async def evaluate_buyers_with_openai(
 Responda APENAS com um JSON válido, sem markdown, no formato:
 [
   {{
-    "comprador_id": "id do interest",
+    "comprador_id": "copie exatamente o valor do campo 'id' do comprador",
     "score": 0-100,
     "justificativa": "2-3 frases explicando a compatibilidade"
   }}
 ]
+
+IMPORTANTE: O campo "comprador_id" deve conter EXATAMENTE o valor do campo "id" de cada comprador (NÃO use o campo "buyer_id").
 
 Inclua TODOS os compradores na resposta, mesmo os com score baixo."""
 
