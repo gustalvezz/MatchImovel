@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import { useAuth } from '@/context/AuthContext';
-import { Home, LogOut, Users, Heart, DollarSign, MapPin, Building2, Trash2, Sparkles, Loader2, ChevronDown, ChevronUp, Filter } from 'lucide-react';
+import { Home, LogOut, Users, Heart, DollarSign, MapPin, Building2, Trash2, Sparkles, Loader2, Filter } from 'lucide-react';
 import { toast } from 'sonner';
 import DeleteConfirmModal from '@/components/DeleteConfirmModal';
 import PropertyInfoModal from '@/components/PropertyInfoModal';
@@ -33,7 +33,6 @@ const AgentDashboard = () => {
   const [propertyDescription, setPropertyDescription] = useState('');
   const [propertyPrice, setPropertyPrice] = useState('');
   const [propertyType, setPropertyType] = useState('');
-  const [showFilters, setShowFilters] = useState(false);
   const [aiResults, setAiResults] = useState([]);
   const [aiLoading, setAiLoading] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
@@ -102,6 +101,17 @@ const AgentDashboard = () => {
 
   // AI Discovery function
   const handleAIDiscovery = async () => {
+    // Validate required fields
+    if (!propertyPrice || parseFloat(propertyPrice) <= 0) {
+      toast.error('Por favor, informe o valor do imóvel');
+      return;
+    }
+    
+    if (!propertyType) {
+      toast.error('Por favor, selecione o tipo do imóvel');
+      return;
+    }
+    
     if (!propertyDescription || propertyDescription.trim().length < 20) {
       toast.error('Por favor, descreva o imóvel com mais detalhes (mínimo 20 caracteres)');
       return;
@@ -111,20 +121,12 @@ const AgentDashboard = () => {
     setHasSearched(true);
     
     try {
-      // Build request payload with optional pre-filter fields
+      // Build request payload with required pre-filter fields
       const payload = {
-        property_description: propertyDescription
+        property_description: propertyDescription,
+        property_price: parseFloat(propertyPrice),
+        property_type: propertyType
       };
-      
-      // Add price if provided (for pre-filtering)
-      if (propertyPrice && parseFloat(propertyPrice) > 0) {
-        payload.property_price = parseFloat(propertyPrice);
-      }
-      
-      // Add property type if provided (for pre-filtering)
-      if (propertyType) {
-        payload.property_type = propertyType;
-      }
       
       const response = await axios.post(`${API}/agents/ai-discovery`, payload);
       
@@ -333,6 +335,53 @@ const AgentDashboard = () => {
                 </div>
               </div>
               
+              {/* Required Filters - Above description */}
+              <div className="mb-4 p-4 bg-slate-50 rounded-xl">
+                <div className="flex items-center gap-2 mb-3">
+                  <Filter className="w-4 h-4 text-indigo-600" />
+                  <span className="text-sm font-semibold text-slate-700">Filtros obrigatórios</span>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-sm font-medium text-slate-700 mb-1 block">
+                      Valor do Imóvel (R$) *
+                    </label>
+                    <Input
+                      type="number"
+                      value={propertyPrice}
+                      onChange={(e) => setPropertyPrice(e.target.value)}
+                      placeholder="Ex: 500000"
+                      className="rounded-lg"
+                      data-testid="property-price-input"
+                      required
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="text-sm font-medium text-slate-700 mb-1 block">
+                      Tipo do Imóvel *
+                    </label>
+                    <select
+                      value={propertyType}
+                      onChange={(e) => setPropertyType(e.target.value)}
+                      className="w-full h-10 px-3 rounded-lg border border-slate-200 focus:border-indigo-500 focus:outline-none bg-white text-sm"
+                      data-testid="property-type-select"
+                      required
+                    >
+                      <option value="">Selecione o tipo</option>
+                      <option value="apartamento">Apartamento</option>
+                      <option value="casa">Casa</option>
+                      <option value="casa_condominio">Casa de Condomínio</option>
+                      <option value="terreno">Terreno</option>
+                      <option value="terreno_condominio">Terreno de Condomínio</option>
+                      <option value="sala_comercial">Sala Comercial</option>
+                      <option value="studio_loft">Studio/Loft</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+              
               <Textarea
                 data-testid="property-description-input"
                 value={propertyDescription}
@@ -343,74 +392,10 @@ const AgentDashboard = () => {
 Dica: quanto mais você descrever — localização, entorno, luz, silêncio, estado de conservação, diferenciais, limitações — mais preciso será o matching. Não se preocupe com formato."
               />
               
-              {/* Optional Pre-filter Fields */}
-              <div className="mb-4">
-                <button
-                  type="button"
-                  onClick={() => setShowFilters(!showFilters)}
-                  className="flex items-center gap-2 text-sm text-indigo-600 hover:text-indigo-700 font-medium"
-                >
-                  <Filter className="w-4 h-4" />
-                  Filtros opcionais (economiza tokens)
-                  {showFilters ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                </button>
-                
-                {showFilters && (
-                  <div className="mt-3 p-4 bg-slate-50 rounded-xl space-y-4">
-                    <p className="text-xs text-muted-foreground">
-                      Preencha para pré-filtrar compradores antes da análise da IA, reduzindo custos.
-                    </p>
-                    
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="text-sm font-medium text-slate-700 mb-1 block">
-                          Valor do Imóvel (R$)
-                        </label>
-                        <Input
-                          type="number"
-                          value={propertyPrice}
-                          onChange={(e) => setPropertyPrice(e.target.value)}
-                          placeholder="Ex: 500000"
-                          className="rounded-lg"
-                          data-testid="property-price-input"
-                        />
-                        <p className="text-xs text-muted-foreground mt-1">
-                          Elimina compradores com orçamento &lt; 75% deste valor
-                        </p>
-                      </div>
-                      
-                      <div>
-                        <label className="text-sm font-medium text-slate-700 mb-1 block">
-                          Tipo do Imóvel
-                        </label>
-                        <select
-                          value={propertyType}
-                          onChange={(e) => setPropertyType(e.target.value)}
-                          className="w-full h-10 px-3 rounded-lg border border-slate-200 focus:border-indigo-500 focus:outline-none bg-white text-sm"
-                          data-testid="property-type-select"
-                        >
-                          <option value="">Não especificar</option>
-                          <option value="apartamento">Apartamento</option>
-                          <option value="casa">Casa</option>
-                          <option value="casa_condominio">Casa de Condomínio</option>
-                          <option value="terreno">Terreno</option>
-                          <option value="terreno_condominio">Terreno de Condomínio</option>
-                          <option value="sala_comercial">Sala Comercial</option>
-                          <option value="studio_loft">Studio/Loft</option>
-                        </select>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          Elimina compradores que buscam tipo incompatível
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-              
               <Button
                 data-testid="ai-discovery-button"
                 onClick={handleAIDiscovery}
-                disabled={aiLoading || propertyDescription.trim().length < 20}
+                disabled={aiLoading || !propertyPrice || !propertyType || propertyDescription.trim().length < 20}
                 className="w-full h-12 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500"
               >
                 {aiLoading ? (
