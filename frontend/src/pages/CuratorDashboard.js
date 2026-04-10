@@ -68,16 +68,18 @@ const CuratorDashboard = () => {
 
   const handleCurate = async (matchId, approved) => {
     try {
-      await axios.post(`${API}/curator/curate/${matchId}`, {
+      const response = await axios.post(`${API}/curator/matches/${matchId}/decision`, {
         approved,
         notes: curationNotes
       });
+      console.log('Curate response:', response.data);
       toast.success(approved ? 'Match aprovado com sucesso!' : 'Match rejeitado');
       setCuratingMatch(null);
       setCurationNotes('');
-      fetchData();
+      await fetchData();
     } catch (error) {
-      toast.error('Erro ao processar curadoria');
+      console.error('Curate error:', error.response?.data || error.message);
+      toast.error(error.response?.data?.detail || 'Erro ao processar curadoria');
     }
   };
 
