@@ -773,7 +773,7 @@ async def get_match_conversation(match_id: str, current_user: dict = Depends(get
 @router.post("/matches/{match_id}/send-message")
 async def send_bot_message(match_id: str, request: SendMessageRequest, current_user: dict = Depends(get_current_user)):
     """Process user message with AI and extract property info"""
-    from emergentintegrations.llm.chat import LlmChat, UserMessage
+    from openai import AsyncOpenAI
     
     if current_user["role"] != "agent":
         raise HTTPException(status_code=403, detail="Apenas corretores podem interagir")
@@ -789,9 +789,9 @@ async def send_bot_message(match_id: str, request: SendMessageRequest, current_u
     if not conversation:
         raise HTTPException(status_code=404, detail="Conversa não encontrada")
     
-    api_key = os.environ.get('EMERGENT_LLM_KEY')
+    api_key = os.environ.get('OPENAI_API_KEY')
     if not api_key:
-        raise HTTPException(status_code=500, detail="LLM API key not configured")
+        raise HTTPException(status_code=500, detail="OpenAI API key not configured")
     
     interest = await db.interests.find_one({"id": match["interest_id"]}, {"_id": 0})
     buyer = await db.buyers.find_one({"user_id": match["buyer_id"]}, {"_id": 0})
@@ -806,10 +806,7 @@ async def send_bot_message(match_id: str, request: SendMessageRequest, current_u
     - Características desejadas: {', '.join(interest.get('features', [])) if interest else 'Nenhuma'}
     """
     
-    chat = LlmChat(
-        api_key=api_key,
-        session_id=f"match-{match_id}",
-        system_message=f"""Você é um assistente especializado em conectar corretores com compradores de imóveis.
+    system_message = f"""Você é um assistente especializado em conectar corretores com compradores de imóveis.
         
 {buyer_context}
 
@@ -826,13 +823,22 @@ Extraia as seguintes informações do imóvel quando fornecidas:
 - Características especiais
 
 Seja direto e objetivo. Quando tiver informações suficientes, confirme os dados com o corretor."""
-    ).with_model("openai", "gpt-4o-mini")
-    
+
+    # Build messages array from conversation history
+    messages = [{"role": "system", "content": system_message}]
     for msg in conversation.get('messages', []):
-        if msg['role'] == 'user':
-            await chat.send_message(UserMessage(text=msg['content']))
+        messages.append({"role": msg['role'], "content": msg['content']})
+    messages.append({"role": "user", "content": request.message})
     
-    response = await chat.send_message(UserMessage(text=request.message))
+    client = AsyncOpenAI(api_key=api_key)
+    response = await client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=messages,
+        temperature=0.7,
+        max_tokens=1000
+    )
+    
+    assistant_response = response.choices[0].message.content
     
     await db.bot_conversations.update_one(
         {"match_id": match_id},
@@ -841,11 +847,11 @@ Seja direto e objetivo. Quando tiver informações suficientes, confirme os dado
                 "messages": {
                     "$each": [
                         {"role": "user", "content": request.message, "timestamp": datetime.now(timezone.utc).isoformat()},
-                        {"role": "assistant", "content": response, "timestamp": datetime.now(timezone.utc).isoformat()}
+                        {"role": "assistant", "content": assistant_response, "timestamp": datetime.now(timezone.utc).isoformat()}
                     ]
                 }
             }
         }
     )
     
-    return {"response": response}
+    return {"response": assistant_response}
