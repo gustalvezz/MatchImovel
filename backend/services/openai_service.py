@@ -61,11 +61,13 @@ async def evaluate_buyers_with_openai(
 Responda APENAS com um JSON válido, sem markdown, no formato:
 [
   {{
-    "comprador_id": "id do interest",
+    "comprador_id": "COPIE EXATAMENTE o valor do campo 'id' do perfil do comprador",
     "score": 0-100,
     "justificativa": "2-3 frases explicando a compatibilidade"
   }}
 ]
+
+IMPORTANTE: O campo "comprador_id" na resposta DEVE ser EXATAMENTE igual ao campo "id" de cada perfil listado acima. NÃO invente IDs.
 
 Inclua TODOS os compradores na resposta, mesmo os com score baixo."""
 
@@ -96,7 +98,8 @@ Inclua TODOS os compradores na resposta, mesmo os com score baixo."""
         response_text = response_text.strip()
         
         results = json.loads(response_text)
-        logger.info(f"OpenAI evaluation completed: {len(results)} buyers evaluated")
+        scores = [r.get('score', 0) for r in results]
+        logger.info(f"OpenAI evaluation completed: {len(results)} buyers evaluated, scores: {scores}")
         return results
         
     except json.JSONDecodeError as e:
