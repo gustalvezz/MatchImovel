@@ -42,7 +42,7 @@ async def send_email(to_email: str, subject: str, html_content: str) -> bool:
         return False
 
 
-async def send_interest_registered_email(buyer_email: str, buyer_name: str, interest_data: dict) -> bool:
+async def send_interest_registered_email(buyer_email: str, buyer_name: str, interest_data: dict, ai_interpretation: dict = None) -> bool:
     """Send email to buyer when interest is registered"""
     
     property_type_labels = {
@@ -62,7 +62,14 @@ async def send_interest_registered_email(buyer_email: str, buyer_name: str, inte
         '550k_700k': 'R$ 550 a 700 mil',
         '700k_800k': 'R$ 700 a 800 mil',
         '800k_1500k': 'R$ 800 mil a 1,5 milhão',
-        'acima_1500k': 'Acima de R$ 1,5 milhão'
+        'acima_1500k': 'Acima de R$ 1,5 milhão',
+        'ate_550k': 'Até R$ 550 mil',
+        'ate_700k': 'Até R$ 700 mil',
+        'ate_800k': 'Até R$ 800 mil',
+        'ate_1500k': 'Até R$ 1,5 milhão',
+        'ate_2500k': 'Até R$ 2,5 milhões',
+        'ate_5000k': 'Até R$ 5 milhões',
+        'acima_5000k': 'Acima de R$ 5 milhões'
     }
     
     property_type = interest_data.get('property_type', 'Imóvel')
@@ -71,6 +78,53 @@ async def send_interest_registered_email(buyer_email: str, buyer_name: str, inte
     
     budget = budget_labels.get(interest_data.get('budget_range', ''), 'A definir')
     location = interest_data.get('location', 'A definir')
+    
+    # Build AI interpretation section if available
+    ai_section = ""
+    if ai_interpretation:
+        perfil_narrativo = ai_interpretation.get('perfil_narrativo', '')
+        criterios = ai_interpretation.get('criterios_inegociaveis', [])
+        imovel_ideal = ai_interpretation.get('perfil_do_imovel_ideal', '')
+        alertas = ai_interpretation.get('alertas', [])
+        
+        criterios_html = ""
+        if criterios:
+            criterios_items = "".join([f'<span style="background: #fee2e2; color: #991b1b; padding: 4px 10px; border-radius: 20px; font-size: 12px; margin: 2px;">{c}</span>' for c in criterios])
+            criterios_html = f'''
+                <div style="margin-top: 16px;">
+                    <p style="font-weight: 600; color: #64748b; margin-bottom: 8px; font-size: 14px;">O que você não abre mão:</p>
+                    <div style="display: flex; flex-wrap: wrap; gap: 6px;">{criterios_items}</div>
+                </div>
+            '''
+        
+        imovel_html = ""
+        if imovel_ideal:
+            imovel_html = f'''
+                <div style="background: #dcfce7; padding: 16px; border-radius: 12px; margin-top: 16px;">
+                    <p style="font-weight: 600; color: #166534; margin-bottom: 8px; font-size: 14px;">Imóvel ideal para você:</p>
+                    <p style="color: #15803d; font-size: 14px; margin: 0;">{imovel_ideal}</p>
+                </div>
+            '''
+        
+        alertas_html = ""
+        if alertas:
+            alertas_items = "".join([f'<li style="margin: 4px 0;">{a}</li>' for a in alertas])
+            alertas_html = f'''
+                <div style="background: #fef3c7; padding: 16px; border-radius: 12px; margin-top: 16px;">
+                    <p style="font-weight: 600; color: #92400e; margin-bottom: 8px; font-size: 14px;">Pontos de atenção:</p>
+                    <ul style="color: #78350f; font-size: 14px; margin: 0; padding-left: 20px;">{alertas_items}</ul>
+                </div>
+            '''
+        
+        ai_section = f'''
+                <div style="background: linear-gradient(135deg, #f3e8ff, #e0e7ff); padding: 24px; border-radius: 12px; margin: 24px 0;">
+                    <h3 style="margin: 0 0 16px 0; color: #7c3aed; font-size: 18px;">✨ Análise do seu perfil por IA</h3>
+                    <p style="color: #4c1d95; font-size: 14px; line-height: 1.6; margin: 0;">{perfil_narrativo}</p>
+                    {criterios_html}
+                    {imovel_html}
+                    {alertas_html}
+                </div>
+        '''
     
     subject = "Seu interesse foi cadastrado com sucesso! - MatchImovel"
     
@@ -128,6 +182,8 @@ async def send_interest_registered_email(buyer_email: str, buyer_name: str, inte
                         <span class="info-value">{budget}</span>
                     </div>
                 </div>
+                
+                {ai_section}
                 
                 <div class="next-steps">
                     <h3>📞 Próximos passos</h3>

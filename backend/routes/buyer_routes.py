@@ -620,7 +620,7 @@ async def create_full_interest_v2(request: Request):
     
     await db.interests.insert_one(interest)
     
-    # Send confirmation email
+    # Send confirmation email with AI interpretation
     if email:
         await send_interest_registered_email(
             buyer_email=email,
@@ -629,7 +629,8 @@ async def create_full_interest_v2(request: Request):
                 'property_type': property_type_display,
                 'budget_range': form_data.get('budget_range'),
                 'location': form_data.get('location')
-            }
+            },
+            ai_interpretation=ai_interpretation
         )
     
     return {

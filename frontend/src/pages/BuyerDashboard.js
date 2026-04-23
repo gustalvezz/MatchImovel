@@ -261,12 +261,77 @@ const BuyerDashboard = () => {
                     )}
 
                     {interest.features && interest.features.length > 0 && (
-                      <div>
+                      <div className="mb-4">
                         <p className="text-sm text-muted-foreground mb-2">Características Desejadas</p>
                         <div className="flex flex-wrap gap-2">
                           {interest.features.map((feature, idx) => (
                             <Badge key={idx} variant="secondary" className="rounded-full">{feature}</Badge>
                           ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* AI Interpretation Section */}
+                    {interest.interpretacaoIA && (
+                      <div className="mt-4 pt-4 border-t border-slate-200">
+                        <div className="flex items-center gap-2 mb-3">
+                          <Sparkles className="w-4 h-4 text-purple-500" />
+                          <p className="text-sm font-semibold text-purple-700">Análise do seu perfil por IA</p>
+                        </div>
+                        
+                        {/* Perfil Narrativo */}
+                        <div className="bg-gradient-to-r from-purple-50 to-indigo-50 rounded-xl p-4 mb-3">
+                          <p className="text-sm text-slate-700 leading-relaxed">
+                            {interest.interpretacaoIA.perfil_narrativo}
+                          </p>
+                        </div>
+                        
+                        {/* Critérios Inegociáveis */}
+                        {interest.interpretacaoIA.criterios_inegociaveis?.length > 0 && (
+                          <div className="mb-3">
+                            <p className="text-xs font-medium text-slate-600 mb-2">O que não abrimos mão:</p>
+                            <div className="flex flex-wrap gap-1.5">
+                              {interest.interpretacaoIA.criterios_inegociaveis.map((criterio, idx) => (
+                                <Badge key={idx} className="bg-red-100 text-red-700 border-red-200 text-xs">
+                                  {criterio}
+                                </Badge>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        
+                        {/* Perfil do Imóvel Ideal */}
+                        {interest.interpretacaoIA.perfil_do_imovel_ideal && (
+                          <div className="bg-green-50 rounded-lg p-3 mb-3">
+                            <p className="text-xs font-medium text-green-700 mb-1">Imóvel ideal para você:</p>
+                            <p className="text-sm text-green-800">
+                              {interest.interpretacaoIA.perfil_do_imovel_ideal}
+                            </p>
+                          </div>
+                        )}
+                        
+                        {/* Alertas */}
+                        {interest.interpretacaoIA.alertas?.length > 0 && (
+                          <div className="bg-amber-50 rounded-lg p-3">
+                            <p className="text-xs font-medium text-amber-700 mb-1">Pontos de atenção:</p>
+                            <ul className="text-sm text-amber-800 list-disc list-inside">
+                              {interest.interpretacaoIA.alertas.map((alerta, idx) => (
+                                <li key={idx}>{alerta}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Legacy AI Profile (for older interests) */}
+                    {!interest.interpretacaoIA && interest.ai_profile && (
+                      <div className="mt-4 pt-4 border-t border-slate-200">
+                        <div className="flex items-center gap-2">
+                          <Sparkles className="w-4 h-4 text-purple-500" />
+                          <Badge className="bg-gradient-to-r from-purple-500 to-indigo-500 text-white">
+                            {interest.ai_profile}
+                          </Badge>
                         </div>
                       </div>
                     )}
