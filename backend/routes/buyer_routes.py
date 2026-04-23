@@ -160,9 +160,22 @@ async def delete_interest(interest_id: str, reason_data: DeleteReason, current_u
     if not interest:
         raise HTTPException(status_code=404, detail="Interesse não encontrado")
     
+    # Check for pending or approved matches
+    blocking_matches = await db.matches.find({
+        "interest_id": interest_id,
+        "status": {"$in": ["pending_approval", "pending_info", "approved", "visit_scheduled"]}
+    }, {"_id": 0}).to_list(100)
+    
+    if blocking_matches:
+        raise HTTPException(
+            status_code=400, 
+            detail="Não é possível excluir este interesse pois existem matches pendentes ou aprovados. Entre em contato com seu curador para solicitar a exclusão."
+        )
+    
     buyer = await db.buyers.find_one({"user_id": current_user["user_id"]}, {"_id": 0})
     buyer_user = await db.users.find_one({"id": current_user["user_id"]}, {"_id": 0})
     
+    # Get any remaining matches (rejected/completed) for notification
     related_matches = await db.matches.find({"interest_id": interest_id}, {"_id": 0}).to_list(100)
     
     for match in related_matches:
@@ -189,6 +202,13 @@ async def delete_interest(interest_id: str, reason_data: DeleteReason, current_u
         "deleted_at": datetime.now(timezone.utc).isoformat()
     }
     await db.interest_deletions.insert_one(deletion_record)
+    
+    # Delete any remaining matches (rejected/completed) and related data
+    for match in related_matches:
+        await db.bot_conversations.delete_many({"match_id": match["id"]})
+        await db.visits.delete_many({"match_id": match["id"]})
+        await db.followups.delete_many({"match_id": match["id"]})
+    await db.matches.delete_many({"interest_id": interest_id})
     
     await db.interests.delete_one({"id": interest_id})
     
