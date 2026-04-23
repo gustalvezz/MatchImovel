@@ -248,7 +248,7 @@ const InterestFormModal = ({ isOpen, onClose, onSuccess, userInfo }) => {
       case 'budget_range': return formData.budget_range !== '';
       case 'payment_method': return formData.payment_method.length > 0;
       case 'current_property_status': return formData.current_property_status !== '';
-      case 'indispensable': return formData.indispensable.length > 0;
+      case 'indispensable': return formData.indispensable.length > 0 || (formData.indispensable.includes('Outro') && formData.indispensable_other.trim() !== '');
       case 'space_size': return formData.space_size !== '';
       case 'property_condition': return formData.property_condition.length > 0;
       case 'ambiance': return formData.ambiance !== '';
@@ -640,12 +640,37 @@ const InterestFormModal = ({ isOpen, onClose, onSuccess, userInfo }) => {
                 />
               ))}
             </div>
-            <Input
-              value={formData.indispensable_other}
-              onChange={(e) => setFormData(prev => ({ ...prev, indispensable_other: e.target.value }))}
-              placeholder="Outro..."
-              className="mt-2 h-9 text-sm rounded-lg"
-            />
+            {/* Checkbox "Outro" com campo de texto */}
+            <div className="mt-2">
+              <div
+                onClick={() => handleMultiSelect('indispensable', 'Outro')}
+                className={`p-2 md:p-2.5 rounded-lg border-2 cursor-pointer transition-all ${
+                  formData.indispensable.includes('Outro')
+                    ? 'border-indigo-600 bg-indigo-50' 
+                    : 'border-slate-200 hover:border-slate-300 bg-white'
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <div className={`w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0 ${
+                    formData.indispensable.includes('Outro') ? 'border-indigo-600 bg-indigo-600' : 'border-slate-300'
+                  }`}>
+                    {formData.indispensable.includes('Outro') && <Check className="w-2.5 h-2.5 text-white" />}
+                  </div>
+                  <p className={`text-xs md:text-sm leading-tight ${formData.indispensable.includes('Outro') ? 'text-indigo-900 font-medium' : 'text-slate-700'}`}>
+                    Outro
+                  </p>
+                </div>
+              </div>
+              {formData.indispensable.includes('Outro') && (
+                <Input
+                  value={formData.indispensable_other}
+                  onChange={(e) => setFormData(prev => ({ ...prev, indispensable_other: e.target.value }))}
+                  placeholder="Descreva o que é indispensável..."
+                  className="mt-2 h-9 text-sm rounded-lg border-2 border-indigo-200 focus:border-indigo-400"
+                  autoFocus
+                />
+              )}
+            </div>
           </div>
         );
 
