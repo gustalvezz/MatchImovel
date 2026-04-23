@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
 import { Button } from '@/components/ui/button';
@@ -68,70 +68,29 @@ const TermsModal = ({ isOpen, onClose }) => {
             <div>
               <h3 className="font-bold text-slate-900">2. DO OBJETO</h3>
               <p>A MatchImóvel é uma plataforma de intermediação imobiliária especializada no lado do comprador. Sua função é receber o perfil de busca do COMPRADOR, conectá-lo a corretores parceiros credenciados e realizar a curadoria das oportunidades antes de qualquer apresentação.</p>
-              <p>A PLATAFORMA não é proprietária de imóveis, não atua como corretora vendedora e não representa os interesses do vendedor ou proprietário.</p>
             </div>
             
             <div>
               <h3 className="font-bold text-slate-900">3. DAS OBRIGAÇÕES DA PLATAFORMA</h3>
-              <p>A MatchImóvel compromete-se a:</p>
               <ul className="list-disc pl-5 space-y-1">
-                <li>Manter o sigilo absoluto dos dados de contato do COMPRADOR, não os compartilhando com corretores parceiros, proprietários ou terceiros;</li>
-                <li>Realizar curadoria prévia de todas as oportunidades antes de apresentá-las ao COMPRADOR, assegurando aderência ao perfil cadastrado;</li>
-                <li>Intermediar toda comunicação inicial entre COMPRADOR e corretor parceiro, preservando a privacidade de ambos;</li>
-                <li>Agendar visitas somente após validação do match pela equipe de curadoria;</li>
-                <li>Atender o COMPRADOR com transparência, informando o estágio de sua busca sempre que solicitado;</li>
-                <li>Não cobrar qualquer valor do COMPRADOR pelo serviço de cadastro, busca e curadoria.</li>
-              </ul>
-            </div>
-            
-            <div>
-              <h3 className="font-bold text-slate-900">4. DAS OBRIGAÇÕES DO COMPRADOR</h3>
-              <p>O COMPRADOR compromete-se a:</p>
-              <ul className="list-disc pl-5 space-y-1">
-                <li>Fornecer informações verdadeiras no cadastro, especialmente no que se refere ao perfil de busca, capacidade financeira e intenção real de compra;</li>
-                <li>Comparecer às visitas agendadas ou comunicar o cancelamento com antecedência mínima de 24 horas;</li>
-                <li>Comunicar à MatchImóvel imediatamente caso tome conhecimento, por qualquer meio, de um imóvel que possa ter sido originado através da rede de parceiros da plataforma;</li>
-                <li>Manter o sigilo sobre dados, metodologia e informações operacionais da plataforma que venha a conhecer durante o uso do serviço.</li>
+                <li>Manter o sigilo absoluto dos dados de contato do COMPRADOR;</li>
+                <li>Realizar curadoria prévia de todas as oportunidades;</li>
+                <li>Não cobrar qualquer valor do COMPRADOR pelo serviço.</li>
               </ul>
             </div>
             
             <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
-              <h3 className="font-bold text-slate-900">5. DA PROTEÇÃO DA INTERMEDIAÇÃO E DA COMISSÃO</h3>
+              <h3 className="font-bold text-slate-900">5. DA PROTEÇÃO DA INTERMEDIAÇÃO</h3>
               <ul className="list-disc pl-5 space-y-2">
-                <li>O COMPRADOR reconhece que qualquer imóvel apresentado pela MatchImóvel — seja por meio de visita agendada, envio de informações, indicação de endereço ou qualquer outra forma de apresentação documentada — foi originado através da rede de intermediação da PLATAFORMA;</li>
-                <li>Caso o COMPRADOR realize negócio sobre imóvel originado pela MatchImóvel por qualquer meio, incluindo contato direto com o corretor parceiro, contato direto com o proprietário, indicação para terceiros que realizem a compra, ou qualquer outra forma que resulte na transferência do bem, fica desde já obrigado ao pagamento da comissão de intermediação no percentual de <strong>6% sobre o valor do negócio</strong>;</li>
-                <li>A obrigação prevista na alínea anterior persiste pelo prazo de <strong>18 meses</strong> contados da data da apresentação do imóvel pela MatchImóvel, independentemente de como se deu o contato posterior;</li>
-                <li>O não pagamento da comissão nos casos previstos nesta cláusula sujeitará o COMPRADOR à cobrança judicial, acrescida de multa de 20% e honorários advocatícios.</li>
-              </ul>
-            </div>
-            
-            <div>
-              <h3 className="font-bold text-slate-900">6. DA VISITA E DO PROTOCOLO DE APRESENTAÇÃO</h3>
-              <ul className="list-disc pl-5 space-y-1">
-                <li>Toda visita agendada pela MatchImóvel gerará automaticamente um Registro de Apresentação, documento que comprova que determinado imóvel foi originado e apresentado pela plataforma;</li>
-                <li>O COMPRADOR receberá cópia do Registro de Apresentação por email após cada visita realizada;</li>
-                <li>O Registro de Apresentação é o instrumento probatório da intermediação para fins da cláusula 5.</li>
-              </ul>
-            </div>
-            
-            <div>
-              <h3 className="font-bold text-slate-900">7. DA PRIVACIDADE E PROTEÇÃO DE DADOS</h3>
-              <p>Em conformidade com a Lei Geral de Proteção de Dados (Lei nº 13.709/2018):</p>
-              <ul className="list-disc pl-5 space-y-1">
-                <li>Os dados do COMPRADOR serão utilizados exclusivamente para as finalidades descritas neste termo;</li>
-                <li>Não serão compartilhados com terceiros sem consentimento expresso, exceto com corretores parceiros para fins de match — e mesmo nesses casos sem exposição dos dados de contato direto;</li>
-                <li>O COMPRADOR pode solicitar a exclusão de seus dados a qualquer momento pelo email suporte@matchimovel.com.br.</li>
+                <li>O COMPRADOR reconhece que qualquer imóvel apresentado pela MatchImóvel foi originado através da rede de intermediação da PLATAFORMA;</li>
+                <li>A comissão de intermediação é de <strong>6% sobre o valor do negócio</strong>;</li>
+                <li>A obrigação persiste pelo prazo de <strong>18 meses</strong>.</li>
               </ul>
             </div>
             
             <div>
               <h3 className="font-bold text-slate-900">8. DO ACEITE ELETRÔNICO</h3>
-              <p>O aceite deste termo se dá pelo clique no botão "Li e aceito os Termos de Uso" no momento do cadastro ou quando enviado por link para confirmação. O sistema registrará automaticamente a data, hora e endereço IP do aceite, vinculando-o ao CPF e email cadastrados, constituindo prova válida nos termos do Marco Civil da Internet.</p>
-            </div>
-            
-            <div>
-              <h3 className="font-bold text-slate-900">9. DO FORO</h3>
-              <p>Fica eleito o foro da comarca de Jundiaí - SP para dirimir quaisquer controvérsias oriundas deste instrumento.</p>
+              <p>O aceite deste termo se dá pelo clique no botão "Li e aceito os Termos de Uso" no momento do cadastro. O sistema registrará automaticamente a data, hora e endereço IP do aceite.</p>
             </div>
             
             <p className="text-center font-medium text-slate-600 pt-4 border-t">
@@ -157,23 +116,103 @@ const InterestFormModal = ({ isOpen, onClose, onSuccess, userInfo }) => {
   const [showTermsModal, setShowTermsModal] = useState(false);
   
   const [formData, setFormData] = useState({
+    // BLOCO 1 - QUEM É VOCÊ
+    age_range: '',
     profile_type: '',
+    profile_type_other: '',
+    who_will_live: [],
+    children_count: '',
+    children_ages: [],
     urgency: '',
+    
+    // BLOCO 2 - O QUE VOCÊ BUSCA
+    property_type: '',
+    floor_preference: '',
+    land_priorities: [],
     location: '',
     budget_range: '',
-    property_type: '', // Nova tela 5
+    payment_method: [],
+    current_property_status: '',
+    
+    // BLOCO 3 - COMO DEVE SER
     indispensable: [],
     indispensable_other: '',
+    space_size: '',
+    property_condition: [],
     ambiance: '',
+    
+    // BLOCO 4 - COMO VOCÊ VIVE
+    has_pets: '',
+    daily_routine: [],
+    transportation: [],
+    
+    // BLOCO 5 - O QUE VOCÊ REJEITA
     deal_breakers: [],
+    
+    // BLOCO 6 - ENTORNO
     proximity_needs: [],
-    experience_fears: '',
+    
+    // BLOCO 7 - FINALIZAÇÃO
+    additional_notes: '',
+    
+    // User info
     name: userInfo?.name || '',
     phone: userInfo?.phone || '',
     email: userInfo?.email || ''
   });
 
-  const totalSteps = 10; // Agora são 10 telas (removeu a tela de estilo)
+  // Define all screens including conditionals
+  const allScreens = useMemo(() => {
+    const screens = [
+      { id: 'age_range', block: 1 },
+      { id: 'profile_type', block: 1 },
+      { id: 'who_will_live', block: 1 },
+    ];
+    
+    // CONDICIONAL 1: Se selecionou "Filho(s)"
+    if (formData.who_will_live.includes('Filho(s)')) {
+      screens.push({ id: 'children_count', block: 1, conditional: true });
+      screens.push({ id: 'children_ages', block: 1, conditional: true });
+    }
+    
+    screens.push({ id: 'urgency', block: 1 });
+    screens.push({ id: 'property_type', block: 2 });
+    
+    // CONDICIONAL 2: Se selecionou "Apartamento" ou "Studio / Loft"
+    if (['apartamento', 'studio_loft'].includes(formData.property_type)) {
+      screens.push({ id: 'floor_preference', block: 2, conditional: true });
+    }
+    
+    // CONDICIONAL 3: Se selecionou "Terreno" ou "Terreno de condomínio"
+    if (['terreno', 'terreno_condominio'].includes(formData.property_type)) {
+      screens.push({ id: 'land_priorities', block: 2, conditional: true });
+    }
+    
+    screens.push({ id: 'location', block: 2 });
+    screens.push({ id: 'budget_range', block: 2 });
+    screens.push({ id: 'payment_method', block: 2 });
+    
+    // CONDICIONAL 4: Se selecionou "Tenho imóvel para dar como parte do pagamento"
+    if (formData.payment_method.includes('Tenho imóvel para dar como parte do pagamento')) {
+      screens.push({ id: 'current_property_status', block: 2, conditional: true });
+    }
+    
+    screens.push({ id: 'indispensable', block: 3 });
+    screens.push({ id: 'space_size', block: 3 });
+    screens.push({ id: 'property_condition', block: 3 });
+    screens.push({ id: 'ambiance', block: 3 });
+    screens.push({ id: 'has_pets', block: 4 });
+    screens.push({ id: 'daily_routine', block: 4 });
+    screens.push({ id: 'transportation', block: 4 });
+    screens.push({ id: 'deal_breakers', block: 5 });
+    screens.push({ id: 'proximity_needs', block: 6 });
+    screens.push({ id: 'finalization', block: 7 });
+    
+    return screens;
+  }, [formData.who_will_live, formData.property_type, formData.payment_method]);
+
+  const totalSteps = allScreens.length;
+  const currentScreenId = allScreens[currentStep]?.id;
 
   const handleSingleSelect = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -195,16 +234,30 @@ const InterestFormModal = ({ isOpen, onClose, onSuccess, userInfo }) => {
   };
 
   const canProceed = () => {
-    switch (currentStep) {
-      case 0: return formData.profile_type !== '';
-      case 1: return formData.urgency !== '';
-      case 2: return formData.location.trim() !== '';
-      case 3: return formData.budget_range !== '';
-      case 4: return formData.property_type !== ''; // Nova tela - tipo de imóvel
-      case 5: return formData.indispensable.length > 0;
-      case 6: return formData.ambiance !== '';
-      case 7: return formData.deal_breakers.length >= 1 && formData.deal_breakers.length <= 3;
-      case 8: return formData.proximity_needs.length >= 1 && formData.proximity_needs.length <= 3;
+    switch (currentScreenId) {
+      case 'age_range': return formData.age_range !== '';
+      case 'profile_type': return formData.profile_type !== '';
+      case 'who_will_live': return formData.who_will_live.length > 0;
+      case 'children_count': return formData.children_count !== '';
+      case 'children_ages': return formData.children_ages.length > 0;
+      case 'urgency': return formData.urgency !== '';
+      case 'property_type': return formData.property_type !== '';
+      case 'floor_preference': return formData.floor_preference !== '';
+      case 'land_priorities': return formData.land_priorities.length > 0;
+      case 'location': return formData.location.trim() !== '';
+      case 'budget_range': return formData.budget_range !== '';
+      case 'payment_method': return formData.payment_method.length > 0;
+      case 'current_property_status': return formData.current_property_status !== '';
+      case 'indispensable': return formData.indispensable.length > 0;
+      case 'space_size': return formData.space_size !== '';
+      case 'property_condition': return formData.property_condition.length > 0;
+      case 'ambiance': return formData.ambiance !== '';
+      case 'has_pets': return formData.has_pets !== '';
+      case 'daily_routine': return formData.daily_routine.length > 0 && formData.daily_routine.length <= 3;
+      case 'transportation': return formData.transportation.length > 0;
+      case 'deal_breakers': return formData.deal_breakers.length > 0 && formData.deal_breakers.length <= 3;
+      case 'proximity_needs': return formData.proximity_needs.length > 0 && formData.proximity_needs.length <= 3;
+      case 'finalization': return formData.additional_notes.trim().length >= 20 && termsAccepted;
       default: return true;
     }
   };
@@ -227,9 +280,14 @@ const InterestFormModal = ({ isOpen, onClose, onSuccess, userInfo }) => {
       return;
     }
     
+    if (formData.additional_notes.trim().length < 20) {
+      toast.error('O campo de observações deve ter no mínimo 20 caracteres');
+      return;
+    }
+    
     setIsSubmitting(true);
     try {
-      await axios.post(`${API}/interests/create-full`, {
+      await axios.post(`${API}/interests/create-full-v2`, {
         ...formData,
         name: userInfo?.name || formData.name,
         phone: userInfo?.phone || formData.phone,
@@ -247,7 +305,7 @@ const InterestFormModal = ({ isOpen, onClose, onSuccess, userInfo }) => {
     }
   };
 
-  // Compact option card
+  // Option Card Component
   const OptionCard = ({ selected, onClick, letter, title, subtitle }) => (
     <div
       onClick={onClick}
@@ -278,7 +336,7 @@ const InterestFormModal = ({ isOpen, onClose, onSuccess, userInfo }) => {
     </div>
   );
 
-  // Compact checkbox card
+  // Checkbox Card Component
   const CheckboxCard = ({ selected, onClick, text, disabled }) => (
     <div
       onClick={!disabled ? onClick : undefined}
@@ -304,25 +362,115 @@ const InterestFormModal = ({ isOpen, onClose, onSuccess, userInfo }) => {
   );
 
   const renderStep = () => {
-    switch (currentStep) {
-      // TELA 1: Perfil - Adicionado "Quero sair do aluguel"
-      case 0:
+    switch (currentScreenId) {
+      // TELA 1: Faixa etária
+      case 'age_range':
         return (
           <div>
-            <h2 className="text-base md:text-lg font-bold mb-1">Como você se identifica?</h2>
+            <h2 className="text-base md:text-lg font-bold mb-1">Qual sua faixa etária?</h2>
             <p className="text-slate-500 mb-3 text-xs">Selecione uma opção</p>
             <div className="space-y-2">
-              <OptionCard selected={formData.profile_type === 'primeiro_imovel'} onClick={() => handleSingleSelect('profile_type', 'primeiro_imovel')} letter="A" title="Comprando meu primeiro imóvel" />
-              <OptionCard selected={formData.profile_type === 'sair_aluguel'} onClick={() => handleSingleSelect('profile_type', 'sair_aluguel')} letter="B" title="Quero sair do aluguel" />
-              <OptionCard selected={formData.profile_type === 'melhor_localizacao'} onClick={() => handleSingleSelect('profile_type', 'melhor_localizacao')} letter="C" title="Quero melhor localização" />
-              <OptionCard selected={formData.profile_type === 'familia_cresceu'} onClick={() => handleSingleSelect('profile_type', 'familia_cresceu')} letter="D" title="Minha família cresceu" />
-              <OptionCard selected={formData.profile_type === 'investidor'} onClick={() => handleSingleSelect('profile_type', 'investidor')} letter="E" title="Buscando para investir" />
+              <OptionCard selected={formData.age_range === 'ate_30'} onClick={() => handleSingleSelect('age_range', 'ate_30')} letter="A" title="Até 30 anos" />
+              <OptionCard selected={formData.age_range === '30_45'} onClick={() => handleSingleSelect('age_range', '30_45')} letter="B" title="30 a 45 anos" />
+              <OptionCard selected={formData.age_range === '45_60'} onClick={() => handleSingleSelect('age_range', '45_60')} letter="C" title="45 a 60 anos" />
+              <OptionCard selected={formData.age_range === 'acima_60'} onClick={() => handleSingleSelect('age_range', 'acima_60')} letter="D" title="Acima de 60 anos" />
             </div>
           </div>
         );
 
-      // TELA 2: Urgência - Mudado 6 meses para 12 meses
-      case 1:
+      // TELA 2: Por que está buscando
+      case 'profile_type':
+        return (
+          <div>
+            <h2 className="text-base md:text-lg font-bold mb-1">Por que está buscando um imóvel?</h2>
+            <p className="text-slate-500 mb-3 text-xs">Selecione uma opção</p>
+            <div className="space-y-2">
+              <OptionCard selected={formData.profile_type === 'primeiro_imovel'} onClick={() => handleSingleSelect('profile_type', 'primeiro_imovel')} letter="A" title="Comprando meu primeiro imóvel" />
+              <OptionCard selected={formData.profile_type === 'sair_aluguel'} onClick={() => handleSingleSelect('profile_type', 'sair_aluguel')} letter="B" title="Quero sair do aluguel" />
+              <OptionCard selected={formData.profile_type === 'familia_cresceu'} onClick={() => handleSingleSelect('profile_type', 'familia_cresceu')} letter="C" title="Minha família cresceu" />
+              <OptionCard selected={formData.profile_type === 'melhor_localizacao'} onClick={() => handleSingleSelect('profile_type', 'melhor_localizacao')} letter="D" title="Quero melhorar de localização" />
+              <OptionCard selected={formData.profile_type === 'investidor'} onClick={() => handleSingleSelect('profile_type', 'investidor')} letter="E" title="Buscando para investir" />
+              <OptionCard selected={formData.profile_type === 'simplificar'} onClick={() => handleSingleSelect('profile_type', 'simplificar')} letter="F" title="Quero reduzir / simplificar a vida" />
+              <OptionCard selected={formData.profile_type === 'outro'} onClick={() => handleSingleSelect('profile_type', 'outro')} letter="G" title="Outro" />
+            </div>
+            {formData.profile_type === 'outro' && (
+              <Input
+                value={formData.profile_type_other}
+                onChange={(e) => setFormData(prev => ({ ...prev, profile_type_other: e.target.value }))}
+                placeholder="Descreva..."
+                className="mt-2 h-9 text-sm rounded-lg"
+              />
+            )}
+          </div>
+        );
+
+      // TELA 3: Quem vai morar
+      case 'who_will_live':
+        return (
+          <div>
+            <h2 className="text-base md:text-lg font-bold mb-1">Quem vai morar no imóvel?</h2>
+            <p className="text-slate-500 mb-3 text-xs">Selecione todas que se aplicam</p>
+            <div className="space-y-2">
+              {[
+                'Só eu',
+                'Meu parceiro / cônjuge',
+                'Filho(s)',
+                'Pai, mãe ou sogro(s)',
+                'Pessoa com mobilidade reduzida',
+                'Vou dividir com amigos ou colegas',
+                'Preciso de quarto de visitas permanente'
+              ].map((item) => (
+                <CheckboxCard
+                  key={item}
+                  selected={formData.who_will_live.includes(item)}
+                  onClick={() => handleMultiSelect('who_will_live', item)}
+                  text={item}
+                />
+              ))}
+            </div>
+          </div>
+        );
+
+      // TELA 3A: Quantos filhos (condicional)
+      case 'children_count':
+        return (
+          <div>
+            <h2 className="text-base md:text-lg font-bold mb-1">Quantos filhos vão morar com você?</h2>
+            <p className="text-slate-500 mb-3 text-xs">Selecione uma opção</p>
+            <div className="space-y-2">
+              <OptionCard selected={formData.children_count === '1'} onClick={() => handleSingleSelect('children_count', '1')} letter="A" title="1 filho" />
+              <OptionCard selected={formData.children_count === '2'} onClick={() => handleSingleSelect('children_count', '2')} letter="B" title="2 filhos" />
+              <OptionCard selected={formData.children_count === '3_mais'} onClick={() => handleSingleSelect('children_count', '3_mais')} letter="C" title="3 ou mais" />
+            </div>
+          </div>
+        );
+
+      // TELA 3B: Faixa etária dos filhos (condicional)
+      case 'children_ages':
+        return (
+          <div>
+            <h2 className="text-base md:text-lg font-bold mb-1">Qual a faixa etária dos filhos?</h2>
+            <p className="text-slate-500 mb-3 text-xs">Pode marcar mais de uma</p>
+            <div className="space-y-2">
+              {[
+                'Bebê ou criança pequena (até 6 anos)',
+                'Criança em idade escolar (7 a 12 anos)',
+                'Adolescente (13 a 17 anos)',
+                'Filho adulto que ainda mora junto'
+              ].map((item) => (
+                <CheckboxCard
+                  key={item}
+                  selected={formData.children_ages.includes(item)}
+                  onClick={() => handleMultiSelect('children_ages', item)}
+                  text={item}
+                />
+              ))}
+            </div>
+          </div>
+        );
+
+      // TELA 4: Urgência
+      case 'urgency':
         return (
           <div>
             <h2 className="text-base md:text-lg font-bold mb-1">Qual seu estado de urgência?</h2>
@@ -335,11 +483,70 @@ const InterestFormModal = ({ isOpen, onClose, onSuccess, userInfo }) => {
           </div>
         );
 
-      // TELA 3: Localização - Mantido
-      case 2:
+      // TELA 5: Tipo de imóvel
+      case 'property_type':
         return (
           <div>
-            <h2 className="text-base md:text-lg font-bold mb-1">Onde você quer morar ou investir?</h2>
+            <h2 className="text-base md:text-lg font-bold mb-1">O que está procurando?</h2>
+            <p className="text-slate-500 mb-3 text-xs">Selecione o tipo de imóvel</p>
+            <div className="space-y-2">
+              <OptionCard selected={formData.property_type === 'apartamento'} onClick={() => handleSingleSelect('property_type', 'apartamento')} letter="A" title="Apartamento" />
+              <OptionCard selected={formData.property_type === 'casa'} onClick={() => handleSingleSelect('property_type', 'casa')} letter="B" title="Casa" />
+              <OptionCard selected={formData.property_type === 'casa_condominio'} onClick={() => handleSingleSelect('property_type', 'casa_condominio')} letter="C" title="Casa de condomínio" />
+              <OptionCard selected={formData.property_type === 'studio_loft'} onClick={() => handleSingleSelect('property_type', 'studio_loft')} letter="D" title="Studio / Loft" />
+              <OptionCard selected={formData.property_type === 'terreno'} onClick={() => handleSingleSelect('property_type', 'terreno')} letter="E" title="Terreno" />
+              <OptionCard selected={formData.property_type === 'terreno_condominio'} onClick={() => handleSingleSelect('property_type', 'terreno_condominio')} letter="F" title="Terreno de condomínio" />
+              <OptionCard selected={formData.property_type === 'sala_comercial'} onClick={() => handleSingleSelect('property_type', 'sala_comercial')} letter="G" title="Sala comercial" />
+              <OptionCard selected={formData.property_type === 'predio_comercial'} onClick={() => handleSingleSelect('property_type', 'predio_comercial')} letter="H" title="Prédio comercial" />
+            </div>
+          </div>
+        );
+
+      // TELA 5A: Preferência de andar (condicional - apartamento/studio)
+      case 'floor_preference':
+        return (
+          <div>
+            <h2 className="text-base md:text-lg font-bold mb-1">Prefere em qual andar?</h2>
+            <p className="text-slate-500 mb-3 text-xs">Selecione uma opção</p>
+            <div className="space-y-2">
+              <OptionCard selected={formData.floor_preference === 'terreo'} onClick={() => handleSingleSelect('floor_preference', 'terreo')} letter="A" title="Térreo ou baixo" subtitle="Facilidade de acesso" />
+              <OptionCard selected={formData.floor_preference === 'meio'} onClick={() => handleSingleSelect('floor_preference', 'meio')} letter="B" title="Meio" subtitle="Equilíbrio entre acesso e vista" />
+              <OptionCard selected={formData.floor_preference === 'alto'} onClick={() => handleSingleSelect('floor_preference', 'alto')} letter="C" title="Alto" subtitle="Vista, silêncio e privacidade" />
+              <OptionCard selected={formData.floor_preference === 'tanto_faz'} onClick={() => handleSingleSelect('floor_preference', 'tanto_faz')} letter="D" title="Tanto faz" />
+            </div>
+          </div>
+        );
+
+      // TELA 5B: Prioridades do terreno (condicional - terreno)
+      case 'land_priorities':
+        return (
+          <div>
+            <h2 className="text-base md:text-lg font-bold mb-1">O que importa no terreno?</h2>
+            <p className="text-slate-500 mb-3 text-xs">Selecione todas que se aplicam</p>
+            <div className="space-y-2">
+              {[
+                'Topografia plana',
+                'Já tem projeto aprovado',
+                'Potencial para construção imediata',
+                'Localização acima de tudo',
+                'Condomínio fechado'
+              ].map((item) => (
+                <CheckboxCard
+                  key={item}
+                  selected={formData.land_priorities.includes(item)}
+                  onClick={() => handleMultiSelect('land_priorities', item)}
+                  text={item}
+                />
+              ))}
+            </div>
+          </div>
+        );
+
+      // TELA 6: Localização
+      case 'location':
+        return (
+          <div>
+            <h2 className="text-base md:text-lg font-bold mb-1">Onde quer morar ou investir?</h2>
             <p className="text-slate-500 mb-3 text-xs">Digite cidade e bairros de interesse</p>
             <div className="relative">
               <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
@@ -353,54 +560,77 @@ const InterestFormModal = ({ isOpen, onClose, onSuccess, userInfo }) => {
           </div>
         );
 
-      // TELA 4: Budget - Mudado E e adicionado F
-      case 3:
+      // TELA 7: Orçamento
+      case 'budget_range':
         return (
           <div>
-            <h2 className="text-base md:text-lg font-bold mb-1">Qual sua faixa de investimento?</h2>
+            <h2 className="text-base md:text-lg font-bold mb-1">Qual seu orçamento máximo?</h2>
             <p className="text-slate-500 mb-3 text-xs">Selecione uma opção</p>
             <div className="space-y-2">
               <OptionCard selected={formData.budget_range === 'ate_400k'} onClick={() => handleSingleSelect('budget_range', 'ate_400k')} letter="A" title="Até R$ 400 mil" />
-              <OptionCard selected={formData.budget_range === '400k_550k'} onClick={() => handleSingleSelect('budget_range', '400k_550k')} letter="B" title="R$ 400 a 550 mil" />
-              <OptionCard selected={formData.budget_range === '550k_700k'} onClick={() => handleSingleSelect('budget_range', '550k_700k')} letter="C" title="R$ 550 a 700 mil" />
-              <OptionCard selected={formData.budget_range === '700k_800k'} onClick={() => handleSingleSelect('budget_range', '700k_800k')} letter="D" title="R$ 700 a 800 mil" />
-              <OptionCard selected={formData.budget_range === '800k_1500k'} onClick={() => handleSingleSelect('budget_range', '800k_1500k')} letter="E" title="R$ 800 mil a 1,5 milhão" />
-              <OptionCard selected={formData.budget_range === 'acima_1500k'} onClick={() => handleSingleSelect('budget_range', 'acima_1500k')} letter="F" title="Acima de R$ 1,5 milhão" />
+              <OptionCard selected={formData.budget_range === 'ate_550k'} onClick={() => handleSingleSelect('budget_range', 'ate_550k')} letter="B" title="Até R$ 550 mil" />
+              <OptionCard selected={formData.budget_range === 'ate_700k'} onClick={() => handleSingleSelect('budget_range', 'ate_700k')} letter="C" title="Até R$ 700 mil" />
+              <OptionCard selected={formData.budget_range === 'ate_800k'} onClick={() => handleSingleSelect('budget_range', 'ate_800k')} letter="D" title="Até R$ 800 mil" />
+              <OptionCard selected={formData.budget_range === 'ate_1500k'} onClick={() => handleSingleSelect('budget_range', 'ate_1500k')} letter="E" title="Até R$ 1,5 milhão" />
+              <OptionCard selected={formData.budget_range === 'ate_2500k'} onClick={() => handleSingleSelect('budget_range', 'ate_2500k')} letter="F" title="Até R$ 2,5 milhões" />
+              <OptionCard selected={formData.budget_range === 'ate_5000k'} onClick={() => handleSingleSelect('budget_range', 'ate_5000k')} letter="G" title="Até R$ 5 milhões" />
+              <OptionCard selected={formData.budget_range === 'acima_5000k'} onClick={() => handleSingleSelect('budget_range', 'acima_5000k')} letter="H" title="Acima de R$ 5 milhões" />
             </div>
           </div>
         );
 
-      // TELA 5: NOVA - O que está procurando?
-      case 4:
+      // TELA 8: Forma de pagamento
+      case 'payment_method':
         return (
           <div>
-            <h2 className="text-base md:text-lg font-bold mb-1">O que está procurando?</h2>
-            <p className="text-slate-500 mb-3 text-xs">Selecione o tipo de imóvel</p>
+            <h2 className="text-base md:text-lg font-bold mb-1">Como pretende pagar?</h2>
+            <p className="text-slate-500 mb-3 text-xs">Selecione todas que se aplicam</p>
             <div className="space-y-2">
-              <OptionCard selected={formData.property_type === 'apartamento'} onClick={() => handleSingleSelect('property_type', 'apartamento')} letter="A" title="Apartamento" />
-              <OptionCard selected={formData.property_type === 'casa'} onClick={() => handleSingleSelect('property_type', 'casa')} letter="B" title="Casa" />
-              <OptionCard selected={formData.property_type === 'casa_condominio'} onClick={() => handleSingleSelect('property_type', 'casa_condominio')} letter="C" title="Casa de condomínio" />
-              <OptionCard selected={formData.property_type === 'terreno'} onClick={() => handleSingleSelect('property_type', 'terreno')} letter="D" title="Terreno" />
-              <OptionCard selected={formData.property_type === 'terreno_condominio'} onClick={() => handleSingleSelect('property_type', 'terreno_condominio')} letter="E" title="Terreno de condomínio" />
-              <OptionCard selected={formData.property_type === 'sala_comercial'} onClick={() => handleSingleSelect('property_type', 'sala_comercial')} letter="F" title="Sala comercial" />
-              <OptionCard selected={formData.property_type === 'predio_comercial'} onClick={() => handleSingleSelect('property_type', 'predio_comercial')} letter="G" title="Prédio comercial" />
-              <OptionCard selected={formData.property_type === 'studio_loft'} onClick={() => handleSingleSelect('property_type', 'studio_loft')} letter="H" title="Studio/Loft" />
+              {[
+                'À vista',
+                'Financiamento bancário',
+                'FGTS + financiamento',
+                'Tenho imóvel para dar como parte do pagamento',
+                'Ainda não sei'
+              ].map((item) => (
+                <CheckboxCard
+                  key={item}
+                  selected={formData.payment_method.includes(item)}
+                  onClick={() => handleMultiSelect('payment_method', item)}
+                  text={item}
+                />
+              ))}
             </div>
           </div>
         );
 
-      // TELA 6: O que é indispensável - Atualizado
-      case 5:
+      // TELA 8A: Situação do imóvel atual (condicional)
+      case 'current_property_status':
+        return (
+          <div>
+            <h2 className="text-base md:text-lg font-bold mb-1">Qual a situação do seu imóvel atual?</h2>
+            <p className="text-slate-500 mb-3 text-xs">Selecione uma opção</p>
+            <div className="space-y-2">
+              <OptionCard selected={formData.current_property_status === 'a_venda'} onClick={() => handleSingleSelect('current_property_status', 'a_venda')} letter="A" title="Já está à venda" />
+              <OptionCard selected={formData.current_property_status === 'nao_a_venda'} onClick={() => handleSingleSelect('current_property_status', 'nao_a_venda')} letter="B" title="Ainda não coloquei à venda" />
+              <OptionCard selected={formData.current_property_status === 'precisa_vender'} onClick={() => handleSingleSelect('current_property_status', 'precisa_vender')} letter="C" title="Preciso vender para conseguir comprar" />
+              <OptionCard selected={formData.current_property_status === 'opcional'} onClick={() => handleSingleSelect('current_property_status', 'opcional')} letter="D" title="É opcional — consigo comprar sem vender" />
+            </div>
+          </div>
+        );
+
+      // TELA 9: O que é indispensável
+      case 'indispensable':
         return (
           <div>
             <h2 className="text-base md:text-lg font-bold mb-1">O que é indispensável?</h2>
             <p className="text-slate-500 mb-3 text-xs">Selecione quantas opções quiser</p>
             <div className="grid grid-cols-2 gap-1.5">
               {[
-                '2+ quartos', '3+ quartos', 'Suíte', '2+ vagas',
-                'Home office', 'Área gourmet', 'Varanda Gourmet', 'Piscina',
-                'Térrea', 'Terreno grande', 'Porteira fechada', 'Elevador',
-                'Área de lazer completa'
+                '2+ quartos', '3+ quartos', 'Suíte', '2+ banheiros', '2+ vagas',
+                'Home office', 'Varanda / Varanda gourmet', 'Área gourmet', 'Piscina',
+                'Porteira fechada / Condomínio fechado', 'Elevador', 'Térrea',
+                'Área de lazer completa', 'Terreno grande'
               ].map((item) => (
                 <CheckboxCard
                   key={item}
@@ -419,8 +649,47 @@ const InterestFormModal = ({ isOpen, onClose, onSuccess, userInfo }) => {
           </div>
         );
 
-      // TELA 7: Qual ambiente te traz alívio - Atualizado opções C, D, E
-      case 6:
+      // TELA 10: Tamanho do espaço
+      case 'space_size':
+        return (
+          <div>
+            <h2 className="text-base md:text-lg font-bold mb-1">Como você imagina o espaço ideal?</h2>
+            <p className="text-slate-500 mb-3 text-xs">Selecione uma opção</p>
+            <div className="space-y-2">
+              <OptionCard selected={formData.space_size === 'compacto'} onClick={() => handleSingleSelect('space_size', 'compacto')} letter="A" title="Compacto e funcional" subtitle="Só o essencial bem aproveitado" />
+              <OptionCard selected={formData.space_size === 'equilibrado'} onClick={() => handleSingleSelect('space_size', 'equilibrado')} letter="B" title="Equilibrado" subtitle="Confortável sem exageros" />
+              <OptionCard selected={formData.space_size === 'espacoso'} onClick={() => handleSingleSelect('space_size', 'espacoso')} letter="C" title="Espaçoso" subtitle="Cômodos generosos, área de sobra" />
+              <OptionCard selected={formData.space_size === 'grande'} onClick={() => handleSingleSelect('space_size', 'grande')} letter="D" title="Grande" subtitle="Espaço é prioridade, quanto mais melhor" />
+            </div>
+          </div>
+        );
+
+      // TELA 11: Condição do imóvel
+      case 'property_condition':
+        return (
+          <div>
+            <h2 className="text-base md:text-lg font-bold mb-1">Como prefere o imóvel?</h2>
+            <p className="text-slate-500 mb-3 text-xs">Selecione todas que se aplicam</p>
+            <div className="space-y-2">
+              {[
+                'Novo ou em construção',
+                'Usado em bom estado',
+                'Aceito reformar se a localização valer',
+                'Tanto faz'
+              ].map((item) => (
+                <CheckboxCard
+                  key={item}
+                  selected={formData.property_condition.includes(item)}
+                  onClick={() => handleMultiSelect('property_condition', item)}
+                  text={item}
+                />
+              ))}
+            </div>
+          </div>
+        );
+
+      // TELA 12: Ambiente ideal
+      case 'ambiance':
         return (
           <div>
             <h2 className="text-base md:text-lg font-bold mb-1">Qual ambiente te traz mais alívio?</h2>
@@ -430,21 +699,91 @@ const InterestFormModal = ({ isOpen, onClose, onSuccess, userInfo }) => {
               <OptionCard selected={formData.ambiance === 'amplo_moderno'} onClick={() => handleSingleSelect('ambiance', 'amplo_moderno')} letter="B" title="Amplo e moderno" subtitle="Luz natural, janelas grandes" />
               <OptionCard selected={formData.ambiance === 'minimalista'} onClick={() => handleSingleSelect('ambiance', 'minimalista')} letter="C" title="Arquitetura minimalista" subtitle="Simples e funcional" />
               <OptionCard selected={formData.ambiance === 'casa_campo'} onClick={() => handleSingleSelect('ambiance', 'casa_campo')} letter="D" title="Casa de campo" subtitle="Tranquilidade e natureza" />
-              <OptionCard selected={formData.ambiance === 'alto_padrao'} onClick={() => handleSingleSelect('ambiance', 'alto_padrao')} letter="E" title="Alto Padrão" subtitle="Moderno e sofisticado" />
+              <OptionCard selected={formData.ambiance === 'alto_padrao'} onClick={() => handleSingleSelect('ambiance', 'alto_padrao')} letter="E" title="Alto padrão" subtitle="Moderno e sofisticado" />
             </div>
           </div>
         );
 
-      // TELA 8: O que mais te incomoda - Mantido
-      case 7:
+      // TELA 13: Pets
+      case 'has_pets':
+        return (
+          <div>
+            <h2 className="text-base md:text-lg font-bold mb-1">Tem pets?</h2>
+            <p className="text-slate-500 mb-3 text-xs">Selecione uma opção</p>
+            <div className="space-y-2">
+              <OptionCard selected={formData.has_pets === 'nao'} onClick={() => handleSingleSelect('has_pets', 'nao')} letter="A" title="Não" />
+              <OptionCard selected={formData.has_pets === 'pequeno'} onClick={() => handleSingleSelect('has_pets', 'pequeno')} letter="B" title="Sim, pet de pequeno porte" />
+              <OptionCard selected={formData.has_pets === 'grande'} onClick={() => handleSingleSelect('has_pets', 'grande')} letter="C" title="Sim, pet de grande porte" />
+              <OptionCard selected={formData.has_pets === 'varios'} onClick={() => handleSingleSelect('has_pets', 'varios')} letter="D" title="Sim, mais de um pet" />
+            </div>
+          </div>
+        );
+
+      // TELA 14: Rotina
+      case 'daily_routine':
+        return (
+          <div>
+            <h2 className="text-base md:text-lg font-bold mb-1">Como é sua rotina em casa?</h2>
+            <p className="text-slate-500 mb-3 text-xs">Selecione até 3 opções</p>
+            <div className="space-y-2">
+              {[
+                'Trabalho em casa (home office frequente ou integral)',
+                'Recebo visitas e amigos com frequência',
+                'Preciso de silêncio — durmo cedo ou acordo muito cedo',
+                'Tenho rotina ativa — passo pouco tempo em casa',
+                'Cozinho muito — cozinha é espaço importante',
+                'Gosto de áreas externas — varanda, jardim, quintal'
+              ].map((item) => (
+                <CheckboxCard
+                  key={item}
+                  selected={formData.daily_routine.includes(item)}
+                  onClick={() => handleMultiSelect('daily_routine', item, 3)}
+                  text={item}
+                  disabled={formData.daily_routine.length >= 3 && !formData.daily_routine.includes(item)}
+                />
+              ))}
+            </div>
+            <p className="text-xs text-slate-500 mt-2 text-center">{formData.daily_routine.length}/3 selecionados</p>
+          </div>
+        );
+
+      // TELA 15: Locomoção
+      case 'transportation':
+        return (
+          <div>
+            <h2 className="text-base md:text-lg font-bold mb-1">Como você se locomove?</h2>
+            <p className="text-slate-500 mb-3 text-xs">Selecione todas que se aplicam</p>
+            <div className="space-y-2">
+              {[
+                'Tenho 1 carro',
+                'Tenho 2 ou mais carros',
+                'Uso principalmente transporte público',
+                'Uso aplicativos / não tenho carro',
+                'Trabalho perto de casa ou em casa'
+              ].map((item) => (
+                <CheckboxCard
+                  key={item}
+                  selected={formData.transportation.includes(item)}
+                  onClick={() => handleMultiSelect('transportation', item)}
+                  text={item}
+                />
+              ))}
+            </div>
+          </div>
+        );
+
+      // TELA 16: O que incomoda
+      case 'deal_breakers':
         return (
           <div>
             <h2 className="text-base md:text-lg font-bold mb-1">O que mais te incomoda?</h2>
-            <p className="text-slate-500 mb-3 text-xs">Selecione de 1 a 3 opções</p>
+            <p className="text-slate-500 mb-3 text-xs">Selecione até 3 opções</p>
             <div className="grid grid-cols-2 gap-1.5">
               {[
-                'Pouca luz', 'Barulho', 'Espaços pequenos', 'Acabamento ruim',
-                'Planta fechada', 'Localização ruim', 'Sem privacidade', 'Garagem ruim'
+                'Pouca luz natural', 'Barulho externo', 'Espaços pequenos ou apertados',
+                'Acabamento ruim ou ultrapassado', 'Planta fechada / compartimentada',
+                'Localização ruim ou isolada', 'Sem privacidade', 'Garagem ruim ou insuficiente',
+                'Condomínio muito movimentado'
               ].map((item) => (
                 <CheckboxCard
                   key={item}
@@ -459,22 +798,22 @@ const InterestFormModal = ({ isOpen, onClose, onSuccess, userInfo }) => {
           </div>
         );
 
-      // TELA 9: O que precisa estar perto - Adicionado "Tanto faz"
-      case 8:
+      // TELA 17: Proximidade
+      case 'proximity_needs':
         return (
           <div>
             <h2 className="text-base md:text-lg font-bold mb-1">O que precisa estar perto?</h2>
-            <p className="text-slate-500 mb-3 text-xs">Selecione de 1 a 3 opções</p>
+            <p className="text-slate-500 mb-3 text-xs">Selecione até 3 opções</p>
             <div className="grid grid-cols-2 gap-1.5">
               {[
-                'Escola/creche', 'Mercado', 'Academia', 'Parque/área verde',
-                'Trabalho', 'Restaurantes', 'Transporte público', 'Tanto faz'
+                'Escola / creche', 'Trabalho', 'Academia', 'Transporte público',
+                'Mercado / comércio', 'Parque / área verde', 'Restaurantes e lazer',
+                'Hospital / clínica', 'Tanto faz'
               ].map((item) => (
                 <CheckboxCard
                   key={item}
                   selected={formData.proximity_needs.includes(item)}
                   onClick={() => {
-                    // Se clicar em "Tanto faz", limpa os outros e seleciona só ele
                     if (item === 'Tanto faz') {
                       if (formData.proximity_needs.includes('Tanto faz')) {
                         setFormData(prev => ({ ...prev, proximity_needs: [] }));
@@ -482,7 +821,6 @@ const InterestFormModal = ({ isOpen, onClose, onSuccess, userInfo }) => {
                         setFormData(prev => ({ ...prev, proximity_needs: ['Tanto faz'] }));
                       }
                     } else {
-                      // Se já tem "Tanto faz" selecionado, remove ao selecionar outro
                       if (formData.proximity_needs.includes('Tanto faz')) {
                         setFormData(prev => ({ ...prev, proximity_needs: [item] }));
                       } else {
@@ -506,10 +844,10 @@ const InterestFormModal = ({ isOpen, onClose, onSuccess, userInfo }) => {
           </div>
         );
 
-      // TELA 10: Campo aberto - Última tela
-      case 9:
+      // TELA 18: Finalização
+      case 'finalization':
         const minChars = 20;
-        const currentChars = formData.experience_fears?.length || 0;
+        const currentChars = formData.additional_notes?.length || 0;
         const isFieldValid = currentChars >= minChars;
         
         return (
@@ -524,9 +862,9 @@ const InterestFormModal = ({ isOpen, onClose, onSuccess, userInfo }) => {
             <h2 className="text-base md:text-lg font-bold mb-1">Quase lá!</h2>
             <p className="text-slate-500 mb-3 text-xs">Conte mais sobre o que você precisa *</p>
             <Textarea
-              value={formData.experience_fears}
-              onChange={(e) => setFormData(prev => ({ ...prev, experience_fears: e.target.value }))}
-              placeholder="Ex: Preciso de espaço para pets, tenho home office, prefiro andar alto, aceito permuta..."
+              value={formData.additional_notes}
+              onChange={(e) => setFormData(prev => ({ ...prev, additional_notes: e.target.value }))}
+              placeholder="Ex: Tenho pets, faço home office, prefiro andar alto, aceito permuta..."
               className={`min-h-[70px] text-sm rounded-lg border-2 resize-none mb-2 ${!isFieldValid && currentChars > 0 ? 'border-amber-400' : ''}`}
             />
             <p className={`text-xs mb-4 ${isFieldValid ? 'text-green-600' : 'text-slate-400'}`}>
@@ -550,27 +888,21 @@ const InterestFormModal = ({ isOpen, onClose, onSuccess, userInfo }) => {
                       e.preventDefault();
                       setShowTermsModal(true);
                     }}
-                    className="text-indigo-600 font-semibold hover:text-indigo-700 underline inline-flex items-center gap-0.5"
+                    className="text-indigo-600 hover:text-indigo-700 font-medium underline inline-flex items-center gap-1"
                   >
                     Termos de Uso e Compromisso de Intermediação
                     <ExternalLink className="w-3 h-3" />
                   </button>
                 </label>
               </div>
-              {!termsAccepted && (
-                <p className="text-[10px] text-amber-600 mt-2 flex items-center gap-1">
-                  <FileText className="w-3 h-3" />
-                  Obrigatório para finalizar o cadastro
-                </p>
-              )}
             </div>
-            
+
             <Button
               onClick={handleSubmit}
-              disabled={isSubmitting || !termsAccepted || !isFieldValid}
-              className="w-full h-10 rounded-full bg-gradient-to-r from-indigo-600 to-purple-600 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={!isFieldValid || !termsAccepted || isSubmitting}
+              className="w-full rounded-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 h-10"
             >
-              {isSubmitting ? 'Cadastrando...' : 'Finalizar Cadastro'}
+              {isSubmitting ? 'Enviando...' : 'Finalizar Cadastro'}
             </Button>
           </div>
         );
@@ -583,55 +915,50 @@ const InterestFormModal = ({ isOpen, onClose, onSuccess, userInfo }) => {
   if (!isOpen) return null;
 
   return (
-    <AnimatePresence>
+    <>
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 z-50 flex items-center justify-center p-3 md:p-4 bg-black/50 backdrop-blur-sm"
+        className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+        onClick={onClose}
       >
         <motion.div
           initial={{ scale: 0.95, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           exit={{ scale: 0.95, opacity: 0 }}
-          className="w-full max-w-md md:max-w-lg bg-white rounded-2xl shadow-2xl flex flex-col"
-          style={{ maxHeight: 'calc(100vh - 24px)' }}
+          className="w-full max-w-md bg-white rounded-2xl shadow-2xl overflow-hidden"
+          onClick={e => e.stopPropagation()}
         >
           {/* Header */}
-          <div className="flex-shrink-0 bg-white border-b px-4 py-3 rounded-t-2xl">
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center gap-2">
-                <Home className="w-5 h-5 text-indigo-600" />
-                <span className="font-bold text-sm md:text-base">Cadastrar Interesse</span>
-              </div>
-              <button
-                onClick={onClose}
-                className="p-1.5 rounded-full hover:bg-slate-100 transition-colors"
-              >
+          <div className="bg-gradient-to-r from-indigo-600 to-purple-600 p-4">
+            <div className="flex items-center justify-between mb-3">
+              <h1 className="text-white font-bold text-lg">Cadastro de Interesse</h1>
+              <button onClick={onClose} className="text-white/80 hover:text-white">
                 <X className="w-5 h-5" />
               </button>
             </div>
             {/* Progress bar */}
-            <div className="flex items-center gap-2">
-              <div className="flex-1 h-1 bg-slate-200 rounded-full overflow-hidden">
-                <motion.div
-                  className="h-full bg-gradient-to-r from-indigo-600 to-purple-600 rounded-full"
-                  initial={{ width: 0 }}
-                  animate={{ width: `${((currentStep + 1) / totalSteps) * 100}%` }}
-                />
-              </div>
-              <span className="text-xs text-slate-500 font-medium">{currentStep + 1}/{totalSteps}</span>
+            <div className="w-full bg-white/20 rounded-full h-1.5">
+              <motion.div
+                className="bg-white rounded-full h-1.5"
+                initial={{ width: 0 }}
+                animate={{ width: `${((currentStep + 1) / totalSteps) * 100}%` }}
+              />
             </div>
+            <p className="text-white/80 text-xs mt-1.5">
+              Passo {currentStep + 1} de {totalSteps}
+            </p>
           </div>
 
           {/* Content */}
-          <div className="flex-1 p-4 md:p-5 overflow-y-auto">
+          <div className="p-4 max-h-[60vh] overflow-y-auto">
             <AnimatePresence mode="wait">
               <motion.div
                 key={currentStep}
-                initial={{ opacity: 0, x: 15 }}
+                initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -15 }}
+                exit={{ opacity: 0, x: -20 }}
                 transition={{ duration: 0.2 }}
               >
                 {renderStep()}
@@ -639,34 +966,38 @@ const InterestFormModal = ({ isOpen, onClose, onSuccess, userInfo }) => {
             </AnimatePresence>
           </div>
 
-          {/* Footer */}
-          {currentStep < 9 && (
-            <div className="flex-shrink-0 bg-white border-t px-4 py-3 flex justify-between rounded-b-2xl">
-              <Button
-                onClick={prevStep}
-                variant="ghost"
-                disabled={currentStep === 0}
-                className="rounded-full h-9 text-sm"
-              >
-                <ArrowLeft className="w-4 h-4 mr-1" />
-                Voltar
-              </Button>
+          {/* Navigation */}
+          {currentScreenId !== 'finalization' && (
+            <div className="p-4 border-t flex gap-3">
+              {currentStep > 0 && (
+                <Button
+                  onClick={prevStep}
+                  variant="outline"
+                  className="flex-1 rounded-full"
+                >
+                  <ArrowLeft className="w-4 h-4 mr-2" />
+                  Voltar
+                </Button>
+              )}
               <Button
                 onClick={nextStep}
                 disabled={!canProceed()}
-                className="rounded-full h-9 text-sm bg-gradient-to-r from-indigo-600 to-purple-600"
+                className={`${currentStep === 0 ? 'w-full' : 'flex-1'} rounded-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500`}
               >
-                Próximo
-                <ArrowRight className="w-4 h-4 ml-1" />
+                Continuar
+                <ArrowRight className="w-4 h-4 ml-2" />
               </Button>
             </div>
           )}
         </motion.div>
       </motion.div>
-      
-      {/* Terms of Use Modal */}
-      <TermsModal isOpen={showTermsModal} onClose={() => setShowTermsModal(false)} />
-    </AnimatePresence>
+
+      <AnimatePresence>
+        {showTermsModal && (
+          <TermsModal isOpen={showTermsModal} onClose={() => setShowTermsModal(false)} />
+        )}
+      </AnimatePresence>
+    </>
   );
 };
 

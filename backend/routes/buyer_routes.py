@@ -358,3 +358,284 @@ async def create_full_interest(form_data: FullInterestCreate, request: Request):
         "interest_id": interest_id,
         "ai_profile": ai_profile
     }
+
+
+
+async def generate_ai_interpretation(form_data: dict) -> dict:
+    """Generate comprehensive AI interpretation of buyer profile using GPT-4o"""
+    try:
+        from openai import AsyncOpenAI
+        
+        api_key = os.environ.get('OPENAI_API_KEY')
+        if not api_key:
+            logger.warning("OPENAI_API_KEY not configured, skipping AI interpretation")
+            return None
+        
+        # Format all responses for the prompt
+        responses_text = f"""
+BLOCO 1 - QUEM É VOCÊ:
+- Faixa etária: {form_data.get('age_range', 'Não informado')}
+- Por que busca imóvel: {form_data.get('profile_type', 'Não informado')} {form_data.get('profile_type_other', '')}
+- Quem vai morar: {', '.join(form_data.get('who_will_live', [])) or 'Não informado'}
+- Quantidade de filhos: {form_data.get('children_count', 'N/A')}
+- Faixa etária dos filhos: {', '.join(form_data.get('children_ages', [])) or 'N/A'}
+- Urgência: {form_data.get('urgency', 'Não informado')}
+
+BLOCO 2 - O QUE VOCÊ BUSCA:
+- Tipo de imóvel: {form_data.get('property_type', 'Não informado')}
+- Preferência de andar: {form_data.get('floor_preference', 'N/A')}
+- Prioridades no terreno: {', '.join(form_data.get('land_priorities', [])) or 'N/A'}
+- Localização desejada: {form_data.get('location', 'Não informado')}
+- Orçamento máximo: {form_data.get('budget_range', 'Não informado')}
+- Forma de pagamento: {', '.join(form_data.get('payment_method', [])) or 'Não informado'}
+- Situação do imóvel atual: {form_data.get('current_property_status', 'N/A')}
+
+BLOCO 3 - COMO DEVE SER:
+- Indispensáveis: {', '.join(form_data.get('indispensable', [])) or 'Não informado'} {form_data.get('indispensable_other', '')}
+- Tamanho do espaço: {form_data.get('space_size', 'Não informado')}
+- Condição do imóvel: {', '.join(form_data.get('property_condition', [])) or 'Não informado'}
+- Ambiente ideal: {form_data.get('ambiance', 'Não informado')}
+
+BLOCO 4 - COMO VOCÊ VIVE:
+- Pets: {form_data.get('has_pets', 'Não informado')}
+- Rotina em casa: {', '.join(form_data.get('daily_routine', [])) or 'Não informado'}
+- Locomoção: {', '.join(form_data.get('transportation', [])) or 'Não informado'}
+
+BLOCO 5 - O QUE VOCÊ REJEITA:
+- O que mais incomoda: {', '.join(form_data.get('deal_breakers', [])) or 'Não informado'}
+
+BLOCO 6 - ENTORNO:
+- O que precisa estar perto: {', '.join(form_data.get('proximity_needs', [])) or 'Não informado'}
+
+BLOCO 7 - OBSERVAÇÕES ADICIONAIS:
+{form_data.get('additional_notes', 'Nenhuma observação adicional')}
+"""
+
+        prompt = f"""Você é um especialista em mercado imobiliário brasileiro com profundo conhecimento em perfil de compradores.
+
+Com base nas respostas do formulário abaixo, gere uma interpretação completa deste comprador em JSON com exatamente quatro campos:
+
+1. "perfil_narrativo": texto corrido de 4 a 6 linhas descrevendo quem é este comprador, o que busca, como vive, suas prioridades reais e seu momento de vida. Escreva como se estivesse apresentando este comprador a um corretor experiente. Não omita nenhuma informação relevante.
+
+2. "criterios_inegociaveis": lista dos deal-breakers reais, inferidos tanto das respostas diretas quanto da leitura cruzada entre elas. Inclua o que está explícito E o que está implícito nas respostas. Sem limite de itens.
+
+3. "perfil_do_imovel_ideal": descrição objetiva do imóvel que melhor atende este comprador, cruzando tipo, localização, orçamento, estilo de vida e indispensáveis declarados.
+
+4. "alertas": inconsistências, contradições ou combinações muito restritivas detectadas entre as respostas. Se não houver, retornar array vazio.
+
+Este texto será lido por um corretor antes de apresentar um imóvel. Seja preciso, completo e direto.
+Responda APENAS com o JSON, sem texto adicional, sem markdown, sem explicações.
+
+RESPOSTAS DO COMPRADOR:
+{responses_text}"""
+
+        client = AsyncOpenAI(api_key=api_key)
+        response = await client.chat.completions.create(
+            model="gpt-4o",
+            messages=[
+                {"role": "system", "content": "Você é um especialista em mercado imobiliário brasileiro. Responda apenas com JSON válido."},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.7,
+            max_tokens=1500
+        )
+        
+        response_text = response.choices[0].message.content.strip()
+        
+        # Clean markdown if present
+        if response_text.startswith("```"):
+            response_text = response_text.split("```")[1]
+            if response_text.startswith("json"):
+                response_text = response_text[4:]
+            response_text = response_text.strip()
+        
+        import json
+        interpretation = json.loads(response_text)
+        logger.info("AI interpretation generated successfully")
+        return interpretation
+        
+    except Exception as e:
+        logger.error(f"Error generating AI interpretation: {str(e)}")
+        return None
+
+
+@router.post("/interests/create-full-v2")
+async def create_full_interest_v2(request: Request):
+    """Create interest from the new 18-screen form with AI interpretation"""
+    
+    form_data = await request.json()
+    
+    # Capture client IP for Terms of Use
+    client_ip = request.client.host if request.client else "unknown"
+    
+    # Check for existing user
+    existing_user = None
+    email = form_data.get('email')
+    phone = form_data.get('phone')
+    name = form_data.get('name')
+    
+    if email:
+        existing_user = await db.users.find_one({"email": email}, {"_id": 0})
+    if not existing_user and phone:
+        existing_user = await db.buyers.find_one({"phone": phone}, {"_id": 0})
+    
+    if existing_user:
+        user_id = existing_user.get('id') or existing_user.get('user_id')
+    else:
+        user_id = str(uuid.uuid4())
+        temp_password = secrets.token_urlsafe(16)
+        
+        new_user = {
+            "id": user_id,
+            "email": email or f"temp_{user_id}@matchimob.com",
+            "password": hash_password(temp_password),
+            "role": "buyer",
+            "name": name,
+            "phone": phone,
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "needs_password_setup": True
+        }
+        await db.users.insert_one(new_user)
+        
+        buyer_profile = {
+            "user_id": user_id,
+            "name": name,
+            "email": email,
+            "phone": phone,
+            "created_at": datetime.now(timezone.utc).isoformat()
+        }
+        await db.buyers.insert_one(buyer_profile)
+    
+    # Budget mapping
+    budget_map = {
+        'ate_400k': (0, 400000),
+        'ate_550k': (0, 550000),
+        'ate_700k': (0, 700000),
+        'ate_800k': (0, 800000),
+        'ate_1500k': (0, 1500000),
+        'ate_2500k': (0, 2500000),
+        'ate_5000k': (0, 5000000),
+        'acima_5000k': (5000000, 50000000)
+    }
+    min_price, max_price = budget_map.get(form_data.get('budget_range', ''), (0, 1000000))
+    
+    # Property type display
+    property_type = form_data.get('property_type', 'casa')
+    property_type_display = {
+        'apartamento': 'Apartamento',
+        'casa': 'Casa',
+        'casa_condominio': 'Casa de condomínio',
+        'terreno': 'Terreno',
+        'terreno_condominio': 'Terreno de condomínio',
+        'sala_comercial': 'Sala comercial',
+        'predio_comercial': 'Prédio comercial',
+        'studio_loft': 'Studio/Loft'
+    }.get(property_type, property_type)
+    
+    # Extract bedrooms from indispensable
+    indispensable = form_data.get('indispensable', [])
+    bedrooms = None
+    if '3+ quartos' in indispensable:
+        bedrooms = 3
+    elif '2+ quartos' in indispensable:
+        bedrooms = 2
+    
+    # Generate AI interpretation asynchronously
+    ai_interpretation = await generate_ai_interpretation(form_data)
+    
+    # Generate simple AI profile for backward compatibility
+    ai_profile = await generate_ai_profile({
+        'profile_type': form_data.get('profile_type'),
+        'urgency': form_data.get('urgency'),
+        'location': form_data.get('location'),
+        'budget_range': form_data.get('budget_range'),
+        'property_type': property_type,
+        'ambiance': form_data.get('ambiance'),
+        'deal_breakers': form_data.get('deal_breakers', []),
+        'proximity_needs': form_data.get('proximity_needs', [])
+    })
+    
+    interest_id = str(uuid.uuid4())
+    interest = {
+        "id": interest_id,
+        "buyer_id": user_id,
+        "property_type": property_type_display,
+        "property_type_key": property_type,
+        "location": form_data.get('location', ''),
+        "neighborhoods": [],
+        "min_price": min_price,
+        "max_price": max_price,
+        "bedrooms": bedrooms,
+        "features": indispensable,
+        "additional_notes": form_data.get('additional_notes', ''),
+        "status": "active",
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        
+        # BLOCO 1 - QUEM É VOCÊ
+        "age_range": form_data.get('age_range'),
+        "profile_type": form_data.get('profile_type'),
+        "profile_type_other": form_data.get('profile_type_other'),
+        "who_will_live": form_data.get('who_will_live', []),
+        "children_count": form_data.get('children_count'),
+        "children_ages": form_data.get('children_ages', []),
+        "urgency": form_data.get('urgency'),
+        
+        # BLOCO 2 - O QUE VOCÊ BUSCA
+        "floor_preference": form_data.get('floor_preference'),
+        "land_priorities": form_data.get('land_priorities', []),
+        "budget_range": form_data.get('budget_range'),
+        "payment_method": form_data.get('payment_method', []),
+        "current_property_status": form_data.get('current_property_status'),
+        
+        # BLOCO 3 - COMO DEVE SER
+        "indispensable": indispensable,
+        "indispensable_other": form_data.get('indispensable_other'),
+        "space_size": form_data.get('space_size'),
+        "property_condition": form_data.get('property_condition', []),
+        "ambiance": form_data.get('ambiance'),
+        
+        # BLOCO 4 - COMO VOCÊ VIVE
+        "has_pets": form_data.get('has_pets'),
+        "daily_routine": form_data.get('daily_routine', []),
+        "transportation": form_data.get('transportation', []),
+        
+        # BLOCO 5 - O QUE VOCÊ REJEITA
+        "deal_breakers": form_data.get('deal_breakers', []),
+        
+        # BLOCO 6 - ENTORNO
+        "proximity_needs": form_data.get('proximity_needs', []),
+        
+        # AI Generated
+        "ai_profile": ai_profile,
+        "interpretacaoIA": ai_interpretation,
+        
+        # Terms of Use
+        "terms_accepted": form_data.get('terms_accepted', False),
+        "terms_accepted_at": form_data.get('terms_accepted_at'),
+        "terms_accepted_ip": client_ip,
+        
+        # Form version
+        "form_version": "v4"
+    }
+    
+    await db.interests.insert_one(interest)
+    
+    # Send confirmation email
+    if email:
+        await send_interest_registered_email(
+            buyer_email=email,
+            buyer_name=name,
+            interest_data={
+                'property_type': property_type_display,
+                'budget_range': form_data.get('budget_range'),
+                'location': form_data.get('location')
+            }
+        )
+    
+    return {
+        "status": "success",
+        "message": "Interesse cadastrado com sucesso!",
+        "interest_id": interest_id,
+        "ai_profile": ai_profile,
+        "has_ai_interpretation": ai_interpretation is not None
+    }
