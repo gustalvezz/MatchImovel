@@ -13,7 +13,7 @@ import logging
 from database import db
 from auth import get_current_user, hash_password
 from models.schemas import (
-    BuyerInterest, BuyerInterestCreate, BuyerInterestUpdate, 
+    BuyerInterest, BuyerInterestCreate,
     FullInterestCreate, DeleteReason
 )
 from services.email_service import send_interest_registered_email, send_deletion_notification_curator
@@ -149,23 +149,6 @@ async def get_my_interests(current_user: dict = Depends(get_current_user)):
             interest['created_at'] = datetime.fromisoformat(interest['created_at'])
     
     return interests
-
-
-@router.put("/buyers/interests/{interest_id}")
-async def update_interest(interest_id: str, update_data: BuyerInterestUpdate, current_user: dict = Depends(get_current_user)):
-    if current_user["role"] != "buyer":
-        raise HTTPException(status_code=403, detail="Apenas compradores podem editar interesses")
-    
-    interest = await db.interests.find_one({"id": interest_id, "buyer_id": current_user["user_id"]}, {"_id": 0})
-    if not interest:
-        raise HTTPException(status_code=404, detail="Interesse não encontrado")
-    
-    update_dict = {k: v for k, v in update_data.model_dump().items() if v is not None}
-    
-    if update_dict:
-        await db.interests.update_one({"id": interest_id}, {"$set": update_dict})
-    
-    return {"status": "success", "message": "Interesse atualizado com sucesso"}
 
 
 @router.delete("/buyers/interests/{interest_id}")

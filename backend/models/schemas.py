@@ -100,20 +100,6 @@ class BuyerInterestCreate(BaseModel):
     features: List[str] = []
     additional_notes: Optional[str] = None
 
-class BuyerInterestUpdate(BaseModel):
-    property_type: Optional[str] = None
-    location: Optional[str] = None
-    neighborhoods: Optional[List[str]] = None
-    min_price: Optional[float] = None
-    max_price: Optional[float] = None
-    min_area: Optional[float] = None
-    max_area: Optional[float] = None
-    bedrooms: Optional[int] = None
-    bathrooms: Optional[int] = None
-    parking_spaces: Optional[int] = None
-    features: Optional[List[str]] = None
-    additional_notes: Optional[str] = None
-
 class FullInterestCreate(BaseModel):
     """Comprehensive interest form"""
     profile_type: str

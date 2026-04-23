@@ -559,3 +559,89 @@ async def get_analytics(current_user: dict = Depends(get_current_user)):
         "deletion_reasons": deletion_reasons,
         "search_deactivation_reasons": deactivation_reasons
     }
+
+
+
+@router.delete("/admin/interests/{interest_id}")
+async def admin_delete_interest(interest_id: str, current_user: dict = Depends(get_current_user)):
+    """
+    Admin-only endpoint to delete an interest and ALL related data:
+    - Matches linked to this interest
+    - Bot conversations for those matches
+    - Visit schedules for those matches
+    - Followups for those matches
+    - Match deletions records
+    - Agent saved searches that have this interest in pending_results
+    - Interest deletions records
+    """
+    if current_user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Apenas administradores podem excluir interesses")
+    
+    # Find the interest
+    interest = await db.interests.find_one({"id": interest_id}, {"_id": 0})
+    if not interest:
+        raise HTTPException(status_code=404, detail="Interesse não encontrado")
+    
+    deleted_counts = {
+        "matches": 0,
+        "conversations": 0,
+        "visits": 0,
+        "followups": 0,
+        "match_deletions": 0,
+        "search_results_cleaned": 0,
+        "interest_deletions": 0
+    }
+    
+    # Find all matches linked to this interest
+    matches = await db.matches.find({"interest_id": interest_id}, {"_id": 0}).to_list(1000)
+    match_ids = [m["id"] for m in matches]
+    
+    # Delete bot conversations for these matches
+    if match_ids:
+        result = await db.bot_conversations.delete_many({"match_id": {"$in": match_ids}})
+        deleted_counts["conversations"] = result.deleted_count
+        
+        # Delete visits for these matches
+        result = await db.visits.delete_many({"match_id": {"$in": match_ids}})
+        deleted_counts["visits"] = result.deleted_count
+        
+        # Delete followups for these matches
+        result = await db.followups.delete_many({"match_id": {"$in": match_ids}})
+        deleted_counts["followups"] = result.deleted_count
+        
+        # Delete match deletion records
+        result = await db.match_deletions.delete_many({"match_id": {"$in": match_ids}})
+        deleted_counts["match_deletions"] = result.deleted_count
+        
+        # Delete the matches themselves
+        result = await db.matches.delete_many({"interest_id": interest_id})
+        deleted_counts["matches"] = result.deleted_count
+    
+    # Clean this interest from agent_searches pending_results
+    agent_searches = await db.agent_searches.find(
+        {"pending_results.comprador_id": interest_id},
+        {"_id": 0}
+    ).to_list(1000)
+    
+    for search in agent_searches:
+        updated_results = [r for r in search.get("pending_results", []) if r.get("comprador_id") != interest_id]
+        await db.agent_searches.update_one(
+            {"id": search["id"]},
+            {"$set": {"pending_results": updated_results}}
+        )
+        deleted_counts["search_results_cleaned"] += 1
+    
+    # Delete interest deletion records (if any previous partial deletions)
+    result = await db.interest_deletions.delete_many({"interest_id": interest_id})
+    deleted_counts["interest_deletions"] = result.deleted_count
+    
+    # Finally, delete the interest itself
+    await db.interests.delete_one({"id": interest_id})
+    
+    logger.info(f"Admin {current_user['user_id']} deleted interest {interest_id} and related data: {deleted_counts}")
+    
+    return {
+        "status": "success",
+        "message": "Interesse e todos os dados relacionados foram excluídos",
+        "deleted": deleted_counts
+    }

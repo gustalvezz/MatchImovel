@@ -14,7 +14,6 @@ from models.schemas import (
     # Buyer
     BuyerInterest,
     BuyerInterestCreate,
-    BuyerInterestUpdate,
     FullInterestCreate,
     BuyerProfile,
     DeleteReason,
@@ -41,7 +40,7 @@ from models.schemas import (
 __all__ = [
     'UserRegister', 'UserLogin', 'AuthResponse', 'CreateCuratorRequest', 'CompleteCuratorRegistration',
     'CreciValidationRequest', 'CreciValidationResponse',
-    'BuyerInterest', 'BuyerInterestCreate', 'BuyerInterestUpdate', 'FullInterestCreate', 'BuyerProfile', 'DeleteReason',
+    'BuyerInterest', 'BuyerInterestCreate', 'FullInterestCreate', 'BuyerProfile', 'DeleteReason',
     'AgentProfile',
     'Match', 'MatchCreate', 'MatchCreateWithProperty', 'PropertyInfo',
     'Visit', 'ScheduleVisitRequest',

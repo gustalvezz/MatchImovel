@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/context/AuthContext';
-import { Home, LogOut, Users, Heart, Building2, TrendingUp, CheckCircle, XCircle, Clock, UserPlus, MessageSquare, BarChart3, Shield, AlertTriangle, MapPin, DollarSign, Sparkles, UserCog, FileCheck } from 'lucide-react';
+import { Home, LogOut, Users, Heart, Building2, TrendingUp, CheckCircle, XCircle, Clock, UserPlus, MessageSquare, BarChart3, Shield, AlertTriangle, MapPin, DollarSign, Sparkles, UserCog, FileCheck, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import CreateCuratorModal from '@/components/CreateCuratorModal';
 import MatchFollowUp from '@/components/MatchFollowUp';
@@ -33,6 +33,24 @@ const AdminDashboard = () => {
   const [curationNotes, setCurationNotes] = useState('');
   const [showCreateCurator, setShowCreateCurator] = useState(false);
   const [expandedMatch, setExpandedMatch] = useState(null);
+  const [deletingInterestId, setDeletingInterestId] = useState(null);
+
+  const handleDeleteInterest = async (interestId) => {
+    if (!window.confirm('ATENÇÃO: Esta ação irá excluir permanentemente o interesse e TODOS os dados relacionados (matches, visitas, conversas, etc). Deseja continuar?')) {
+      return;
+    }
+    
+    setDeletingInterestId(interestId);
+    try {
+      const response = await axios.delete(`${API}/admin/interests/${interestId}`);
+      toast.success(`Interesse excluído. Removidos: ${response.data.deleted.matches} matches, ${response.data.deleted.visits} visitas`);
+      fetchData();
+    } catch (error) {
+      toast.error(error.response?.data?.detail || 'Erro ao excluir interesse');
+    } finally {
+      setDeletingInterestId(null);
+    }
+  };
 
   useEffect(() => {
     if (user?.role !== 'admin' && user?.role !== 'curator') {
@@ -718,14 +736,32 @@ const AdminDashboard = () => {
                         {interest.location}
                       </div>
                     </div>
-                    <div className="text-right">
-                      <Badge className={`rounded-full ${interest.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-slate-100'}`}>
-                        {interest.status === 'active' ? 'Ativo' : interest.status}
-                      </Badge>
-                      {interest.ai_profile && (
-                        <Badge className="rounded-full bg-gradient-to-r from-indigo-500 to-purple-500 text-white text-xs mt-1 block">
-                          {interest.ai_profile}
+                    <div className="flex items-start gap-2">
+                      <div className="text-right">
+                        <Badge className={`rounded-full ${interest.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-slate-100'}`}>
+                          {interest.status === 'active' ? 'Ativo' : interest.status}
                         </Badge>
+                        {interest.ai_profile && (
+                          <Badge className="rounded-full bg-gradient-to-r from-indigo-500 to-purple-500 text-white text-xs mt-1 block">
+                            {interest.ai_profile}
+                          </Badge>
+                        )}
+                      </div>
+                      {user?.role === 'admin' && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleDeleteInterest(interest.id)}
+                          disabled={deletingInterestId === interest.id}
+                          className="text-red-600 hover:text-red-700 hover:bg-red-50 rounded-full"
+                          data-testid={`admin-delete-interest-${interest.id}`}
+                        >
+                          {deletingInterestId === interest.id ? (
+                            <Clock className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <Trash2 className="w-4 h-4" />
+                          )}
+                        </Button>
                       )}
                     </div>
                   </div>

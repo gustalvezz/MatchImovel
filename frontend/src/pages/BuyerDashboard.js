@@ -7,10 +7,9 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/context/AuthContext';
-import { Home, Plus, Heart, Calendar, LogOut, Building2, MapPin, DollarSign, Edit, Trash2, Sparkles, BedDouble, Bath, Ruler, ExternalLink, Link as LinkIcon } from 'lucide-react';
+import { Home, Plus, Heart, Calendar, LogOut, Building2, MapPin, DollarSign, Trash2, Sparkles, BedDouble, Bath, Ruler, ExternalLink, Link as LinkIcon } from 'lucide-react';
 import { toast } from 'sonner';
 import InterestFormModal from '@/components/InterestFormModal';
-import EditInterestModal from '@/components/EditInterestModal';
 import DeleteConfirmModal from '@/components/DeleteConfirmModal';
 import DashboardLoading from '@/components/DashboardLoading';
 
@@ -24,7 +23,6 @@ const BuyerDashboard = () => {
   const [matches, setMatches] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [selectedInterest, setSelectedInterest] = useState(null);
   const hasCheckedFirstAccess = useRef(false);
@@ -220,18 +218,6 @@ const BuyerDashboard = () => {
                         <Badge className="rounded-full" variant={interest.status === 'active' ? 'default' : 'secondary'}>
                           {interest.status === 'active' ? 'Ativo' : 'Inativo'}
                         </Badge>
-                        <Button
-                          data-testid={`edit-interest-${interest.id}`}
-                          onClick={() => {
-                            setSelectedInterest(interest);
-                            setShowEditModal(true);
-                          }}
-                          variant="ghost"
-                          size="icon"
-                          className="rounded-full"
-                        >
-                          <Edit className="w-4 h-4" />
-                        </Button>
                         <Button
                           data-testid={`delete-interest-${interest.id}`}
                           onClick={() => {
@@ -440,21 +426,6 @@ const BuyerDashboard = () => {
           phone: user?.phone
         }}
       />
-
-      {showEditModal && selectedInterest && (
-        <EditInterestModal
-          interest={selectedInterest}
-          onClose={() => {
-            setShowEditModal(false);
-            setSelectedInterest(null);
-          }}
-          onSuccess={() => {
-            setShowEditModal(false);
-            setSelectedInterest(null);
-            fetchData();
-          }}
-        />
-      )}
 
       {showDeleteModal && selectedInterest && (
         <DeleteConfirmModal
