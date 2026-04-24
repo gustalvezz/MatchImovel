@@ -894,10 +894,10 @@ const AdminDashboard = () => {
                     <div className="grid grid-cols-2 gap-3 mb-3">
                       {interest.daily_routine?.length > 0 && (
                         <div className="bg-violet-50 p-3 rounded-xl">
-                          <p className="text-xs text-muted-foreground mb-1">Rotina</p>
+                          <p className="text-xs text-violet-700 font-medium mb-1">Rotina</p>
                           <div className="flex flex-wrap gap-1">
                             {interest.daily_routine.slice(0,2).map((item, idx) => (
-                              <Badge key={idx} variant="secondary" className="text-xs bg-violet-100">
+                              <Badge key={idx} className="text-xs bg-violet-200 text-violet-800 border-violet-300">
                                 {item.split('—')[0].split('(')[0].trim().slice(0,20)}
                               </Badge>
                             ))}
@@ -906,10 +906,10 @@ const AdminDashboard = () => {
                       )}
                       {interest.transportation?.length > 0 && (
                         <div className="bg-cyan-50 p-3 rounded-xl">
-                          <p className="text-xs text-muted-foreground mb-1">Locomoção</p>
+                          <p className="text-xs text-cyan-700 font-medium mb-1">Locomoção</p>
                           <div className="flex flex-wrap gap-1">
                             {interest.transportation.slice(0,2).map((item, idx) => (
-                              <Badge key={idx} variant="secondary" className="text-xs bg-cyan-100">{item}</Badge>
+                              <Badge key={idx} className="text-xs bg-cyan-200 text-cyan-800 border-cyan-300">{item}</Badge>
                             ))}
                           </div>
                         </div>
