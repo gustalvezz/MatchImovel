@@ -932,13 +932,13 @@ const AdminDashboard = () => {
                   
                   {(interest.indispensable?.length > 0 || interest.features?.length > 0) && (
                     <div className="mb-3">
-                      <p className="text-xs text-muted-foreground mb-2">Indispensável:</p>
+                      <p className="text-xs text-slate-600 font-medium mb-2">Indispensável:</p>
                       <div className="flex flex-wrap gap-1">
                         {(interest.indispensable || interest.features || []).map((feature, idx) => (
-                          <Badge key={idx} variant="secondary" className="rounded-full text-xs">{feature}</Badge>
+                          <span key={idx} className="rounded-full text-xs px-2 py-1 bg-emerald-600 text-white">{feature}</span>
                         ))}
                         {interest.indispensable_other && (
-                          <Badge variant="secondary" className="rounded-full text-xs bg-purple-100">{interest.indispensable_other}</Badge>
+                          <span className="rounded-full text-xs px-2 py-1 bg-purple-600 text-white">{interest.indispensable_other}</span>
                         )}
                       </div>
                     </div>
