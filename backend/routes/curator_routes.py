@@ -83,6 +83,7 @@ async def decide_match(match_id: str, decision: CurationDecision, current_user: 
     if decision.approved:
         buyer = await db.buyers.find_one({"user_id": match["buyer_id"]}, {"_id": 0})
         agent = await db.agents.find_one({"user_id": match["agent_id"]}, {"_id": 0})
+        interest = await db.interests.find_one({"id": match["interest_id"]}, {"_id": 0})
         
         email_results = {"buyer": False, "agent": False}
         
@@ -95,10 +96,20 @@ async def decide_match(match_id: str, decision: CurationDecision, current_user: 
             )
         
         if agent and agent.get("email"):
+            # Build buyer info with AI interpretation
+            buyer_info = {
+                "property_type": interest.get("property_type") if interest else None,
+                "location": interest.get("location") if interest else None,
+                "budget_range": interest.get("budget_range") if interest else None,
+                "interpretacaoIA": interest.get("interpretacaoIA") if interest else None
+            }
+            
             email_results["agent"] = await send_match_approved_agent_email(
                 agent_email=agent["email"],
                 agent_name=agent.get("name", "Corretor"),
-                buyer_name=buyer.get("name", "Comprador") if buyer else "Comprador"
+                buyer_name=buyer.get("name", "Comprador") if buyer else "Comprador",
+                buyer_info=buyer_info,
+                ai_compatibility=match.get("ai_compatibility")
             )
         
         return {

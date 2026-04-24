@@ -741,16 +741,63 @@ async def process_saved_searches(request: Request):
                     buyer = await db.buyers.find_one({"user_id": interest["buyer_id"]}, {"_id": 0})
                     interest['buyer_name'] = buyer.get("name", "Comprador") if buyer else "Comprador"
                 
-                # Build buyer profiles for AI
+                # Build buyer profiles for AI (using new form v4 fields)
                 buyer_profiles = []
                 for interest in compatible_interests:
+                    # Map ambiance codes
+                    ambiance_map = {
+                        'aconchegante': 'Busca ambiente aconchegante',
+                        'amplo_moderno': 'Quer ambiente amplo e moderno',
+                        'minimalista': 'Prefere estilo minimalista',
+                        'casa_campo': 'Sonha com tranquilidade',
+                        'alto_padrao': 'Busca alto padrão'
+                    }
+                    
+                    # Map budget ranges
+                    budget_map = {
+                        'ate_400k': 'Até R$ 400 mil',
+                        'ate_550k': 'Até R$ 550 mil',
+                        'ate_700k': 'Até R$ 700 mil',
+                        'ate_800k': 'Até R$ 800 mil',
+                        'ate_1500k': 'Até R$ 1,5 milhão',
+                        'ate_2500k': 'Até R$ 2,5 milhões',
+                        'ate_5000k': 'Até R$ 5 milhões',
+                        'acima_5000k': 'Acima de R$ 5 milhões'
+                    }
+                    
+                    # Map pets
+                    pets_map = {
+                        'nao': 'Sem pets',
+                        'pequeno': 'Pet de pequeno porte',
+                        'grande': 'Pet de grande porte',
+                        'varios': 'Múltiplos pets'
+                    }
+                    
                     profile = {
                         "id": interest["id"],
                         "buyer_id": interest["buyer_id"],
                         "nome": interest.get("buyer_name", "Comprador"),
                         "tipo_imovel_desejado": interest.get("property_type", "Não especificado"),
                         "localizacao_desejada": interest.get("location", "Não especificada"),
-                        "perfil_ia": interest.get("ai_profile", "")
+                        "orcamento": budget_map.get(interest.get("budget_range", ""), ""),
+                        "quartos_minimos": interest.get("bedrooms"),
+                        "motivo_busca": interest.get("profile_type"),
+                        "urgencia": interest.get("urgency"),
+                        "quem_vai_morar": interest.get("who_will_live", []),
+                        "filhos_quantidade": interest.get("children_count"),
+                        "filhos_idades": interest.get("children_ages", []),
+                        "pets": pets_map.get(interest.get("has_pets", ""), ""),
+                        "preferencia_andar": interest.get("floor_preference"),
+                        "tamanho_espaco": interest.get("space_size"),
+                        "condicao_imovel": interest.get("property_condition", []),
+                        "ambiente_ideal": ambiance_map.get(interest.get("ambiance", ""), ""),
+                        "caracteristicas_indispensaveis": interest.get("indispensable", []),
+                        "o_que_nao_aceita": interest.get("deal_breakers", []),
+                        "precisa_proximidade_de": interest.get("proximity_needs", []),
+                        "rotina_em_casa": interest.get("daily_routine", []),
+                        "locomocao": interest.get("transportation", []),
+                        "interpretacao_ia": interest.get("interpretacaoIA"),
+                        "observacoes": interest.get("additional_notes", "")
                     }
                     buyer_profiles.append(profile)
                 

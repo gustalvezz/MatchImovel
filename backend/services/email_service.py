@@ -327,10 +327,101 @@ async def send_match_approved_buyer_email(
     return await send_email(buyer_email, subject, html_content)
 
 
-async def send_match_approved_agent_email(agent_email: str, agent_name: str, buyer_name: str) -> bool:
+async def send_match_approved_agent_email(
+    agent_email: str, 
+    agent_name: str, 
+    buyer_name: str,
+    buyer_info: dict = None,
+    ai_compatibility: dict = None
+) -> bool:
     """Send email to agent when their match is approved"""
     
     subject = "Seu match foi aprovado! - MatchImovel"
+    
+    # Build buyer profile section
+    buyer_section = ""
+    if buyer_info:
+        interpretacao = buyer_info.get('interpretacaoIA') or {}
+        
+        # Build profile details
+        details_parts = []
+        if buyer_info.get('property_type'):
+            details_parts.append(f"Tipo: {buyer_info['property_type']}")
+        if buyer_info.get('location'):
+            details_parts.append(f"Local: {buyer_info['location']}")
+        if buyer_info.get('budget_range'):
+            budget_labels = {
+                'ate_400k': 'Até R$ 400 mil',
+                'ate_550k': 'Até R$ 550 mil',
+                'ate_700k': 'Até R$ 700 mil',
+                'ate_800k': 'Até R$ 800 mil',
+                'ate_1500k': 'Até R$ 1,5 milhão',
+                'ate_2500k': 'Até R$ 2,5 milhões',
+                'ate_5000k': 'Até R$ 5 milhões',
+                'acima_5000k': 'Acima de R$ 5 milhões'
+            }
+            details_parts.append(f"Orçamento: {budget_labels.get(buyer_info['budget_range'], buyer_info['budget_range'])}")
+        
+        details_html = " • ".join(details_parts) if details_parts else ""
+        
+        # AI interpretation section
+        ai_interpretation_html = ""
+        if interpretacao.get('perfil_narrativo'):
+            ai_interpretation_html = f"""
+            <div style="background: linear-gradient(135deg, #f3e8ff, #e0e7ff); padding: 20px; border-radius: 12px; margin: 16px 0;">
+                <h4 style="margin: 0 0 12px 0; color: #7c3aed; font-size: 14px;">✨ Análise de Perfil por IA</h4>
+                <p style="margin: 0; color: #4c1d95; font-size: 14px; line-height: 1.5;">{interpretacao['perfil_narrativo']}</p>
+            </div>
+            """
+        
+        # Ideal property section
+        ideal_property_html = ""
+        if interpretacao.get('perfil_do_imovel_ideal'):
+            ideal_property_html = f"""
+            <div style="background: #dcfce7; padding: 16px; border-radius: 10px; margin: 12px 0;">
+                <p style="font-weight: 600; color: #166534; margin: 0 0 8px 0; font-size: 13px;">Imóvel ideal para este comprador:</p>
+                <p style="color: #15803d; font-size: 13px; margin: 0; line-height: 1.5;">{interpretacao['perfil_do_imovel_ideal']}</p>
+            </div>
+            """
+        
+        # Criteria section
+        criterios_html = ""
+        criterios = interpretacao.get('criterios_inegociaveis', [])
+        if criterios:
+            criterios_badges = "".join([f'<span style="background: #fee2e2; color: #991b1b; padding: 4px 10px; border-radius: 20px; font-size: 11px; margin: 2px; display: inline-block;">{c}</span>' for c in criterios[:6]])
+            criterios_html = f"""
+            <div style="margin: 12px 0;">
+                <p style="font-weight: 600; color: #64748b; margin: 0 0 8px 0; font-size: 12px;">Critérios inegociáveis:</p>
+                <div>{criterios_badges}</div>
+            </div>
+            """
+        
+        buyer_section = f"""
+        <div style="background: #f8fafc; padding: 24px; border-radius: 16px; margin: 24px 0; border: 2px solid #e2e8f0;">
+            <h3 style="margin: 0 0 16px 0; color: #334155; font-size: 18px;">👤 Perfil do Comprador</h3>
+            <p style="margin: 0 0 12px 0; color: #1e293b; font-size: 16px; font-weight: 600;">{buyer_name}</p>
+            <p style="margin: 0; color: #64748b; font-size: 14px;">{details_html}</p>
+            {ai_interpretation_html}
+            {ideal_property_html}
+            {criterios_html}
+        </div>
+        """
+    
+    # AI compatibility section
+    ai_section = ""
+    if ai_compatibility:
+        score = ai_compatibility.get('score', 0)
+        justificativa = ai_compatibility.get('justificativa', '')
+        score_color = '#22c55e' if score >= 80 else '#eab308' if score >= 60 else '#f97316'
+        
+        ai_section = f"""
+        <div style="background: linear-gradient(135deg, #eef2ff, #e0e7ff); padding: 20px; border-radius: 12px; margin: 16px 0; text-align: center;">
+            <div style="display: inline-block; width: 60px; height: 60px; border-radius: 50%; background: {score_color}; color: white; font-size: 22px; font-weight: bold; line-height: 60px; margin-bottom: 12px;">
+                {score}%
+            </div>
+            <p style="margin: 0; color: #4f46e5; font-size: 14px;">{justificativa}</p>
+        </div>
+        """
     
     html_content = f"""
     <!DOCTYPE html>
@@ -364,6 +455,10 @@ async def send_match_approved_agent_email(agent_email: str, agent_name: str, buy
                 <div class="success-box">
                     <p><strong>Ótima notícia!</strong> Seu match com <strong>{buyer_name}</strong> foi aprovado pela nossa equipe de curadoria!</p>
                 </div>
+                
+                {buyer_section}
+                
+                {ai_section}
                 
                 <div class="info-box">
                     <p>📋 <strong>Próximos passos:</strong></p>
