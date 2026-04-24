@@ -211,6 +211,49 @@ const CuratorDashboard = () => {
                   </p>
                 )}
               </div>
+              
+              {/* AI Interpretation */}
+              {match.interest.interpretacaoIA && (
+                <div className="mt-3 pt-3 border-t border-indigo-200">
+                  <p className="text-xs font-semibold text-purple-700 mb-2 flex items-center gap-1">
+                    <Sparkles className="w-3 h-3" />
+                    Análise IA
+                  </p>
+                  {match.interest.interpretacaoIA.perfil_narrativo && (
+                    <p className="text-xs text-slate-600 leading-relaxed mb-2">
+                      {match.interest.interpretacaoIA.perfil_narrativo}
+                    </p>
+                  )}
+                  {match.interest.interpretacaoIA.perfil_do_imovel_ideal && (
+                    <div className="bg-green-50 p-2 rounded-lg mb-2">
+                      <p className="text-xs text-green-700">
+                        <strong>Imóvel ideal:</strong> {match.interest.interpretacaoIA.perfil_do_imovel_ideal}
+                      </p>
+                    </div>
+                  )}
+                  {match.interest.interpretacaoIA.criterios_inegociaveis?.length > 0 && (
+                    <div className="flex flex-wrap gap-1">
+                      {match.interest.interpretacaoIA.criterios_inegociaveis.slice(0,4).map((c, i) => (
+                        <span key={i} className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full">{c}</span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Additional info */}
+              {(match.interest.who_will_live?.length > 0 || match.interest.has_pets) && (
+                <div className="mt-2 pt-2 border-t border-indigo-100 flex flex-wrap gap-1">
+                  {match.interest.who_will_live?.slice(0,2).map((w, i) => (
+                    <span key={i} className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">{w}</span>
+                  ))}
+                  {match.interest.has_pets && match.interest.has_pets !== 'nao' && (
+                    <span className="text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full">
+                      {match.interest.has_pets === 'pequeno' ? 'Pet pequeno' : match.interest.has_pets === 'grande' ? 'Pet grande' : 'Pets'}
+                    </span>
+                  )}
+                </div>
+              )}
             </div>
           )}
         </div>

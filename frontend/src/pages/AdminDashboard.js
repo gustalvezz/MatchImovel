@@ -706,7 +706,14 @@ const AdminDashboard = () => {
                 '550k_700k': 'R$ 550 a 700 mil',
                 '700k_800k': 'R$ 700 a 800 mil',
                 '800k_1500k': 'R$ 800 mil a 1,5 mi',
-                'acima_1500k': 'Acima de R$ 1,5 mi'
+                'acima_1500k': 'Acima de R$ 1,5 mi',
+                'ate_550k': 'Até R$ 550 mil',
+                'ate_700k': 'Até R$ 700 mil',
+                'ate_800k': 'Até R$ 800 mil',
+                'ate_1500k': 'Até R$ 1,5 milhão',
+                'ate_2500k': 'Até R$ 2,5 milhões',
+                'ate_5000k': 'Até R$ 5 milhões',
+                'acima_5000k': 'Acima de R$ 5 milhões'
               };
               const ambianceLabels = {
                 'aconchegante': 'Aconchegante com plantas e madeira',
@@ -720,7 +727,20 @@ const AdminDashboard = () => {
                 'sair_aluguel': 'Sair do Aluguel',
                 'melhor_localizacao': 'Mudança por Localização',
                 'familia_cresceu': 'Família Cresceu',
-                'investidor': 'Investidor'
+                'investidor': 'Investidor',
+                'simplificar': 'Reduzir/Simplificar',
+                'outro': 'Outro'
+              };
+              const urgencyLabels = {
+                '3_meses': 'Urgente (3 meses)',
+                '12_meses': 'Planejando (12 meses)',
+                'sem_prazo': 'Pesquisando'
+              };
+              const petsLabels = {
+                'nao': 'Não tem',
+                'pequeno': 'Pequeno porte',
+                'grande': 'Grande porte',
+                'varios': 'Múltiplos pets'
               };
               
               return (
@@ -741,9 +761,9 @@ const AdminDashboard = () => {
                         <Badge className={`rounded-full ${interest.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-slate-100'}`}>
                           {interest.status === 'active' ? 'Ativo' : interest.status}
                         </Badge>
-                        {interest.ai_profile && (
-                          <Badge className="rounded-full bg-gradient-to-r from-indigo-500 to-purple-500 text-white text-xs mt-1 block">
-                            {interest.ai_profile}
+                        {interest.urgency && (
+                          <Badge className="rounded-full bg-amber-100 text-amber-700 text-xs mt-1 block">
+                            {urgencyLabels[interest.urgency] || interest.urgency}
                           </Badge>
                         )}
                       </div>
@@ -766,6 +786,50 @@ const AdminDashboard = () => {
                     </div>
                   </div>
                   
+                  {/* AI Interpretation Section */}
+                  {interest.interpretacaoIA && (
+                    <div className="bg-gradient-to-r from-purple-50 to-indigo-50 border border-purple-200 p-4 rounded-xl mb-4">
+                      <div className="flex items-center gap-2 mb-3">
+                        <Sparkles className="w-4 h-4 text-purple-600" />
+                        <p className="text-sm font-semibold text-purple-700">Análise de Perfil por IA</p>
+                      </div>
+                      {interest.interpretacaoIA.perfil_narrativo && (
+                        <p className="text-sm text-slate-700 leading-relaxed mb-3">{interest.interpretacaoIA.perfil_narrativo}</p>
+                      )}
+                      {interest.interpretacaoIA.criterios_inegociaveis?.length > 0 && (
+                        <div className="mb-3">
+                          <p className="text-xs font-medium text-slate-600 mb-2">Critérios Inegociáveis:</p>
+                          <div className="flex flex-wrap gap-1">
+                            {interest.interpretacaoIA.criterios_inegociaveis.map((c, i) => (
+                              <Badge key={i} className="bg-red-100 text-red-700 border-red-200 text-xs">{c}</Badge>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      {interest.interpretacaoIA.perfil_do_imovel_ideal && (
+                        <div className="bg-green-50 rounded-lg p-3 mb-2">
+                          <p className="text-xs font-medium text-green-700 mb-1">Imóvel ideal:</p>
+                          <p className="text-sm text-green-800">{interest.interpretacaoIA.perfil_do_imovel_ideal}</p>
+                        </div>
+                      )}
+                      {interest.interpretacaoIA.alertas?.length > 0 && (
+                        <div className="bg-amber-50 rounded-lg p-3">
+                          <p className="text-xs font-medium text-amber-700 mb-1">Alertas:</p>
+                          <ul className="text-sm text-amber-800 list-disc list-inside">
+                            {interest.interpretacaoIA.alertas.map((a, i) => <li key={i}>{a}</li>)}
+                          </ul>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  
+                  {/* Legacy AI Profile */}
+                  {!interest.interpretacaoIA && interest.ai_profile && (
+                    <div className="mb-4">
+                      <Badge className="rounded-full bg-gradient-to-r from-indigo-500 to-purple-500 text-white">{interest.ai_profile}</Badge>
+                    </div>
+                  )}
+                  
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
                     <div className="bg-slate-50 p-3 rounded-xl">
                       <p className="text-xs text-muted-foreground">Comprador</p>
@@ -787,11 +851,69 @@ const AdminDashboard = () => {
                       <p className="font-semibold text-sm">{interest.bedrooms || 'Não especificado'}</p>
                     </div>
                   </div>
+
+                  {/* New fields row */}
+                  {(interest.who_will_live?.length > 0 || interest.has_pets || interest.space_size || interest.floor_preference) && (
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+                      {interest.who_will_live?.length > 0 && (
+                        <div className="bg-blue-50 p-3 rounded-xl">
+                          <p className="text-xs text-muted-foreground">Quem vai morar</p>
+                          <p className="font-semibold text-xs text-blue-700">{interest.who_will_live.slice(0,2).join(', ')}{interest.who_will_live.length > 2 ? '...' : ''}</p>
+                        </div>
+                      )}
+                      {interest.has_pets && (
+                        <div className="bg-orange-50 p-3 rounded-xl">
+                          <p className="text-xs text-muted-foreground">Pets</p>
+                          <p className="font-semibold text-sm text-orange-700">{petsLabels[interest.has_pets] || interest.has_pets}</p>
+                        </div>
+                      )}
+                      {interest.space_size && (
+                        <div className="bg-teal-50 p-3 rounded-xl">
+                          <p className="text-xs text-muted-foreground">Tamanho</p>
+                          <p className="font-semibold text-sm text-teal-700 capitalize">{interest.space_size}</p>
+                        </div>
+                      )}
+                      {interest.floor_preference && (
+                        <div className="bg-indigo-50 p-3 rounded-xl">
+                          <p className="text-xs text-muted-foreground">Andar</p>
+                          <p className="font-semibold text-sm text-indigo-700 capitalize">{interest.floor_preference}</p>
+                        </div>
+                      )}
+                    </div>
+                  )}
                   
                   {interest.ambiance && (
                     <div className="bg-indigo-50 p-3 rounded-xl mb-3">
                       <p className="text-xs text-muted-foreground mb-1">Ambiente Ideal</p>
                       <p className="text-sm">{ambianceLabels[interest.ambiance] || interest.ambiance}</p>
+                    </div>
+                  )}
+
+                  {/* Rotina e Locomoção */}
+                  {(interest.daily_routine?.length > 0 || interest.transportation?.length > 0) && (
+                    <div className="grid grid-cols-2 gap-3 mb-3">
+                      {interest.daily_routine?.length > 0 && (
+                        <div className="bg-violet-50 p-3 rounded-xl">
+                          <p className="text-xs text-muted-foreground mb-1">Rotina</p>
+                          <div className="flex flex-wrap gap-1">
+                            {interest.daily_routine.slice(0,2).map((item, idx) => (
+                              <Badge key={idx} variant="secondary" className="text-xs bg-violet-100">
+                                {item.split('—')[0].split('(')[0].trim().slice(0,20)}
+                              </Badge>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      {interest.transportation?.length > 0 && (
+                        <div className="bg-cyan-50 p-3 rounded-xl">
+                          <p className="text-xs text-muted-foreground mb-1">Locomoção</p>
+                          <div className="flex flex-wrap gap-1">
+                            {interest.transportation.slice(0,2).map((item, idx) => (
+                              <Badge key={idx} variant="secondary" className="text-xs bg-cyan-100">{item}</Badge>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )}
                   
@@ -808,15 +930,16 @@ const AdminDashboard = () => {
                     </div>
                   )}
                   
-                  {interest.features && interest.features.length > 0 && (
+                  {(interest.indispensable?.length > 0 || interest.features?.length > 0) && (
                     <div className="mb-3">
-                      <p className="text-xs text-muted-foreground mb-2">Características desejadas:</p>
+                      <p className="text-xs text-muted-foreground mb-2">Indispensável:</p>
                       <div className="flex flex-wrap gap-1">
-                        {interest.features.map((feature, idx) => (
-                          <Badge key={idx} variant="secondary" className="rounded-full text-xs">
-                            {feature}
-                          </Badge>
+                        {(interest.indispensable || interest.features || []).map((feature, idx) => (
+                          <Badge key={idx} variant="secondary" className="rounded-full text-xs">{feature}</Badge>
                         ))}
+                        {interest.indispensable_other && (
+                          <Badge variant="secondary" className="rounded-full text-xs bg-purple-100">{interest.indispensable_other}</Badge>
+                        )}
                       </div>
                     </div>
                   )}
@@ -831,6 +954,14 @@ const AdminDashboard = () => {
                           </Badge>
                         ))}
                       </div>
+                    </div>
+                  )}
+
+                  {/* Observações */}
+                  {interest.additional_notes && (
+                    <div className="bg-slate-50 p-3 rounded-xl mb-3">
+                      <p className="text-xs text-muted-foreground mb-1">Observações:</p>
+                      <p className="text-sm text-slate-700 italic">"{interest.additional_notes}"</p>
                     </div>
                   )}
                   
