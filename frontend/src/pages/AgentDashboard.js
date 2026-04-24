@@ -141,6 +141,22 @@ const AgentDashboard = () => {
   // AI Discovery state
   const [propertyDescription, setPropertyDescription] = useState('');
   const [propertyPrice, setPropertyPrice] = useState('');
+  const [propertyPriceDisplay, setPropertyPriceDisplay] = useState('');
+  
+  // Format currency for display
+  const formatCurrency = (value) => {
+    if (!value) return '';
+    const numericValue = String(value).replace(/\D/g, '');
+    if (!numericValue) return '';
+    const number = parseInt(numericValue, 10);
+    return number.toLocaleString('pt-BR');
+  };
+  
+  const handlePriceChange = (e) => {
+    const rawValue = e.target.value.replace(/\D/g, '');
+    setPropertyPrice(rawValue);
+    setPropertyPriceDisplay(formatCurrency(rawValue));
+  };
   const [propertyType, setPropertyType] = useState('');
   const [aiResults, setAiResults] = useState([]);
   const [aiLoading, setAiLoading] = useState(false);
@@ -239,7 +255,8 @@ const AgentDashboard = () => {
   // AI Discovery function
   const handleAIDiscovery = async () => {
     // Validate required fields
-    if (!propertyPrice || parseFloat(propertyPrice) <= 0) {
+    const priceValue = parseInt(propertyPrice, 10);
+    if (!propertyPrice || priceValue <= 0) {
       toast.error('Por favor, informe o valor do imóvel');
       return;
     }
@@ -261,7 +278,7 @@ const AgentDashboard = () => {
       // Build request payload with required pre-filter fields
       const payload = {
         property_description: propertyDescription,
-        property_price: parseFloat(propertyPrice),
+        property_price: priceValue,
         property_type: propertyType
       };
       
@@ -623,15 +640,23 @@ const AgentDashboard = () => {
                     <label className="text-sm font-medium text-slate-700 mb-1 block">
                       Valor do Imóvel (R$) *
                     </label>
-                    <Input
-                      type="number"
-                      value={propertyPrice}
-                      onChange={(e) => setPropertyPrice(e.target.value)}
-                      placeholder="Ex: 500000"
-                      className="rounded-lg"
-                      data-testid="property-price-input"
-                      required
-                    />
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-sm">R$</span>
+                      <Input
+                        type="text"
+                        value={propertyPriceDisplay}
+                        onChange={handlePriceChange}
+                        placeholder="Ex: 500.000"
+                        className="rounded-lg pl-10"
+                        data-testid="property-price-input"
+                        required
+                      />
+                    </div>
+                    {propertyPrice && (
+                      <p className="text-xs text-slate-500 mt-1">
+                        Valor: R$ {parseInt(propertyPrice, 10).toLocaleString('pt-BR')}
+                      </p>
+                    )}
                   </div>
                   
                   <div>
