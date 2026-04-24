@@ -191,12 +191,30 @@ async def ai_discovery(request: AIDiscoveryRequest, current_user: dict = Depends
     filtered_by_budget = 0
     filtered_by_type = 0
     
-    # Property type mapping for comparison
+    # Property type mapping for comparison (updated for new form v4)
     property_type_groups = {
-        'apartamento': ['apartamento', 'studio', 'loft', 'studio/loft', 'flat'],
+        'apartamento': ['apartamento', 'studio', 'loft', 'studio/loft', 'studio_loft', 'flat'],
         'casa': ['casa', 'casa de condomínio', 'casa_condominio', 'sobrado', 'village'],
         'terreno': ['terreno', 'terreno de condomínio', 'terreno_condominio', 'lote'],
         'comercial': ['sala comercial', 'sala_comercial', 'prédio comercial', 'predio_comercial', 'loja', 'galpão']
+    }
+    
+    # Budget ranges mapping (updated for new form v4)
+    budget_max_values = {
+        'ate_400k': 400000,
+        'ate_550k': 550000,
+        'ate_700k': 700000,
+        'ate_800k': 800000,
+        'ate_1500k': 1500000,
+        'ate_2500k': 2500000,
+        'ate_5000k': 5000000,
+        'acima_5000k': 50000000,
+        # Legacy values
+        '400k_550k': 550000,
+        '550k_700k': 700000,
+        '700k_800k': 800000,
+        '800k_1500k': 1500000,
+        'acima_1500k': 10000000
     }
     
     def get_type_group(prop_type: str) -> str:
@@ -209,24 +227,32 @@ async def ai_discovery(request: AIDiscoveryRequest, current_user: dict = Depends
                 return group
         return None
     
+    def get_max_budget(interest: dict) -> float:
+        """Get the max budget from either max_price field or budget_range"""
+        if interest.get('max_price') and interest['max_price'] > 0:
+            return interest['max_price']
+        budget_range = interest.get('budget_range', '')
+        return budget_max_values.get(budget_range, 0)
+    
     prefiltered_interests = []
     
     for interest in available_interests:
         exclude = False
         
-        # BUDGET PRE-FILTER: Exclude if max_price < 75% of property price
+        # BUDGET PRE-FILTER: Exclude if max_budget < 75% of property price
         if request.property_price and request.property_price > 0:
-            buyer_max_price = interest.get('max_price', 0)
+            buyer_max_budget = get_max_budget(interest)
             threshold = request.property_price * 0.75
-            if buyer_max_price > 0 and buyer_max_price < threshold:
+            if buyer_max_budget > 0 and buyer_max_budget < threshold:
                 filtered_by_budget += 1
                 exclude = True
-                logger.debug(f"Pre-filter: Excluded interest {interest['id']} - budget {buyer_max_price} < threshold {threshold}")
+                logger.debug(f"Pre-filter: Excluded interest {interest['id']} - budget {buyer_max_budget} < threshold {threshold}")
         
         # TYPE PRE-FILTER: Exclude if property types are incompatible
         if not exclude and request.property_type:
             offered_type_group = get_type_group(request.property_type)
-            desired_type = interest.get('property_type') or interest.get('property_type_key')
+            # Check both property_type and property_type_key
+            desired_type = interest.get('property_type_key') or interest.get('property_type')
             desired_type_group = get_type_group(desired_type)
             
             # Only exclude if both types are clearly defined and incompatible
@@ -259,7 +285,7 @@ async def ai_discovery(request: AIDiscoveryRequest, current_user: dict = Depends
         buyer = await db.buyers.find_one({"user_id": interest["buyer_id"]}, {"_id": 0})
         interest['buyer_name'] = buyer.get("name", "Comprador") if buyer else "Comprador"
     
-    # Build buyer profiles for AI
+    # Build buyer profiles for AI (updated for new form v4)
     buyer_profiles = []
     for interest in prefiltered_interests:
         # Map ambiance codes to descriptions
@@ -277,12 +303,22 @@ async def ai_discovery(request: AIDiscoveryRequest, current_user: dict = Depends
             'sair_aluguel': 'Quer sair do aluguel',
             'melhor_localizacao': 'Busca melhor localização',
             'familia_cresceu': 'Família cresceu, precisa de mais espaço',
-            'investidor': 'Investidor'
+            'investidor': 'Investidor',
+            'simplificar': 'Quer reduzir/simplificar a vida',
+            'outro': interest.get('profile_type_other', 'Outro motivo')
         }
         
-        # Map budget ranges
+        # Map budget ranges (updated for v4)
         budget_map = {
             'ate_400k': 'Até R$ 400 mil',
+            'ate_550k': 'Até R$ 550 mil',
+            'ate_700k': 'Até R$ 700 mil',
+            'ate_800k': 'Até R$ 800 mil',
+            'ate_1500k': 'Até R$ 1,5 milhão',
+            'ate_2500k': 'Até R$ 2,5 milhões',
+            'ate_5000k': 'Até R$ 5 milhões',
+            'acima_5000k': 'Acima de R$ 5 milhões',
+            # Legacy
             '400k_550k': 'R$ 400 a 550 mil',
             '550k_700k': 'R$ 550 a 700 mil',
             '700k_800k': 'R$ 700 a 800 mil',
@@ -290,20 +326,89 @@ async def ai_discovery(request: AIDiscoveryRequest, current_user: dict = Depends
             'acima_1500k': 'Acima de R$ 1,5 milhão'
         }
         
+        # Map age ranges
+        age_map = {
+            'ate_30': 'Até 30 anos',
+            '30_45': '30 a 45 anos',
+            '45_60': '45 a 60 anos',
+            'acima_60': 'Acima de 60 anos'
+        }
+        
+        # Map space size
+        space_map = {
+            'compacto': 'Compacto e funcional',
+            'equilibrado': 'Equilibrado, confortável sem exageros',
+            'espacoso': 'Espaçoso, cômodos generosos',
+            'grande': 'Grande, espaço é prioridade'
+        }
+        
+        # Map floor preference
+        floor_map = {
+            'terreo': 'Térreo ou andar baixo',
+            'meio': 'Andar intermediário',
+            'alto': 'Andar alto (vista, silêncio)',
+            'tanto_faz': 'Sem preferência de andar'
+        }
+        
+        # Map pets
+        pets_map = {
+            'nao': 'Sem pets',
+            'pequeno': 'Pet de pequeno porte',
+            'grande': 'Pet de grande porte',
+            'varios': 'Múltiplos pets'
+        }
+        
+        # Build enriched profile
         profile = {
             "id": interest["id"],
             "buyer_id": interest["buyer_id"],
             "nome": interest.get("buyer_name", "Comprador"),
+            
+            # Basic info
             "tipo_imovel_desejado": interest.get("property_type", "Não especificado"),
             "localizacao_desejada": interest.get("location", "Não especificada"),
             "orcamento": budget_map.get(interest.get("budget_range", ""), f"R$ {interest.get('min_price', 0):,.0f} - R$ {interest.get('max_price', 0):,.0f}"),
             "quartos_minimos": interest.get("bedrooms"),
-            "perfil_comprador": profile_map.get(interest.get("profile_type", ""), interest.get("profile_type", "")),
+            
+            # Profile and motivation
+            "faixa_etaria": age_map.get(interest.get("age_range", ""), ""),
+            "motivo_busca": profile_map.get(interest.get("profile_type", ""), interest.get("profile_type", "")),
+            "urgencia": interest.get("urgency", ""),
+            
+            # Who will live
+            "quem_vai_morar": interest.get("who_will_live", []),
+            "filhos_quantidade": interest.get("children_count"),
+            "filhos_idades": interest.get("children_ages", []),
+            
+            # Property preferences
+            "preferencia_andar": floor_map.get(interest.get("floor_preference", ""), ""),
+            "prioridades_terreno": interest.get("land_priorities", []),
+            "tamanho_espaco": space_map.get(interest.get("space_size", ""), ""),
+            "condicao_imovel": interest.get("property_condition", []),
             "ambiente_ideal": ambiance_map.get(interest.get("ambiance", ""), interest.get("ambiance", "")),
-            "caracteristicas_desejaveis": interest.get("features", []),
+            
+            # Features
+            "caracteristicas_indispensaveis": interest.get("indispensable", []) + ([interest.get("indispensable_other")] if interest.get("indispensable_other") else []),
             "o_que_nao_aceita": interest.get("deal_breakers", []),
             "precisa_proximidade_de": interest.get("proximity_needs", []),
-            "perfil_ia": interest.get("ai_profile", "")
+            
+            # Lifestyle
+            "pets": pets_map.get(interest.get("has_pets", ""), ""),
+            "rotina_em_casa": interest.get("daily_routine", []),
+            "locomocao": interest.get("transportation", []),
+            
+            # Payment
+            "forma_pagamento": interest.get("payment_method", []),
+            "situacao_imovel_atual": interest.get("current_property_status", ""),
+            
+            # AI Interpretation (if available)
+            "interpretacao_ia": interest.get("interpretacaoIA"),
+            
+            # Legacy field
+            "perfil_ia_resumido": interest.get("ai_profile", ""),
+            
+            # Additional notes
+            "observacoes": interest.get("additional_notes", "")
         }
         buyer_profiles.append(profile)
     
