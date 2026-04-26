@@ -238,6 +238,7 @@ async def ai_discovery(request: AIDiscoveryRequest, current_user: dict = Depends
     
     for interest in available_interests:
         exclude = False
+        exclude_reason = ""
         
         # BUDGET PRE-FILTER: Exclude if max_budget < 75% of property price
         if request.property_price and request.property_price > 0:
@@ -246,7 +247,7 @@ async def ai_discovery(request: AIDiscoveryRequest, current_user: dict = Depends
             if buyer_max_budget > 0 and buyer_max_budget < threshold:
                 filtered_by_budget += 1
                 exclude = True
-                logger.debug(f"Pre-filter: Excluded interest {interest['id']} - budget {buyer_max_budget} < threshold {threshold}")
+                exclude_reason = f"budget {buyer_max_budget} < threshold {threshold}"
         
         # TYPE PRE-FILTER: Exclude if property types are incompatible
         if not exclude and request.property_type:
@@ -259,9 +260,12 @@ async def ai_discovery(request: AIDiscoveryRequest, current_user: dict = Depends
             if offered_type_group and desired_type_group and offered_type_group != desired_type_group:
                 filtered_by_type += 1
                 exclude = True
-                logger.debug(f"Pre-filter: Excluded interest {interest['id']} - type mismatch: {offered_type_group} vs {desired_type_group}")
+                exclude_reason = f"type mismatch: {offered_type_group} vs {desired_type_group}"
         
-        if not exclude:
+        if exclude:
+            logger.info(f"Pre-filter EXCLUDED: {interest['id'][:8]}... ({interest.get('property_type')}) - {exclude_reason}")
+        else:
+            logger.info(f"Pre-filter PASSED: {interest['id'][:8]}... ({interest.get('property_type')}, budget: {get_max_budget(interest)})")
             prefiltered_interests.append(interest)
     
     # Log pre-filter results
