@@ -717,23 +717,61 @@ Dica: quanto mais você descrever — localização, entorno, luz, silêncio, es
             {hasSearched && !aiLoading && (
               <>
                 {aiResults.length === 0 ? (
-                  <Card className="p-12 rounded-3xl text-center" data-testid="no-ai-results">
-                    <Users className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
-                    <h3 className="text-xl font-semibold mb-2">Nenhum comprador compatível no momento</h3>
-                    <p className="text-muted-foreground max-w-md mx-auto">
-                      Tente descrever outros aspectos do imóvel ou aguarde novos cadastros de compradores.
-                    </p>
-                    {prefilterStats && (
-                      <div className="mt-4 p-3 bg-slate-50 rounded-lg text-xs text-muted-foreground">
-                        <p>{prefilterStats.total_before_prefilter} compradores disponíveis</p>
-                        {prefilterStats.filtered_by_budget > 0 && (
-                          <p>• {prefilterStats.filtered_by_budget} filtrados por orçamento</p>
-                        )}
-                        {prefilterStats.filtered_by_type > 0 && (
-                          <p>• {prefilterStats.filtered_by_type} filtrados por tipo</p>
-                        )}
-                        <p>• {prefilterStats.sent_to_ai} enviados para análise da IA</p>
-                      </div>
+                  <Card className="p-8 md:p-12 rounded-3xl text-center" data-testid="no-ai-results">
+                    {/* Caso 1: Todos filtrados no pré-filtro (nenhum enviado à IA) */}
+                    {prefilterStats && prefilterStats.sent_to_ai === 0 ? (
+                      <>
+                        <div className="w-20 h-20 bg-amber-100 rounded-full mx-auto mb-4 flex items-center justify-center">
+                          <AlertTriangle className="w-10 h-10 text-amber-600" />
+                        </div>
+                        <h3 className="text-xl font-semibold mb-3 text-amber-800">
+                          Nenhum interesse compatível encontrado
+                        </h3>
+                        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 max-w-lg mx-auto mb-4">
+                          <p className="text-amber-800 text-sm leading-relaxed">
+                            Não há compradores cadastrados com interesse no <strong>tipo de imóvel</strong> e/ou <strong>faixa de valor</strong> que você informou.
+                          </p>
+                        </div>
+                        <div className="text-sm text-muted-foreground space-y-1">
+                          <p>{prefilterStats.total_before_prefilter} compradores disponíveis na base</p>
+                          {prefilterStats.filtered_by_type > 0 && (
+                            <p className="text-amber-600">• {prefilterStats.filtered_by_type} não buscam este tipo de imóvel</p>
+                          )}
+                          {prefilterStats.filtered_by_budget > 0 && (
+                            <p className="text-amber-600">• {prefilterStats.filtered_by_budget} têm orçamento abaixo do valor informado</p>
+                          )}
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-4">
+                          Aguarde novos cadastros de compradores ou ajuste o valor/tipo do imóvel.
+                        </p>
+                      </>
+                    ) : (
+                      /* Caso 2: Passou pelo pré-filtro mas a IA não encontrou matches com score >= 50 */
+                      <>
+                        <div className="w-20 h-20 bg-indigo-100 rounded-full mx-auto mb-4 flex items-center justify-center">
+                          <Sparkles className="w-10 h-10 text-indigo-600" />
+                        </div>
+                        <h3 className="text-xl font-semibold mb-3 text-slate-800">
+                          A IA não encontrou compatibilidade alta
+                        </h3>
+                        <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-4 max-w-lg mx-auto mb-4">
+                          <p className="text-indigo-800 text-sm leading-relaxed mb-3">
+                            Analisamos <strong>{prefilterStats?.sent_to_ai || totalEvaluated}</strong> perfis de compradores, mas nenhum atingiu o score mínimo de compatibilidade (50%).
+                          </p>
+                          <p className="text-indigo-700 text-sm leading-relaxed">
+                            A IA avalia não só tipo e preço, mas também <strong>localização</strong>, <strong>características desejadas</strong>, <strong>estilo de vida</strong> e <strong>critérios inegociáveis</strong> de cada comprador.
+                          </p>
+                        </div>
+                        <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 max-w-lg mx-auto">
+                          <p className="text-slate-700 text-sm font-medium mb-2">💡 Dica para melhorar os resultados:</p>
+                          <p className="text-slate-600 text-sm leading-relaxed">
+                            Descreva o imóvel com mais detalhes: <strong>localização exata</strong> (bairro, proximidades), <strong>características</strong> (suíte, varanda, piscina), <strong>estado de conservação</strong> e <strong>diferenciais</strong>. Quanto mais informações, melhor será o matching da IA.
+                          </p>
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-4">
+                          Exemplo: "Casa térrea de 180m² no Jardim Europa, Jundiaí. 3 suítes, piscina aquecida, churrasqueira gourmet. Condomínio fechado com segurança 24h. Aceita financiamento."
+                        </p>
+                      </>
                     )}
                   </Card>
                 ) : (
