@@ -57,6 +57,15 @@ class CreciValidationResponse(BaseModel):
 
 # ============ BUYER MODELS ============
 
+class AIInterpretation(BaseModel):
+    """AI-generated interpretation of buyer profile"""
+    model_config = ConfigDict(extra="ignore")
+    perfil_narrativo: Optional[str] = None
+    criterios_inegociaveis: List[str] = []
+    perfil_do_imovel_ideal: Optional[str] = None
+    alertas: List[str] = []
+
+
 class BuyerInterest(BaseModel):
     model_config = ConfigDict(extra="ignore")
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
@@ -85,6 +94,7 @@ class BuyerInterest(BaseModel):
     experience_fears: Optional[str] = None
     ai_profile: Optional[str] = None
     form_version: Optional[str] = None
+    interpretacaoIA: Optional[AIInterpretation] = None
 
 class BuyerInterestCreate(BaseModel):
     property_type: str

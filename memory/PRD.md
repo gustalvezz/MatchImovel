@@ -99,7 +99,7 @@ Plataforma imobiliária que conecta compradores interessados a corretores atrav�
 - **Frontend**: React.js, Tailwind CSS, Shadcn UI, Framer Motion
 - **Backend**: FastAPI (Python) - Modularizado
 - **Database**: MongoDB
-- **AI**: OpenAI via emergentintegrations (Emergent LLM Key)
+- **AI**: OpenAI SDK (gpt-4o) - **NOTA: emergentintegrations foi removido**
 - **Email**: SMTP (Hostgator) via aiosmtplib
 - **CRECI**: API BuscaCRECI (https://api.buscacreci.com.br)
 
@@ -145,6 +145,19 @@ Plataforma imobiliária que conecta compradores interessados a corretores atrav�
 ---
 
 ## Changelog
+
+### 26/04/2026
+- **Dashboard do Comprador - Exibição de Resumo IA e Status**:
+  - Exibição completa do `interpretacaoIA` gerado pela IA no card de interesse:
+    - Perfil Narrativo (texto explicativo do perfil do comprador)
+    - Critérios Inegociáveis (badges vermelhas)
+    - Imóvel Ideal (descrição em card verde)
+    - Pontos de Atenção/Alertas (lista em âmbar)
+  - Card de status contextual:
+    - "Analisando seu perfil..." - enquanto IA ainda está processando
+    - "Interesse cadastrado com sucesso! Nossa IA está trabalhando duro..." - após IA concluir e sem matches ainda
+    - "X match(es) encontrado(s)!" - quando houver matches
+  - Correção: endpoint `/buyers/my-interests` agora retorna `interpretacaoIA` do banco
 
 ### 08/04/2026
 - **Setup de Cron Externo para Lembretes de Visita**:

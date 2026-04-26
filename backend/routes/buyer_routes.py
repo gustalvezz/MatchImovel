@@ -137,7 +137,7 @@ async def create_interest(interest_data: BuyerInterestCreate, current_user: dict
     return interest
 
 
-@router.get("/buyers/my-interests", response_model=List[BuyerInterest])
+@router.get("/buyers/my-interests")
 async def get_my_interests(current_user: dict = Depends(get_current_user)):
     if current_user["role"] != "buyer":
         raise HTTPException(status_code=403, detail="Acesso negado")

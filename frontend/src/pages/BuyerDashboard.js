@@ -7,7 +7,7 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/context/AuthContext';
-import { Home, Plus, Heart, Calendar, LogOut, Building2, MapPin, DollarSign, Trash2, Sparkles, BedDouble, Bath, Ruler, ExternalLink, Link as LinkIcon } from 'lucide-react';
+import { Home, Plus, Heart, Calendar, LogOut, Building2, MapPin, DollarSign, Trash2, Sparkles, BedDouble, Bath, Ruler, ExternalLink, Link as LinkIcon, Clock, Search, Loader2, CheckCircle2 } from 'lucide-react';
 import { toast } from 'sonner';
 import InterestFormModal from '@/components/InterestFormModal';
 import DeleteConfirmModal from '@/components/DeleteConfirmModal';
@@ -199,7 +199,13 @@ const BuyerDashboard = () => {
                 </Button>
               </Card>
             ) : (
-              (interests || []).map((interest) => (
+              (interests || []).map((interest) => {
+                // Check if this interest has any matches
+                const interestMatches = (matches || []).filter(m => m.interest_id === interest.id);
+                const hasMatches = interestMatches.length > 0;
+                const isProcessingAI = interest.status === 'active' && !interest.interpretacaoIA;
+                
+                return (
                 <motion.div
                   key={interest.id}
                   initial={{ opacity: 0, y: 10 }}
@@ -335,9 +341,70 @@ const BuyerDashboard = () => {
                         </div>
                       </div>
                     )}
+
+                    {/* Status Card - IA trabalhando ou aguardando matches */}
+                    {interest.status === 'active' && (
+                      <div className="mt-4 pt-4 border-t border-slate-200">
+                        {/* AI Processing Status */}
+                        {isProcessingAI ? (
+                          <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-xl p-4" data-testid="ai-processing-status">
+                            <div className="flex items-start gap-3">
+                              <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0">
+                                <Loader2 className="w-5 h-5 text-amber-600 animate-spin" />
+                              </div>
+                              <div>
+                                <p className="font-semibold text-amber-800 mb-1">Analisando seu perfil...</p>
+                                <p className="text-sm text-amber-700">
+                                  Nossa IA está trabalhando para entender melhor suas preferências. Em breve você verá um resumo personalizado aqui.
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        ) : !hasMatches ? (
+                          /* Interest registered, AI done, waiting for matches */
+                          <div className="bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-200 rounded-xl p-4" data-testid="waiting-matches-status">
+                            <div className="flex items-start gap-3">
+                              <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center flex-shrink-0">
+                                <Search className="w-5 h-5 text-indigo-600" />
+                              </div>
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <CheckCircle2 className="w-4 h-4 text-green-500" />
+                                  <p className="font-semibold text-indigo-800">Interesse cadastrado com sucesso!</p>
+                                </div>
+                                <p className="text-sm text-indigo-700 leading-relaxed mb-2">
+                                  Nossa IA está trabalhando duro para encontrar corretores parceiros com o imóvel ideal para você. 
+                                </p>
+                                <p className="text-sm text-indigo-600">
+                                  <strong>Próximo passo:</strong> Você receberá o contato de um curador quando um match for encontrado. Fique de olho no seu email!
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        ) : (
+                          /* Has matches - show success */
+                          <div className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-xl p-4" data-testid="has-matches-status">
+                            <div className="flex items-center gap-3">
+                              <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
+                                <Heart className="w-5 h-5 text-green-600 fill-green-600" />
+                              </div>
+                              <div>
+                                <p className="font-semibold text-green-800">
+                                  {interestMatches.length} match{interestMatches.length > 1 ? 'es' : ''} encontrado{interestMatches.length > 1 ? 's' : ''}!
+                                </p>
+                                <p className="text-sm text-green-700">
+                                  Veja os detalhes na aba "Matches Recebidos"
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </Card>
                 </motion.div>
-              ))
+              );
+              })
             )}
           </TabsContent>
 
