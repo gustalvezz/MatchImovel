@@ -496,7 +496,7 @@ Com base nas respostas do formulário abaixo, gere uma interpretação completa 
 
 2. "criterios_inegociaveis": lista dos deal-breakers reais, inferidos tanto das respostas diretas quanto da leitura cruzada entre elas. Inclua o que está explícito E o que está implícito nas respostas. Sem limite de itens.
 
-3. "perfil_do_imovel_ideal": descrição objetiva do imóvel que melhor atende este comprador, cruzando tipo, localização, orçamento, estilo de vida e indispensáveis declarados.
+3. "perfil_do_imovel_ideal": string de texto corrido com descrição objetiva do imóvel que melhor atende este comprador, cruzando tipo, localização, orçamento, estilo de vida e indispensáveis declarados. DEVE ser uma string, NUNCA um objeto ou dicionário JSON.
 
 4. "alertas": inconsistências, contradições ou combinações muito restritivas detectadas entre as respostas. Se não houver, retornar array vazio.
 
