@@ -224,10 +224,20 @@ const CuratorDashboard = () => {
                       {match.interest.interpretacaoIA.perfil_narrativo}
                     </p>
                   )}
-                  {match.interest.interpretacaoIA.perfil_do_imovel_ideal && (
+                    {match.interest.interpretacaoIA.perfil_do_imovel_ideal && (
                     <div className="bg-green-50 p-2 rounded-lg mb-2">
                       <p className="text-xs text-green-700">
-                        <strong>Imóvel ideal:</strong> {match.interest.interpretacaoIA.perfil_do_imovel_ideal}
+                        <strong>Imóvel ideal:</strong>{' '}
+                        {typeof match.interest.interpretacaoIA.perfil_do_imovel_ideal === 'string'
+                          ? match.interest.interpretacaoIA.perfil_do_imovel_ideal
+                          : [
+                              match.interest.interpretacaoIA.perfil_do_imovel_ideal?.tipo,
+                              match.interest.interpretacaoIA.perfil_do_imovel_ideal?.localizacao,
+                              match.interest.interpretacaoIA.perfil_do_imovel_ideal?.orcamento,
+                              match.interest.interpretacaoIA.perfil_do_imovel_ideal?.condicao,
+                              match.interest.interpretacaoIA.perfil_do_imovel_ideal?.tamanho,
+                            ].filter(Boolean).join(', ')
+                        }
                       </p>
                     </div>
                   )}
