@@ -314,11 +314,20 @@ const BuyerDashboard = () => {
                           <div className="bg-green-50 rounded-lg p-3 mb-3">
                             <p className="text-xs font-medium text-green-700 mb-1">Imóvel ideal para você:</p>
                             <p className="text-sm text-green-800">
-                              {interest.interpretacaoIA.perfil_do_imovel_ideal}
+                              {typeof interest.interpretacaoIA.perfil_do_imovel_ideal === 'string'
+                                ? interest.interpretacaoIA.perfil_do_imovel_ideal
+                                : [
+                                    interest.interpretacaoIA.perfil_do_imovel_ideal?.tipo,
+                                    interest.interpretacaoIA.perfil_do_imovel_ideal?.localizacao,
+                                    interest.interpretacaoIA.perfil_do_imovel_ideal?.orcamento,
+                                    interest.interpretacaoIA.perfil_do_imovel_ideal?.condicao,
+                                    interest.interpretacaoIA.perfil_do_imovel_ideal?.tamanho,
+                                  ].filter(Boolean).join(', ')
+                              }
                             </p>
                           </div>
-                        )}
-                        
+                        )}   
+
                         {/* Alertas */}
                         {interest.interpretacaoIA.alertas?.length > 0 && (
                           <div className="bg-amber-50 rounded-lg p-3">
