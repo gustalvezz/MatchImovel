@@ -806,10 +806,11 @@ const AdminDashboard = () => {
                           </div>
                         </div>
                       )}
-                        {interest.interpretacaoIA.perfil_do_imovel_ideal && (
-                        <div className="bg-green-50 rounded-lg p-3 mb-2">
+
+                      {interest.interpretacaoIA.perfil_do_imovel_ideal && (
+                          <div className="bg-green-50 rounded-lg p-3 mb-2">
                           <p className="text-xs font-medium text-green-700 mb-1">Imóvel ideal:</p>
-                          <p className="text-sm text-green-800">
+                           <p className="text-sm text-green-800">
                             {typeof interest.interpretacaoIA.perfil_do_imovel_ideal === 'string'
                               ? interest.interpretacaoIA.perfil_do_imovel_ideal
                               : [
@@ -821,8 +822,18 @@ const AdminDashboard = () => {
                                 ].filter(Boolean).join(', ')
                             }
                           </p>
+                          </div>
+                        )}
+                        {interest.interpretacaoIA.alertas?.length > 0 && (
+                        <div className="bg-amber-50 rounded-lg p-3">
+                          <p className="text-xs font-medium text-amber-700 mb-1">Alertas:</p>
+                          <ul className="text-sm text-amber-800 list-disc list-inside">
+                            {interest.interpretacaoIA.alertas.map((a, i) => <li key={i}>{a}</li>)}
+                          </ul>
                         </div>
-                      )}    
+                      )}
+                    </div>
+                  )}
 
                   {/* Legacy AI Profile */}
                   {!interest.interpretacaoIA && interest.ai_profile && (
