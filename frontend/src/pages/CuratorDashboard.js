@@ -224,8 +224,8 @@ const CuratorDashboard = () => {
                       {match.interest.interpretacaoIA.perfil_narrativo}
                     </p>
                   )}
-                    {match.interest.interpretacaoIA.perfil_do_imovel_ideal && (
-                    <div className="bg-green-50 p-2 rounded-lg mb-2">
+                   {match.interest.interpretacaoIA.perfil_do_imovel_ideal && (
+                     <div className="bg-green-50 p-2 rounded-lg mb-2">
                       <p className="text-xs text-green-700">
                         <strong>Imóvel ideal:</strong>{' '}
                         {typeof match.interest.interpretacaoIA.perfil_do_imovel_ideal === 'string'
