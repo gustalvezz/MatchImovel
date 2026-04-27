@@ -2,13 +2,14 @@
 Buyer routes
 Handles buyer interests and matches
 """
-from fastapi import APIRouter, HTTPException, Depends, Request
+from fastapi import APIRouter, HTTPException, Depends, Request, BackgroundTasks
 from datetime import datetime, timezone
 from typing import List
 import uuid
 import secrets
 import os
 import logging
+import asyncio
 
 from database import db
 from auth import get_current_user, hash_password
@@ -118,6 +119,82 @@ Responda APENAS com o perfil, nada mais. Use formato: "CATEGORIA - Descrição c
             'investidor': 'INVESTIDOR'
         }.get(form_data.get('profile_type', ''), 'COMPRADOR')
         return f"{profile_base} - Perfil em análise"
+
+
+async def process_ai_interpretation_background(interest_id: str, form_data: dict, buyer_email: str, buyer_name: str):
+    """
+    Background task to generate AI interpretation and send email.
+    This runs after the HTTP response is sent to avoid Vercel timeout.
+    """
+    try:
+        logger.info(f"Starting background AI interpretation for interest {interest_id}")
+        
+        # Generate AI interpretation
+        ai_interpretation = await generate_ai_interpretation(form_data)
+        
+        # Generate simple AI profile
+        property_type = form_data.get('property_type', 'casa')
+        ai_profile = await generate_ai_profile({
+            'profile_type': form_data.get('profile_type'),
+            'urgency': form_data.get('urgency'),
+            'location': form_data.get('location'),
+            'budget_range': form_data.get('budget_range'),
+            'property_type': property_type,
+            'ambiance': form_data.get('ambiance'),
+            'deal_breakers': form_data.get('deal_breakers', []),
+            'proximity_needs': form_data.get('proximity_needs', [])
+        })
+        
+        # Update interest with AI interpretation and profile
+        update_data = {
+            "ai_profile": ai_profile,
+            "ai_processing_status": "completed"
+        }
+        
+        if ai_interpretation:
+            update_data["interpretacaoIA"] = ai_interpretation
+            
+        await db.interests.update_one(
+            {"id": interest_id},
+            {"$set": update_data}
+        )
+        logger.info(f"AI interpretation saved for interest {interest_id}")
+        
+        # Send confirmation email with AI interpretation
+        if buyer_email:
+            property_type_display = {
+                'apartamento': 'Apartamento',
+                'casa': 'Casa',
+                'casa_condominio': 'Casa de condomínio',
+                'terreno': 'Terreno',
+                'terreno_condominio': 'Terreno de condomínio',
+                'sala_comercial': 'Sala comercial',
+                'predio_comercial': 'Prédio comercial',
+                'studio_loft': 'Studio/Loft'
+            }.get(property_type, property_type)
+            
+            await send_interest_registered_email(
+                buyer_email=buyer_email,
+                buyer_name=buyer_name,
+                interest_data={
+                    'property_type': property_type_display,
+                    'budget_range': form_data.get('budget_range'),
+                    'location': form_data.get('location')
+                },
+                ai_interpretation=ai_interpretation
+            )
+            logger.info(f"Confirmation email sent to {buyer_email}")
+            
+    except Exception as e:
+        logger.error(f"Error in background AI processing for interest {interest_id}: {str(e)}")
+        # Update status to failed
+        try:
+            await db.interests.update_one(
+                {"id": interest_id},
+                {"$set": {"ai_processing_status": "failed"}}
+            )
+        except Exception:
+            pass
 
 
 @router.post("/buyers/interests", response_model=BuyerInterest)
@@ -460,8 +537,12 @@ RESPOSTAS DO COMPRADOR:
 
 
 @router.post("/interests/create-full-v2")
-async def create_full_interest_v2(request: Request):
-    """Create interest from the new 18-screen form with AI interpretation"""
+async def create_full_interest_v2(request: Request, background_tasks: BackgroundTasks):
+    """Create interest from the new 18-screen form with AI interpretation.
+    
+    AI interpretation is processed in background to avoid Vercel timeout.
+    The interest is saved immediately, and AI profile is updated asynchronously.
+    """
     
     form_data = await request.json()
     
@@ -540,20 +621,15 @@ async def create_full_interest_v2(request: Request):
     elif '2+ quartos' in indispensable:
         bedrooms = 2
     
-    # Generate AI interpretation asynchronously
-    ai_interpretation = await generate_ai_interpretation(form_data)
-    
-    # Generate simple AI profile for backward compatibility
-    ai_profile = await generate_ai_profile({
-        'profile_type': form_data.get('profile_type'),
-        'urgency': form_data.get('urgency'),
-        'location': form_data.get('location'),
-        'budget_range': form_data.get('budget_range'),
-        'property_type': property_type,
-        'ambiance': form_data.get('ambiance'),
-        'deal_breakers': form_data.get('deal_breakers', []),
-        'proximity_needs': form_data.get('proximity_needs', [])
-    })
+    # Generate a quick fallback AI profile (sync, fast)
+    profile_base = {
+        'primeiro_imovel': 'PRIMEIRO IMÓVEL',
+        'sair_aluguel': 'SAIR DO ALUGUEL',
+        'melhor_localizacao': 'MUDANÇA',
+        'familia_cresceu': 'FAMÍLIA',
+        'investidor': 'INVESTIDOR'
+    }.get(form_data.get('profile_type', ''), 'COMPRADOR')
+    quick_ai_profile = f"{profile_base} - Processando perfil..."
     
     interest_id = str(uuid.uuid4())
     interest = {
@@ -605,9 +681,10 @@ async def create_full_interest_v2(request: Request):
         # BLOCO 6 - ENTORNO
         "proximity_needs": form_data.get('proximity_needs', []),
         
-        # AI Generated
-        "ai_profile": ai_profile,
-        "interpretacaoIA": ai_interpretation,
+        # AI Generated - will be updated in background
+        "ai_profile": quick_ai_profile,
+        "interpretacaoIA": None,  # Will be filled by background task
+        "ai_processing_status": "pending",  # Track AI processing status
         
         # Terms of Use
         "terms_accepted": form_data.get('terms_accepted', False),
@@ -618,25 +695,24 @@ async def create_full_interest_v2(request: Request):
         "form_version": "v4"
     }
     
+    # Save interest immediately (fast response to user)
     await db.interests.insert_one(interest)
+    logger.info(f"Interest {interest_id} saved. Scheduling AI processing in background.")
     
-    # Send confirmation email with AI interpretation
-    if email:
-        await send_interest_registered_email(
-            buyer_email=email,
-            buyer_name=name,
-            interest_data={
-                'property_type': property_type_display,
-                'budget_range': form_data.get('budget_range'),
-                'location': form_data.get('location')
-            },
-            ai_interpretation=ai_interpretation
-        )
+    # Schedule AI processing and email in background
+    background_tasks.add_task(
+        process_ai_interpretation_background,
+        interest_id,
+        form_data,
+        email,
+        name
+    )
     
     return {
         "status": "success",
         "message": "Interesse cadastrado com sucesso!",
         "interest_id": interest_id,
-        "ai_profile": ai_profile,
-        "has_ai_interpretation": ai_interpretation is not None
+        "ai_profile": quick_ai_profile,
+        "has_ai_interpretation": False,  # Will be processed in background
+        "ai_processing": "pending"
     }

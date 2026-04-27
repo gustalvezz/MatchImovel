@@ -159,6 +159,13 @@ Plataforma imobiliária que conecta compradores interessados a corretores atrav�
     - "X match(es) encontrado(s)!" - quando houver matches
   - Correção: endpoint `/buyers/my-interests` agora retorna `interpretacaoIA` do banco
 
+- **Processamento de IA em Background (Fix Vercel Timeout)**:
+  - Refatorado `POST /api/interests/create-full-v2` para usar FastAPI `BackgroundTasks`
+  - Interesse é salvo imediatamente (resposta < 1s)
+  - Geração de IA e envio de email ocorrem em background task
+  - Novo campo `ai_processing_status`: "pending" -> "completed" / "failed"
+  - Frontend atualizado para verificar status de processamento
+
 ### 08/04/2026
 - **Setup de Cron Externo para Lembretes de Visita**:
   - Endpoint: `POST /api/internal/send-visit-reminders`

@@ -203,7 +203,10 @@ const BuyerDashboard = () => {
                 // Check if this interest has any matches
                 const interestMatches = (matches || []).filter(m => m.interest_id === interest.id);
                 const hasMatches = interestMatches.length > 0;
-                const isProcessingAI = interest.status === 'active' && !interest.interpretacaoIA;
+                // AI is processing if: no interpretacaoIA AND (status is pending OR ai_processing_status is pending/undefined)
+                const isProcessingAI = interest.status === 'active' && 
+                  !interest.interpretacaoIA && 
+                  (interest.ai_processing_status === 'pending' || !interest.ai_processing_status);
                 
                 return (
                 <motion.div
