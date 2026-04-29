@@ -102,11 +102,11 @@ async def send_interest_registered_email(buyer_email: str, buyer_name: str, inte
         
         criterios_html = ""
         if criterios:
-            criterios_items = "".join([f'<span style="background: #fee2e2; color: #991b1b; padding: 4px 10px; border-radius: 20px; font-size: 12px; margin: 2px;">{c}</span>' for c in criterios])
+            criterios_items = "".join([f'<span style="background: #fee2e2; color: #991b1b; padding: 4px 10px; border-radius: 20px; font-size: 12px; margin: 2px 2px 4px 0; display: inline-block;">{c}</span>' for c in criterios])
             criterios_html = f'''
                 <div style="margin-top: 16px;">
                     <p style="font-weight: 600; color: #64748b; margin-bottom: 8px; font-size: 14px;">O que você não abre mão:</p>
-                    <div style="display: flex; flex-wrap: wrap; gap: 6px;">{criterios_items}</div>
+                    <div style="max-width: 100%; overflow: hidden; line-height: 2;">{criterios_items}</div>
                 </div>
             '''
         
