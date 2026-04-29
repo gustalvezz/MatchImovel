@@ -131,10 +131,10 @@ async def send_interest_registered_email(buyer_email: str, buyer_name: str, inte
         
         ai_section = f'''
                 <div style="background: linear-gradient(135deg, #f3e8ff, #e0e7ff); padding: 24px; border-radius: 12px; margin: 24px 0;">
-                    <h3 style="margin: 0 0 16px 0; color: #7c3aed; font-size: 18px;">✨ Análise do seu perfil por IA</h3>
+                    <h3 style="margin: 0 0 16px 0; color: #7c3aed; font-size: 18px;">✨ Análise do seu perfil</h3>
                     <p style="color: #4c1d95; font-size: 14px; line-height: 1.6; margin: 0;">{perfil_narrativo}</p>
-                    {criterios_html}
                     {imovel_html}
+                    {criterios_html}
                     {alertas_html}
                 </div>
         '''
