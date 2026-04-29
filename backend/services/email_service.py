@@ -12,8 +12,17 @@ from config import SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD, SMTP_FROM_EMA
 logger = logging.getLogger(__name__)
 
 
-async def send_email(to_email: str, subject: str, html_content: str, text_content: str = None) -> bool:
-    """Send email via SMTP with HTML and optional plain text fallback"""
+_PLAIN_TEXT_FALLBACK = (
+    "MatchImovel - matchimovel.com.br\n\n"
+    "Você recebeu uma notificação da plataforma MatchImovel.\n"
+    "Caso este email não esteja sendo exibido corretamente,\n"
+    "acesse matchimovel.com.br para acessar sua conta.\n\n"
+    "© 2026 MatchImovel - Todos os direitos reservados"
+)
+
+
+async def send_email(to_email: str, subject: str, html_content: str) -> bool:
+    """Send email via SMTP with HTML and plain text fallback for deliverability"""
     if not all([SMTP_HOST, SMTP_USER, SMTP_PASSWORD]):
         logger.warning("SMTP not configured, skipping email send")
         return False
@@ -25,9 +34,8 @@ async def send_email(to_email: str, subject: str, html_content: str, text_conten
         message["Subject"] = subject
 
         # Plain text must be attached first — email clients prefer the last part
-        if text_content:
-            text_part = MIMEText(text_content, "plain", "utf-8")
-            message.attach(text_part)
+        text_part = MIMEText(_PLAIN_TEXT_FALLBACK, "plain", "utf-8")
+        message.attach(text_part)
 
         html_part = MIMEText(html_content, "html", "utf-8")
         message.attach(html_part)
