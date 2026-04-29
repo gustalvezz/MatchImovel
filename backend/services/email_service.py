@@ -12,21 +12,26 @@ from config import SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD, SMTP_FROM_EMA
 logger = logging.getLogger(__name__)
 
 
-async def send_email(to_email: str, subject: str, html_content: str) -> bool:
-    """Send email via SMTP"""
+async def send_email(to_email: str, subject: str, html_content: str, text_content: str = None) -> bool:
+    """Send email via SMTP with HTML and optional plain text fallback"""
     if not all([SMTP_HOST, SMTP_USER, SMTP_PASSWORD]):
         logger.warning("SMTP not configured, skipping email send")
         return False
-    
+
     try:
         message = MIMEMultipart("alternative")
         message["From"] = f"{SMTP_FROM_NAME} <{SMTP_FROM_EMAIL}>"
         message["To"] = to_email
         message["Subject"] = subject
-        
-        html_part = MIMEText(html_content, "html")
+
+        # Plain text must be attached first — email clients prefer the last part
+        if text_content:
+            text_part = MIMEText(text_content, "plain", "utf-8")
+            message.attach(text_part)
+
+        html_part = MIMEText(html_content, "html", "utf-8")
         message.attach(html_part)
-        
+
         await aiosmtplib.send(
             message,
             hostname=SMTP_HOST,
@@ -850,7 +855,7 @@ async def send_saved_search_results_email(
                 </div>
                 
                 <div style="text-align: center;">
-                    <a href="https://matchimob.com/dashboard/agent" class="cta">{cta_text}</a>
+                    <a href="https://matchimovel.com.br/dashboard/agent" class="cta">{cta_text}</a>
                 </div>
                 
                 <p style="font-size: 13px; color: #6b7280; margin-top: 30px;">
