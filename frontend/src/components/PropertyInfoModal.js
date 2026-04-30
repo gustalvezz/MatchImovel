@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -7,9 +7,9 @@ import { Label } from '@/components/ui/label';
 import { Card } from '@/components/ui/card';
 import { X, Home, MapPin, Ruler, BedDouble, Bath, DollarSign, Link as LinkIcon, Send } from 'lucide-react';
 
-const PropertyInfoModal = ({ isOpen, onClose, onSubmit, buyerName, interestLocation }) => {
+const PropertyInfoModal = ({ isOpen, onClose, onSubmit, buyerName, interestLocation, initialDescription = '' }) => {
   const [formData, setFormData] = useState({
-    description: '',
+    description: initialDescription,
     bedrooms: '',
     bathrooms: '',
     area_m2: '',
@@ -20,6 +20,21 @@ const PropertyInfoModal = ({ isOpen, onClose, onSubmit, buyerName, interestLocat
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  useEffect(() => {
+    if (isOpen) {
+      setFormData({
+        description: initialDescription,
+        bedrooms: '',
+        bathrooms: '',
+        area_m2: '',
+        address: '',
+        price: '',
+        link: ''
+      });
+      setErrors({});
+    }
+  }, [isOpen, initialDescription]);
+
   const handleChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
     if (errors[field]) {
@@ -29,9 +44,12 @@ const PropertyInfoModal = ({ isOpen, onClose, onSubmit, buyerName, interestLocat
 
   const validate = () => {
     const newErrors = {};
-    if (!formData.description.trim()) {
-      newErrors.description = 'A descrição do imóvel é obrigatória';
-    }
+    if (!formData.description.trim()) newErrors.description = 'Obrigatório';
+    if (!formData.bedrooms) newErrors.bedrooms = 'Obrigatório';
+    if (!formData.bathrooms) newErrors.bathrooms = 'Obrigatório';
+    if (!formData.area_m2) newErrors.area_m2 = 'Obrigatório';
+    if (!formData.price) newErrors.price = 'Obrigatório';
+    if (!formData.address.trim()) newErrors.address = 'Obrigatório';
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -134,13 +152,13 @@ const PropertyInfoModal = ({ isOpen, onClose, onSubmit, buyerName, interestLocat
                 )}
               </div>
 
-              {/* Grid - Optional fields */}
+              {/* Grid - Required fields */}
               <div className="grid grid-cols-2 gap-4">
                 {/* Bedrooms */}
                 <div>
                   <Label className="text-sm flex items-center gap-1">
                     <BedDouble className="w-4 h-4 text-indigo-500" />
-                    Quartos
+                    Quartos <span className="text-red-500">*</span>
                   </Label>
                   <Input
                     data-testid="property-bedrooms"
@@ -149,15 +167,16 @@ const PropertyInfoModal = ({ isOpen, onClose, onSubmit, buyerName, interestLocat
                     value={formData.bedrooms}
                     onChange={(e) => handleChange('bedrooms', e.target.value)}
                     placeholder="Ex: 3"
-                    className="mt-1 rounded-xl"
+                    className={`mt-1 rounded-xl ${errors.bedrooms ? 'border-red-500' : ''}`}
                   />
+                  {errors.bedrooms && <p className="text-red-500 text-xs mt-1">{errors.bedrooms}</p>}
                 </div>
 
                 {/* Bathrooms */}
                 <div>
                   <Label className="text-sm flex items-center gap-1">
                     <Bath className="w-4 h-4 text-indigo-500" />
-                    Banheiros
+                    Banheiros <span className="text-red-500">*</span>
                   </Label>
                   <Input
                     data-testid="property-bathrooms"
@@ -166,15 +185,16 @@ const PropertyInfoModal = ({ isOpen, onClose, onSubmit, buyerName, interestLocat
                     value={formData.bathrooms}
                     onChange={(e) => handleChange('bathrooms', e.target.value)}
                     placeholder="Ex: 2"
-                    className="mt-1 rounded-xl"
+                    className={`mt-1 rounded-xl ${errors.bathrooms ? 'border-red-500' : ''}`}
                   />
+                  {errors.bathrooms && <p className="text-red-500 text-xs mt-1">{errors.bathrooms}</p>}
                 </div>
 
                 {/* Area */}
                 <div>
                   <Label className="text-sm flex items-center gap-1">
                     <Ruler className="w-4 h-4 text-indigo-500" />
-                    Área (m²)
+                    Área (m²) <span className="text-red-500">*</span>
                   </Label>
                   <Input
                     data-testid="property-area"
@@ -183,23 +203,25 @@ const PropertyInfoModal = ({ isOpen, onClose, onSubmit, buyerName, interestLocat
                     value={formData.area_m2}
                     onChange={(e) => handleChange('area_m2', e.target.value)}
                     placeholder="Ex: 120"
-                    className="mt-1 rounded-xl"
+                    className={`mt-1 rounded-xl ${errors.area_m2 ? 'border-red-500' : ''}`}
                   />
+                  {errors.area_m2 && <p className="text-red-500 text-xs mt-1">{errors.area_m2}</p>}
                 </div>
 
                 {/* Price */}
                 <div>
                   <Label className="text-sm flex items-center gap-1">
                     <DollarSign className="w-4 h-4 text-indigo-500" />
-                    Valor (R$)
+                    Valor (R$) <span className="text-red-500">*</span>
                   </Label>
                   <Input
                     data-testid="property-price"
                     value={formData.price}
                     onChange={(e) => handleChange('price', formatPrice(e.target.value))}
                     placeholder="Ex: 500.000"
-                    className="mt-1 rounded-xl"
+                    className={`mt-1 rounded-xl ${errors.price ? 'border-red-500' : ''}`}
                   />
+                  {errors.price && <p className="text-red-500 text-xs mt-1">{errors.price}</p>}
                 </div>
               </div>
 
@@ -207,15 +229,16 @@ const PropertyInfoModal = ({ isOpen, onClose, onSubmit, buyerName, interestLocat
               <div>
                 <Label className="text-sm flex items-center gap-1">
                   <MapPin className="w-4 h-4 text-indigo-500" />
-                  Endereço / Localização
+                  Endereço / Localização <span className="text-red-500">*</span>
                 </Label>
                 <Input
                   data-testid="property-address"
                   value={formData.address}
                   onChange={(e) => handleChange('address', e.target.value)}
                   placeholder="Ex: Rua das Flores, 123 - Jardim América"
-                  className="mt-1 rounded-xl"
+                  className={`mt-1 rounded-xl ${errors.address ? 'border-red-500' : ''}`}
                 />
+                {errors.address && <p className="text-red-500 text-xs mt-1">{errors.address}</p>}
               </div>
 
               {/* Link - Optional */}

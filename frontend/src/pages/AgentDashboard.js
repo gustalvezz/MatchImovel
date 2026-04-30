@@ -1058,6 +1058,7 @@ Dica: quanto mais você descrever — localização, entorno, luz, silêncio, es
           onSubmit={handlePropertySubmit}
           buyerName={selectedInterest.buyer_name || 'Comprador'}
           interestLocation={selectedInterest.location}
+          initialDescription={selectedInterest.ai_compatibility?.property_description || propertyDescription}
         />
       )}
 
