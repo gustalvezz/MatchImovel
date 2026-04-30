@@ -30,4 +30,3 @@ FRONTEND_URL = os.environ.get('FRONTEND_URL')
 
 # CORS
 CORS_ORIGINS = os.environ.get('CORS_ORIGINS', '*').split(',')
-CORS_ORIGIN_REGEX = os.environ.get('CORS_ORIGIN_REGEX', r'https://.*\.vercel\.app')
