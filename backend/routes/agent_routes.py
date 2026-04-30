@@ -127,6 +127,10 @@ class BuyerMatch(BaseModel):
     location: str
     budget_range: Optional[str] = None
     ai_profile: Optional[str] = None
+    payment_method: Optional[list] = None
+    bedrooms: Optional[int] = None
+    min_price: Optional[float] = None
+    max_price: Optional[float] = None
 
 class AIDiscoveryResponse(BaseModel):
     matches: List[BuyerMatch]
@@ -442,7 +446,11 @@ async def ai_discovery(request: AIDiscoveryRequest, current_user: dict = Depends
                         property_type=interest_data.get("property_type", ""),
                         location=interest_data.get("location", ""),
                         budget_range=interest_data.get("budget_range"),
-                        ai_profile=interest_data.get("ai_profile")
+                        ai_profile=interest_data.get("ai_profile"),
+                        payment_method=interest_data.get("payment_method"),
+                        bedrooms=interest_data.get("bedrooms"),
+                        min_price=interest_data.get("min_price"),
+                        max_price=interest_data.get("max_price")
                     ))
                 else:
                     logger.warning(f"Interest not found for comprador_id: {result['comprador_id']}. Available IDs: {[i['id'] for i in prefiltered_interests]}")
@@ -827,6 +835,10 @@ async def process_saved_searches(request: Request):
                                 result["location"] = interest_data.get("location", "")
                                 result["budget_range"] = interest_data.get("budget_range")
                                 result["ai_profile"] = interest_data.get("ai_profile")
+                                result["payment_method"] = interest_data.get("payment_method")
+                                result["bedrooms"] = interest_data.get("bedrooms")
+                                result["min_price"] = interest_data.get("min_price")
+                                result["max_price"] = interest_data.get("max_price")
                                 new_matches.append(result)
                                 results["matches_found"] += 1
                             

@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import { useAuth } from '@/context/AuthContext';
-import { Home, LogOut, Users, Heart, DollarSign, MapPin, Building2, Trash2, Sparkles, Loader2, Filter, Search, X, Clock, AlertTriangle } from 'lucide-react';
+import { Home, LogOut, Users, Heart, DollarSign, MapPin, Building2, Trash2, Sparkles, Loader2, Filter, Search, X, Clock, AlertTriangle, ChevronDown, ChevronUp, BedDouble } from 'lucide-react';
 import { toast } from 'sonner';
 import DeleteConfirmModal from '@/components/DeleteConfirmModal';
 import PropertyInfoModal from '@/components/PropertyInfoModal';
@@ -163,6 +163,7 @@ const AgentDashboard = () => {
   const [hasSearched, setHasSearched] = useState(false);
   const [totalEvaluated, setTotalEvaluated] = useState(0);
   const [prefilterStats, setPrefilterStats] = useState(null);
+  const [expandedResults, setExpandedResults] = useState({});
 
   useEffect(() => {
     fetchData();
@@ -561,51 +562,100 @@ const AgentDashboard = () => {
                             <Users className="w-3 h-3" />
                             Compradores compatíveis encontrados:
                           </p>
-                          {search.pending_results.map((result) => (
-                            <div 
-                              key={result.comprador_id}
-                              className="p-3 bg-white rounded-lg border border-slate-200 shadow-sm"
-                            >
-                              <div className="flex items-center justify-between gap-3">
-                                <div className="flex-1 min-w-0">
-                                  <div className="flex items-center gap-2 mb-1">
-                                    <Badge className={`rounded-full text-xs px-2 py-0.5 ${
-                                      result.score >= 80 ? 'bg-green-500 text-white' :
-                                      result.score >= 60 ? 'bg-yellow-500 text-white' :
-                                      'bg-orange-500 text-white'
-                                    }`}>
-                                      {result.score}%
-                                    </Badge>
-                                    <span className="font-medium text-sm">{result.buyer_name}</span>
+                          {search.pending_results.map((result) => {
+                            const expandKey = `${search.id}-${result.comprador_id}`;
+                            const isExpanded = expandedResults[expandKey];
+                            return (
+                              <div
+                                key={result.comprador_id}
+                                className="p-3 bg-white rounded-lg border border-slate-200 shadow-sm"
+                              >
+                                <div className="flex items-center justify-between gap-3">
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-2 mb-1">
+                                      <Badge className={`rounded-full text-xs px-2 py-0.5 ${
+                                        result.score >= 80 ? 'bg-green-500 text-white' :
+                                        result.score >= 60 ? 'bg-yellow-500 text-white' :
+                                        'bg-orange-500 text-white'
+                                      }`}>
+                                        {result.score}%
+                                      </Badge>
+                                      <span className="font-medium text-sm">{result.buyer_name}</span>
+                                    </div>
+                                    <p className="text-xs text-muted-foreground line-clamp-1 mb-1">
+                                      {result.property_type} • {result.location}
+                                    </p>
+                                    <div className="flex flex-wrap gap-2 text-xs text-slate-600">
+                                      {result.bedrooms > 0 && (
+                                        <span className="flex items-center gap-1">
+                                          <BedDouble className="w-3 h-3 text-indigo-400" />
+                                          {result.bedrooms}+ quartos
+                                        </span>
+                                      )}
+                                      {(result.min_price > 0 || result.max_price > 0) && (
+                                        <span className="flex items-center gap-1">
+                                          <DollarSign className="w-3 h-3 text-indigo-400" />
+                                          {result.min_price > 0 && result.max_price > 0
+                                            ? `R$ ${result.min_price.toLocaleString('pt-BR')} – ${result.max_price.toLocaleString('pt-BR')}`
+                                            : result.max_price > 0
+                                              ? `até R$ ${result.max_price.toLocaleString('pt-BR')}`
+                                              : `a partir de R$ ${result.min_price.toLocaleString('pt-BR')}`
+                                          }
+                                        </span>
+                                      )}
+                                      {result.payment_method?.length > 0 && (
+                                        <span className="flex items-center gap-1">
+                                          <DollarSign className="w-3 h-3 text-green-500" />
+                                          {result.payment_method.join(' + ')}
+                                        </span>
+                                      )}
+                                    </div>
                                   </div>
-                                  <p className="text-xs text-muted-foreground line-clamp-1">
-                                    {result.property_type} • {result.location}
-                                  </p>
+                                  <div className="flex flex-col gap-2 items-end flex-shrink-0">
+                                    {(() => {
+                                      const config = getMatchButtonConfig(result.comprador_id);
+                                      return (
+                                        <Button
+                                          size="sm"
+                                          onClick={() => {
+                                            if (!config.disabled) {
+                                              handleMatchFromAI({
+                                                ...result,
+                                                _searchId: search.id
+                                              });
+                                            }
+                                          }}
+                                          disabled={config.disabled}
+                                          className={`${config.className} text-xs px-3`}
+                                        >
+                                          {config.icon}
+                                          {config.text}
+                                        </Button>
+                                      );
+                                    })()}
+                                    {result.justificativa && (
+                                      <button
+                                        onClick={() => setExpandedResults(prev => ({ ...prev, [expandKey]: !isExpanded }))}
+                                        className="text-xs text-indigo-600 hover:text-indigo-800 flex items-center gap-1"
+                                      >
+                                        {isExpanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                                        {isExpanded ? 'Ocultar' : 'Ver resumo'}
+                                      </button>
+                                    )}
+                                  </div>
                                 </div>
-                                {(() => {
-                                  const config = getMatchButtonConfig(result.comprador_id);
-                                  return (
-                                    <Button
-                                      size="sm"
-                                      onClick={() => {
-                                        if (!config.disabled) {
-                                          handleMatchFromAI({
-                                            ...result,
-                                            _searchId: search.id
-                                          });
-                                        }
-                                      }}
-                                      disabled={config.disabled}
-                                      className={`${config.className} text-xs px-3`}
-                                    >
-                                      {config.icon}
-                                      {config.text}
-                                    </Button>
-                                  );
-                                })()}
+                                {isExpanded && result.justificativa && (
+                                  <div className="mt-3 pt-3 border-t border-slate-100 bg-slate-50 rounded-lg p-3">
+                                    <p className="text-xs font-medium text-slate-600 mb-1 flex items-center gap-1">
+                                      <Sparkles className="w-3 h-3 text-indigo-500" />
+                                      Análise de compatibilidade
+                                    </p>
+                                    <p className="text-xs text-slate-600 leading-relaxed">{result.justificativa}</p>
+                                  </div>
+                                )}
                               </div>
-                            </div>
-                          ))}
+                            );
+                          })}
                         </div>
                       )}
                     </div>
@@ -815,7 +865,7 @@ Dica: quanto mais você descrever — localização, entorno, luz, silêncio, es
                                 </Badge>
                               )}
                               
-                              <div className="flex items-center gap-4 text-sm text-muted-foreground mb-3">
+                              <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground mb-3">
                                 <span className="flex items-center gap-1">
                                   <Building2 className="w-4 h-4" />
                                   {result.property_type}
@@ -824,6 +874,29 @@ Dica: quanto mais você descrever — localização, entorno, luz, silêncio, es
                                   <MapPin className="w-4 h-4" />
                                   {result.location}
                                 </span>
+                                {result.bedrooms > 0 && (
+                                  <span className="flex items-center gap-1">
+                                    <BedDouble className="w-4 h-4 text-indigo-400" />
+                                    {result.bedrooms}+ quartos
+                                  </span>
+                                )}
+                                {(result.min_price > 0 || result.max_price > 0) && (
+                                  <span className="flex items-center gap-1">
+                                    <DollarSign className="w-4 h-4 text-indigo-400" />
+                                    {result.min_price > 0 && result.max_price > 0
+                                      ? `R$ ${result.min_price.toLocaleString('pt-BR')} – ${result.max_price.toLocaleString('pt-BR')}`
+                                      : result.max_price > 0
+                                        ? `até R$ ${result.max_price.toLocaleString('pt-BR')}`
+                                        : `a partir de R$ ${result.min_price.toLocaleString('pt-BR')}`
+                                    }
+                                  </span>
+                                )}
+                                {result.payment_method?.length > 0 && (
+                                  <span className="flex items-center gap-1">
+                                    <DollarSign className="w-4 h-4 text-green-500" />
+                                    {result.payment_method.join(' + ')}
+                                  </span>
+                                )}
                               </div>
                             </div>
                             
@@ -985,6 +1058,7 @@ Dica: quanto mais você descrever — localização, entorno, luz, silêncio, es
           onSubmit={handlePropertySubmit}
           buyerName={selectedInterest.buyer_name || 'Comprador'}
           interestLocation={selectedInterest.location}
+          initialDescription={selectedInterest.ai_compatibility?.property_description || propertyDescription}
         />
       )}
 

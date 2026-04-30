@@ -12,21 +12,34 @@ from config import SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD, SMTP_FROM_EMA
 logger = logging.getLogger(__name__)
 
 
+_PLAIN_TEXT_FALLBACK = (
+    "MatchImovel - matchimovel.com.br\n\n"
+    "Você recebeu uma notificação da plataforma MatchImovel.\n"
+    "Caso este email não esteja sendo exibido corretamente,\n"
+    "acesse matchimovel.com.br para acessar sua conta.\n\n"
+    "© 2026 MatchImovel - Todos os direitos reservados"
+)
+
+
 async def send_email(to_email: str, subject: str, html_content: str) -> bool:
-    """Send email via SMTP"""
+    """Send email via SMTP with HTML and plain text fallback for deliverability"""
     if not all([SMTP_HOST, SMTP_USER, SMTP_PASSWORD]):
         logger.warning("SMTP not configured, skipping email send")
         return False
-    
+
     try:
         message = MIMEMultipart("alternative")
         message["From"] = f"{SMTP_FROM_NAME} <{SMTP_FROM_EMAIL}>"
         message["To"] = to_email
         message["Subject"] = subject
-        
-        html_part = MIMEText(html_content, "html")
+
+        # Plain text must be attached first — email clients prefer the last part
+        text_part = MIMEText(_PLAIN_TEXT_FALLBACK, "plain", "utf-8")
+        message.attach(text_part)
+
+        html_part = MIMEText(html_content, "html", "utf-8")
         message.attach(html_part)
-        
+
         await aiosmtplib.send(
             message,
             hostname=SMTP_HOST,
@@ -89,11 +102,11 @@ async def send_interest_registered_email(buyer_email: str, buyer_name: str, inte
         
         criterios_html = ""
         if criterios:
-            criterios_items = "".join([f'<span style="background: #fee2e2; color: #991b1b; padding: 4px 10px; border-radius: 20px; font-size: 12px; margin: 2px;">{c}</span>' for c in criterios])
+            criterios_items = "".join([f'<span style="background: #fee2e2; color: #991b1b; padding: 4px 10px; border-radius: 20px; font-size: 12px; margin: 2px 2px 4px 0; display: inline-block;">{c}</span>' for c in criterios])
             criterios_html = f'''
                 <div style="margin-top: 16px;">
                     <p style="font-weight: 600; color: #64748b; margin-bottom: 8px; font-size: 14px;">O que você não abre mão:</p>
-                    <div style="display: flex; flex-wrap: wrap; gap: 6px;">{criterios_items}</div>
+                    <div style="max-width: 100%; overflow: hidden; line-height: 2;">{criterios_items}</div>
                 </div>
             '''
         
@@ -118,10 +131,10 @@ async def send_interest_registered_email(buyer_email: str, buyer_name: str, inte
         
         ai_section = f'''
                 <div style="background: linear-gradient(135deg, #f3e8ff, #e0e7ff); padding: 24px; border-radius: 12px; margin: 24px 0;">
-                    <h3 style="margin: 0 0 16px 0; color: #7c3aed; font-size: 18px;">✨ Análise do seu perfil por IA</h3>
+                    <h3 style="margin: 0 0 16px 0; color: #7c3aed; font-size: 18px;">✨ Análise do seu perfil</h3>
                     <p style="color: #4c1d95; font-size: 14px; line-height: 1.6; margin: 0;">{perfil_narrativo}</p>
-                    {criterios_html}
                     {imovel_html}
+                    {criterios_html}
                     {alertas_html}
                 </div>
         '''
@@ -850,7 +863,7 @@ async def send_saved_search_results_email(
                 </div>
                 
                 <div style="text-align: center;">
-                    <a href="https://matchimob.com/dashboard/agent" class="cta">{cta_text}</a>
+                    <a href="https://matchimovel.com.br/dashboard/agent" class="cta">{cta_text}</a>
                 </div>
                 
                 <p style="font-size: 13px; color: #6b7280; margin-top: 30px;">

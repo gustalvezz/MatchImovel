@@ -198,6 +198,12 @@ const CuratorDashboard = () => {
                     {match.interest.bedrooms} quartos
                   </p>
                 )}
+                {match.interest.payment_method?.length > 0 && (
+                  <p className="flex items-center gap-2">
+                    <DollarSign className="w-4 h-4 text-indigo-500" />
+                    {match.interest.payment_method.join(' + ')}
+                  </p>
+                )}
                 {match.interest.bathrooms && (
                   <p className="flex items-center gap-2">
                     <Bath className="w-4 h-4 text-indigo-500" />
@@ -242,10 +248,13 @@ const CuratorDashboard = () => {
                     </div>
                   )}
                   {match.interest.interpretacaoIA.criterios_inegociaveis?.length > 0 && (
-                    <div className="flex flex-wrap gap-1">
-                      {match.interest.interpretacaoIA.criterios_inegociaveis.slice(0,4).map((c, i) => (
-                        <span key={i} className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full">{c}</span>
-                      ))}
+                    <div>
+                      <p className="text-xs font-medium text-slate-600 mb-1">O que não abre mão:</p>
+                      <div className="flex flex-wrap gap-1">
+                        {match.interest.interpretacaoIA.criterios_inegociaveis.slice(0,4).map((c, i) => (
+                          <span key={i} className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full">{c}</span>
+                        ))}
+                      </div>
                     </div>
                   )}
                 </div>
