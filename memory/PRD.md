@@ -71,17 +71,15 @@ Plataforma imobiliária que conecta compradores interessados a corretores atrav�
 ### Dashboard do Corretor
 - [x] Listagem de compradores ativos com perfil IA badge
 - [x] Busca textual ignorando acentos (sao paulo → São Paulo)
-- [x] **Descoberta Inteligente por IA**: corretor descreve imóvel, GPT-4o retorna compradores com score de compatibilidade e justificativa
+- [x] **Descoberta Inteligente por IA — fluxo em 3 etapas inline** (sem modal):
+  - **Etapa 1 — Pré-filtro + Descrição**: corretor informa valor, tipo do imóvel e descrição livre → "Analisar descrição"
+  - **Etapa 2 — Ficha do imóvel**: IA extrai campos estruturados por tipo e pré-preenche o formulário com badge "IA" nos campos extraídos. Corretor completa os campos faltantes. Todos obrigatórios exceto link.
+  - **Etapa 3 — Resultados**: GPT-4o cruza a ficha completa com perfis de compradores pré-filtrados → cards com score, justificativa e botão "Dar Match" que cria o match diretamente (sem abrir modal)
 - [x] **Pré-filtro automático** antes da IA: filtra por orçamento (max_price ≥ 75% do valor) e tipo de imóvel — métricas expostas na resposta
-- [x] **Buscas Salvas**: busca é salva automaticamente após execução, re-executada via cron a cada 7 dias
+- [x] **Buscas Salvas**: busca é salva automaticamente após execução com `property_data` estruturado; re-executada via cron a cada 7 dias usando os mesmos dados estruturados para matching de qualidade
 - [x] Notificação por email ao corretor quando cron encontra novos matches
 - [x] Cards de resultados exibem: score, nome, tipo, localização, quartos, faixa de preço, forma de pagamento
-- [x] Cards de buscas salvas com resultados pendentes: mesmos campos + botão "Ver resumo" expansível com justificativa da IA
-- [x] **Cadastro de imóvel em 2 etapas**:
-  - Etapa 1: campo de descrição livre + botão "Analisar descrição" com loading
-  - Etapa 2: formulário dinâmico por tipo de imóvel, pré-preenchido pela IA com badge "IA" nos campos extraídos
-  - Todos os campos obrigatórios exceto link do anúncio
-  - `ai_summary` gerado com informações extras da descrição não capturadas nos campos
+- [x] Cards de buscas salvas com resultados pendentes: mesmos campos + botão "Ver resumo" expansível + "Dar Match" abre `PropertyInfoModal` (pré-preenchido com `property_data` da busca quando disponível)
 - [x] Aba "Meus Matches" com status (Em Análise, Aprovado, Visita Agendada, etc.)
 - [x] Modal de exclusão de match com motivo obrigatório
 
@@ -215,6 +213,17 @@ backend/
 ---
 
 ## Changelog
+
+### 02/05/2026 (2ª atualização)
+- **Fluxo de descoberta refatorado para 3 etapas inline (sem modal)**:
+  - `AgentDashboard` passa a ter fluxo em 3 passos inline: (1) pré-filtro + descrição → (2) ficha estruturada preenchida pela IA → (3) resultados com match direto
+  - "Dar Match" na etapa 3 cria o match diretamente com os dados da ficha já coletados — nenhum modal abre
+  - `PropertyInfoModal` mantido apenas para "Dar Match" de buscas salvas (com `property_data` da busca para pré-preencher)
+  - `property_data` (ficha estruturada completa) agora salvo no documento `agent_searches` para reuso pelo cron
+  - Cron `process_saved_searches` usa `property_data` quando disponível, aumentando qualidade do matching automático
+  - `evaluate_buyers_with_openai` aceita `property_data: dict` opcional; quando presente, usa dados estruturados em vez de texto livre (helper `_format_property_data` formata os campos para o prompt)
+  - `AIDiscoveryRequest` ganha campo `property_data`; `AIDiscoveryResponse` remove `extracted_property` (extração é agora etapa prévia)
+  - Utilitário compartilhado `frontend/src/utils/propertyFields.js` criado: centraliza `FIELDS_BY_TYPE`, `FIELD_META`, `normalizeExtracted`, `validatePropertyForm`, `FieldRenderer` e `PropertyFormFields` — usado por `AgentDashboard` e `PropertyInfoModal` evitando duplicação e bugs de normalização de tipos
 
 ### 02/05/2026
 - **Cadastro de imóvel em 2 etapas com extração de campos por IA**:

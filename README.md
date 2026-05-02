@@ -49,6 +49,8 @@
     └── src/
         ├── context/
         │   └── AuthContext.js      # Autenticação JWT + axios global
+        ├── utils/
+        │   └── propertyFields.js   # FIELDS_BY_TYPE, FIELD_META, FieldRenderer, normalizeExtracted (shared)
         ├── components/
         │   ├── ui/                 # Componentes Shadcn UI
         │   ├── AnalyticsDashboard.js
@@ -84,11 +86,13 @@
 - ✅ Visualização de matches aprovados com detalhes do imóvel
 
 ### Para Corretores
-- ✅ Busca inteligente de compradores por IA: corretor descreve o imóvel, GPT-4o retorna score de compatibilidade por perfil
+- ✅ **Descoberta inteligente em 3 etapas inline**:
+  1. Preenche valor, tipo e descrição livre do imóvel
+  2. IA extrai campos estruturados por tipo de imóvel e pré-preenche o formulário (badge "IA" nos campos extraídos); corretor completa os faltantes
+  3. Busca executa com a ficha completa — GPT-4o retorna compradores com score de compatibilidade; "Dar Match" cria o match diretamente
 - ✅ Pré-filtro automático por tipo de imóvel e faixa de orçamento antes de enviar à IA
-- ✅ Buscas salvas com re-execução automática a cada 7 dias via cron
+- ✅ Buscas salvas com `property_data` estruturado; re-execução automática a cada 7 dias via cron com matching de mesma qualidade
 - ✅ Notificação por email quando novos matches são encontrados automaticamente
-- ✅ Cadastro de imóvel em 2 etapas: descrição livre → IA extrai campos estruturados por tipo de imóvel
 - ✅ Formulário dinâmico por tipo (apartamento, casa, casa de condomínio, terreno, studio/loft, sala comercial)
 - ✅ Visualização do status dos matches (em análise, aprovado, visita agendada)
 
