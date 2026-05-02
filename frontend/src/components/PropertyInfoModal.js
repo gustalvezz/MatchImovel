@@ -60,6 +60,39 @@ const FIELD_META = {
   link:                 { label: 'Link do anúncio (opcional)', type: 'url', required: false },
 };
 
+// Coerce each extracted field to its expected type to prevent rendering crashes
+const normalizeExtracted = (raw) => {
+  const result = {};
+  for (const [key, value] of Object.entries(raw)) {
+    if (value === null || value === undefined) { result[key] = null; continue; }
+    const meta = FIELD_META[key];
+    if (!meta) { result[key] = value; continue; }
+
+    if (meta.type === 'boolean') {
+      result[key] = value === true || value === 'true' || value === 1;
+    } else if (meta.type === 'number') {
+      const n = parseFloat(value);
+      result[key] = isNaN(n) ? null : n;
+    } else if (meta.type === 'currency') {
+      const n = parseFloat(String(value).replace(/\D/g, ''));
+      result[key] = isNaN(n) ? null : n;
+    } else if (meta.type === 'multiselect') {
+      if (Array.isArray(value)) result[key] = value;
+      else if (typeof value === 'string' && value.trim()) result[key] = value.split(',').map(s => s.trim()).filter(Boolean);
+      else result[key] = [];
+    } else if (meta.type === 'text' || meta.type === 'url' || meta.type === 'select') {
+      result[key] = typeof value === 'string' ? value : null;
+    } else {
+      result[key] = value;
+    }
+  }
+  // ai_summary must always be a string or null
+  if (result.ai_summary !== null && result.ai_summary !== undefined) {
+    result.ai_summary = typeof result.ai_summary === 'string' ? result.ai_summary : null;
+  }
+  return result;
+};
+
 const formatCurrencyDisplay = (val) => {
   if (val === null || val === undefined || val === '') return '';
   const n = String(val).replace(/\D/g, '');
@@ -217,8 +250,8 @@ const PropertyInfoModal = ({ isOpen, onClose, onSubmit, buyerName, interestLocat
         property_price: propertyPrice,
         description: description.trim(),
       });
-      const extracted = res.data.extracted || {};
-      // ai_summary is stored separately, not in form fields
+      const raw = res.data.extracted || {};
+      const extracted = normalizeExtracted(raw);
       const { ai_summary, ...formFields } = extracted;
       setFormData({ ...formFields, ai_summary: ai_summary || null });
       setStep(2);
@@ -388,7 +421,7 @@ const PropertyInfoModal = ({ isOpen, onClose, onSubmit, buyerName, interestLocat
                 </div>
 
                 {/* AI Summary preview (read-only) */}
-                {formData.ai_summary && (
+                {typeof formData.ai_summary === 'string' && formData.ai_summary && (
                   <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
                     <p className="text-xs font-medium text-slate-500 mb-1">Resumo gerado pela IA (será usado no match)</p>
                     <p className="text-sm text-slate-700">{formData.ai_summary}</p>
