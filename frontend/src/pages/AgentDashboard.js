@@ -7,13 +7,22 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
 import { useAuth } from '@/context/AuthContext';
-import { Home, LogOut, Users, Heart, DollarSign, MapPin, Building2, Trash2, Sparkles, Loader2, Filter, Search, X, Clock, AlertTriangle, ChevronDown, ChevronUp, BedDouble } from 'lucide-react';
+import { Home, LogOut, Users, Heart, DollarSign, MapPin, Building2, Trash2, Sparkles, Loader2, Filter, Search, X, Clock, AlertTriangle, ChevronDown, ChevronUp, BedDouble, ArrowLeft, CheckCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import DeleteConfirmModal from '@/components/DeleteConfirmModal';
 import PropertyInfoModal from '@/components/PropertyInfoModal';
-import { Input } from '@/components/ui/input';
 import DashboardLoading from '@/components/DashboardLoading';
+import {
+  FIELDS_BY_TYPE,
+  FIELD_META,
+  PropertyFormFields,
+  validatePropertyForm,
+  normalizeExtracted,
+  formatCurrencyDisplay,
+} from '@/utils/propertyFields';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
@@ -22,13 +31,13 @@ const API = `${BACKEND_URL}/api`;
 const DeactivationModal = ({ isOpen, onClose, onConfirm, searchDescription }) => {
   const [reason, setReason] = useState('');
   const [customReason, setCustomReason] = useState('');
-  
+
   const reasons = [
     { value: 'Imóvel vendido por outro canal', label: 'Imóvel vendido por outro canal' },
     { value: 'Imóvel retirado da venda', label: 'Imóvel retirado da venda' },
     { value: 'outro', label: 'Outro' }
   ];
-  
+
   const handleConfirm = () => {
     const finalReason = reason === 'outro' ? customReason : reason;
     if (!finalReason.trim()) {
@@ -39,9 +48,9 @@ const DeactivationModal = ({ isOpen, onClose, onConfirm, searchDescription }) =>
     setReason('');
     setCustomReason('');
   };
-  
+
   if (!isOpen) return null;
-  
+
   return (
     <AnimatePresence>
       <motion.div
@@ -64,19 +73,19 @@ const DeactivationModal = ({ isOpen, onClose, onConfirm, searchDescription }) =>
               <X className="w-5 h-5" />
             </button>
           </div>
-          
+
           <p className="text-sm text-slate-600 mb-4">
             Você está desativando a busca automática para:
           </p>
           <p className="text-sm text-slate-800 bg-slate-50 p-3 rounded-lg mb-4 line-clamp-2">
             "{searchDescription}"
           </p>
-          
+
           <p className="text-sm font-medium text-slate-700 mb-2">Qual o motivo?</p>
-          
+
           <div className="space-y-2 mb-4">
             {reasons.map(r => (
-              <label 
+              <label
                 key={r.value}
                 className={`flex items-center gap-3 p-3 rounded-lg border-2 cursor-pointer transition-colors ${
                   reason === r.value ? 'border-indigo-500 bg-indigo-50' : 'border-slate-200 hover:border-slate-300'
@@ -94,7 +103,7 @@ const DeactivationModal = ({ isOpen, onClose, onConfirm, searchDescription }) =>
               </label>
             ))}
           </div>
-          
+
           {reason === 'outro' && (
             <Input
               value={customReason}
@@ -103,12 +112,12 @@ const DeactivationModal = ({ isOpen, onClose, onConfirm, searchDescription }) =>
               className="mb-4"
             />
           )}
-          
+
           <div className="flex gap-3">
             <Button variant="outline" onClick={onClose} className="flex-1">
               Cancelar
             </Button>
-            <Button 
+            <Button
               onClick={handleConfirm}
               disabled={!reason || (reason === 'outro' && !customReason.trim())}
               className="flex-1 bg-red-600 hover:bg-red-700"
@@ -130,50 +139,56 @@ const AgentDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [selectedMatch, setSelectedMatch] = useState(null);
+
+  // PropertyInfoModal state (for saved search matches only)
   const [showPropertyModal, setShowPropertyModal] = useState(false);
   const [selectedInterest, setSelectedInterest] = useState(null);
-  
+  const [propertyModalType, setPropertyModalType] = useState('casa');
+  const [propertyModalInitialExtracted, setPropertyModalInitialExtracted] = useState(null);
+
   // Saved searches state
   const [savedSearches, setSavedSearches] = useState([]);
   const [showDeactivationModal, setShowDeactivationModal] = useState(false);
   const [searchToDeactivate, setSearchToDeactivate] = useState(null);
-  
-  // AI Discovery state
+
+  // ---- Step 1: pre-filter fields ----
   const [propertyDescription, setPropertyDescription] = useState('');
   const [propertyPrice, setPropertyPrice] = useState('');
   const [propertyPriceDisplay, setPropertyPriceDisplay] = useState('');
-  
-  // Format currency for display
+  const [propertyType, setPropertyType] = useState('');
+
+  // ---- Discovery flow step (1 = describe, 2 = form, 3 = results) ----
+  const [discoveryStep, setDiscoveryStep] = useState(1);
+  const [analyzeLoading, setAnalyzeLoading] = useState(false);
+
+  // ---- Step 2: property form ----
+  const [propertyFormData, setPropertyFormData] = useState({});
+  const [propertyFormErrors, setPropertyFormErrors] = useState({});
+  const [aiBadgeKeys, setAiBadgeKeys] = useState([]);
+
+  // ---- Step 3: results ----
+  const [aiResults, setAiResults] = useState([]);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [totalEvaluated, setTotalEvaluated] = useState(0);
+  const [prefilterStats, setPrefilterStats] = useState(null);
+  const [expandedResults, setExpandedResults] = useState({});
+
   const formatCurrency = (value) => {
     if (!value) return '';
     const numericValue = String(value).replace(/\D/g, '');
     if (!numericValue) return '';
-    const number = parseInt(numericValue, 10);
-    return number.toLocaleString('pt-BR');
+    return parseInt(numericValue, 10).toLocaleString('pt-BR');
   };
-  
+
   const handlePriceChange = (e) => {
     const rawValue = e.target.value.replace(/\D/g, '');
     setPropertyPrice(rawValue);
     setPropertyPriceDisplay(formatCurrency(rawValue));
   };
-  const [propertyType, setPropertyType] = useState('');
-  const [aiResults, setAiResults] = useState([]);
-  const [aiLoading, setAiLoading] = useState(false);
-  const [hasSearched, setHasSearched] = useState(false);
-  const [totalEvaluated, setTotalEvaluated] = useState(0);
-  const [prefilterStats, setPrefilterStats] = useState(null);
-  const [expandedResults, setExpandedResults] = useState({});
-  const [extractedProperty, setExtractedProperty] = useState(null);
 
   useEffect(() => {
     fetchData();
-    
-    // Auto-refresh a cada 30 segundos
-    const interval = setInterval(() => {
-      fetchData();
-    }, 30000);
-    
+    const interval = setInterval(() => { fetchData(); }, 30000);
     return () => clearInterval(interval);
   }, []);
 
@@ -196,7 +211,6 @@ const AgentDashboard = () => {
 
   const handleDeactivateSearch = async (reason) => {
     if (!searchToDeactivate) return;
-    
     try {
       await axios.patch(`${API}/agents/searches/${searchToDeactivate.id}`, {
         deactivation_reason: reason
@@ -210,14 +224,136 @@ const AgentDashboard = () => {
     }
   };
 
-  const handleMatch = async (buyerId, interestId) => {
-    // Open modal to collect property info
-    const interest = buyers.find(b => b.id === interestId);
+  // ---- Step 1 → 2: analyze description ----
+  const handleAnalyzeProperty = async () => {
+    const priceValue = parseInt(propertyPrice, 10);
+    if (!propertyPrice || priceValue <= 0) {
+      toast.error('Por favor, informe o valor do imóvel');
+      return;
+    }
+    if (!propertyType) {
+      toast.error('Por favor, selecione o tipo do imóvel');
+      return;
+    }
+    if (!propertyDescription || propertyDescription.trim().length < 20) {
+      toast.error('Descreva o imóvel com mais detalhes (mínimo 20 caracteres)');
+      return;
+    }
+
+    setAnalyzeLoading(true);
+    try {
+      const res = await axios.post(`${API}/agents/analyze-property`, {
+        property_type: propertyType,
+        property_price: priceValue,
+        description: propertyDescription.trim(),
+      });
+      const raw = res.data.extracted || {};
+      const extracted = normalizeExtracted(raw);
+      const { ai_summary, ...formFields } = extracted;
+      const filled = { ...formFields, ai_summary: ai_summary || null };
+      setPropertyFormData(filled);
+      setPropertyFormErrors({});
+      setAiBadgeKeys(
+        Object.keys(formFields).filter(k => {
+          const v = formFields[k];
+          return v !== null && v !== undefined && v !== '' && !(Array.isArray(v) && v.length === 0);
+        })
+      );
+      setDiscoveryStep(2);
+    } catch (err) {
+      toast.error(err.response?.data?.detail || 'Erro ao analisar descrição. Tente novamente.');
+    } finally {
+      setAnalyzeLoading(false);
+    }
+  };
+
+  const handlePropertyFormChange = (key, val) => {
+    setPropertyFormData(prev => ({ ...prev, [key]: val }));
+    if (propertyFormErrors[key]) setPropertyFormErrors(prev => ({ ...prev, [key]: null }));
+  };
+
+  // ---- Step 2 → 3: search with complete structured data ----
+  const handleSearchWithPropertyData = async () => {
+    const fields = FIELDS_BY_TYPE[propertyType] || FIELDS_BY_TYPE['casa'];
+    const errors = validatePropertyForm(propertyFormData, fields);
+    if (Object.keys(errors).length > 0) {
+      setPropertyFormErrors(errors);
+      toast.error('Preencha todos os campos obrigatórios antes de buscar');
+      return;
+    }
+
+    setAiLoading(true);
+    try {
+      const payload = {
+        property_description: propertyDescription,
+        property_price: parseInt(propertyPrice, 10),
+        property_type: propertyType,
+        property_data: {
+          ...propertyFormData,
+          property_type: propertyType,
+          price: parseInt(propertyPrice, 10),
+        },
+      };
+      const response = await axios.post(`${API}/agents/ai-discovery`, payload);
+      setAiResults(response.data.matches);
+      setTotalEvaluated(response.data.total_evaluated);
+      setPrefilterStats({
+        total_before_prefilter: response.data.total_before_prefilter,
+        filtered_by_budget: response.data.filtered_by_budget,
+        filtered_by_type: response.data.filtered_by_type,
+        sent_to_ai: response.data.sent_to_ai,
+      });
+      setDiscoveryStep(3);
+      if (response.data.matches.length > 0) {
+        toast.success(`${response.data.matches.length} compradores compatíveis encontrados!`);
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.detail || 'Erro ao buscar compradores. Tente novamente.');
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
+  // ---- Step 3: create match directly without modal ----
+  const handleMatchDirectly = async (result) => {
+    try {
+      await axios.post(`${API}/agents/match`, {
+        buyer_id: result.buyer_id,
+        interest_id: result.comprador_id,
+        property_info: {
+          property_type: propertyType,
+          original_description: propertyDescription,
+          ...propertyFormData,
+        },
+        ai_compatibility: {
+          score: result.score,
+          justificativa: result.justificativa,
+          property_description: propertyDescription,
+        },
+      });
+      toast.success('Seu Match foi enviado com sucesso e está em análise, aguarde o nosso contato.');
+      setAiResults(prev => prev.filter(r => r.comprador_id !== result.comprador_id));
+      fetchData();
+    } catch (err) {
+      toast.error(err.response?.data?.detail || 'Erro ao criar match');
+    }
+  };
+
+  // ---- Saved search "Dar Match" — opens PropertyInfoModal ----
+  const handleMatchFromSavedSearch = (result, search) => {
     setSelectedInterest({
-      ...interest,
-      buyer_id: buyerId,
-      interest_id: interestId
+      buyer_id: result.buyer_id,
+      interest_id: result.comprador_id,
+      buyer_name: result.buyer_name,
+      location: result.location,
+      _searchId: search.id,
+      ai_compatibility: {
+        score: result.score,
+        justificativa: result.justificativa,
+      },
     });
+    setPropertyModalType(search.property_type || 'casa');
+    setPropertyModalInitialExtracted(search.property_data || null);
     setShowPropertyModal(true);
   };
 
@@ -227,10 +363,9 @@ const AgentDashboard = () => {
         buyer_id: selectedInterest.buyer_id,
         interest_id: selectedInterest.interest_id,
         property_info: propertyInfo,
-        ai_compatibility: selectedInterest.ai_compatibility || null
+        ai_compatibility: selectedInterest.ai_compatibility || null,
       });
-      
-      // Remove result from saved search if it came from one
+
       if (selectedInterest._searchId) {
         try {
           await axios.patch(`${API}/agents/searches/${selectedInterest._searchId}/remove-result/${selectedInterest.interest_id}`);
@@ -238,7 +373,7 @@ const AgentDashboard = () => {
           console.warn('Failed to remove result from search:', err);
         }
       }
-      
+
       toast.success('Seu Match foi enviado com sucesso e está em análise, aguarde o nosso contato.');
       setShowPropertyModal(false);
       setSelectedInterest(null);
@@ -254,99 +389,19 @@ const AgentDashboard = () => {
     navigate('/');
   };
 
-  // AI Discovery function
-  const handleAIDiscovery = async () => {
-    // Validate required fields
-    const priceValue = parseInt(propertyPrice, 10);
-    if (!propertyPrice || priceValue <= 0) {
-      toast.error('Por favor, informe o valor do imóvel');
-      return;
-    }
-    
-    if (!propertyType) {
-      toast.error('Por favor, selecione o tipo do imóvel');
-      return;
-    }
-    
-    if (!propertyDescription || propertyDescription.trim().length < 20) {
-      toast.error('Por favor, descreva o imóvel com mais detalhes (mínimo 20 caracteres)');
-      return;
-    }
-    
-    setAiLoading(true);
-    setHasSearched(true);
-    
-    try {
-      // Build request payload with required pre-filter fields
-      const payload = {
-        property_description: propertyDescription,
-        property_price: priceValue,
-        property_type: propertyType
-      };
-      
-      const response = await axios.post(`${API}/agents/ai-discovery`, payload);
-      
-      setAiResults(response.data.matches);
-      setTotalEvaluated(response.data.total_evaluated);
-      setExtractedProperty(response.data.extracted_property || null);
-      
-      // Store pre-filter stats
-      setPrefilterStats({
-        total_before_prefilter: response.data.total_before_prefilter,
-        filtered_by_budget: response.data.filtered_by_budget,
-        filtered_by_type: response.data.filtered_by_type,
-        sent_to_ai: response.data.sent_to_ai
-      });
-      
-      if (response.data.matches.length > 0) {
-        toast.success(`Encontramos ${response.data.matches.length} compradores compatíveis!`);
-      }
-    } catch (error) {
-      toast.error(error.response?.data?.detail || 'Erro ao buscar compradores. Tente novamente.');
-      setAiResults([]);
-      setPrefilterStats(null);
-    } finally {
-      setAiLoading(false);
-    }
-  };
-
-  // Handle match from AI results
-  const handleMatchFromAI = (result) => {
-    setSelectedInterest({
-      id: result.comprador_id,
-      buyer_id: result.buyer_id,
-      interest_id: result.comprador_id,
-      buyer_name: result.buyer_name,
-      property_type: result.property_type,
-      location: result.location,
-      _searchId: result._searchId, // Track which search this came from
-      ai_compatibility: {
-        score: result.score,
-        justificativa: result.justificativa,
-        property_description: propertyDescription || result.property_description
-      }
-    });
-    setShowPropertyModal(true);
-  };
-
-  // Get score badge color
   const getScoreBadgeClass = (score) => {
     if (score >= 80) return 'bg-green-500 text-white';
     if (score >= 60) return 'bg-yellow-500 text-white';
     return 'bg-orange-500 text-white';
   };
 
-  // Check if there's an existing match for this interest
   const getMatchStatus = (interestId) => {
     const match = myMatches.find(m => m.interest_id === interestId);
-    if (!match) return null;
-    return match.status;
+    return match ? match.status : null;
   };
 
-  // Get button config based on match status
   const getMatchButtonConfig = (interestId) => {
     const status = getMatchStatus(interestId);
-    
     if (!status) {
       return {
         disabled: false,
@@ -355,7 +410,6 @@ const AgentDashboard = () => {
         text: "Dar Match"
       };
     }
-    
     if (status === 'approved' || status === 'visit_scheduled' || status === 'completed') {
       return {
         disabled: true,
@@ -364,8 +418,6 @@ const AgentDashboard = () => {
         text: "Match Aprovado"
       };
     }
-    
-    // pending_approval or pending_info
     return {
       disabled: true,
       className: "rounded-full bg-red-500 text-white cursor-not-allowed",
@@ -373,6 +425,16 @@ const AgentDashboard = () => {
       text: "Match em Análise"
     };
   };
+
+  // Derived: field list for current property type
+  const currentFields = FIELDS_BY_TYPE[propertyType] || [];
+  const filledCount = currentFields.filter(k => {
+    const v = propertyFormData[k];
+    if (v === null || v === undefined || v === '') return false;
+    if (Array.isArray(v)) return v.length > 0;
+    return true;
+  }).length;
+  const totalRequired = currentFields.filter(k => FIELD_META[k]?.required).length;
 
   if (loading) {
     return <DashboardLoading message="Carregando seu painel..." />;
@@ -394,10 +456,10 @@ const AgentDashboard = () => {
               <p className="text-sm text-muted-foreground">Olá, {user?.name}</p>
             </div>
           </div>
-          <Button 
+          <Button
             data-testid="agent-logout-button"
-            onClick={handleLogout} 
-            variant="outline" 
+            onClick={handleLogout}
+            variant="outline"
             className="rounded-full"
           >
             <LogOut className="w-4 h-4 mr-2" />
@@ -408,11 +470,7 @@ const AgentDashboard = () => {
 
       <div className="max-w-7xl mx-auto px-6 py-8">
         {/* Welcome Card */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mb-8"
-        >
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mb-8">
           <Card className="p-8 rounded-3xl bg-gradient-to-br from-secondary to-green-500 text-white border-0" data-testid="agent-welcome-card">
             <h2 className="text-3xl font-semibold mb-2">Comissão 60/40 a seu Favor</h2>
             <p className="text-green-50 mb-4">Encontre compradores qualificados e aumente seus ganhos</p>
@@ -479,6 +537,7 @@ const AgentDashboard = () => {
           </TabsList>
 
           <TabsContent value="discover" className="space-y-6">
+
             {/* Saved Searches Section */}
             {savedSearches.length > 0 && (
               <Card className="p-6 rounded-2xl border-2 border-indigo-100" data-testid="saved-searches-card">
@@ -488,15 +547,13 @@ const AgentDashboard = () => {
                   </div>
                   <div>
                     <h3 className="text-lg font-semibold text-slate-900">Minhas Buscas Ativas</h3>
-                    <p className="text-sm text-muted-foreground">
-                      Estas buscas rodam automaticamente a cada 7 dias
-                    </p>
+                    <p className="text-sm text-muted-foreground">Estas buscas rodam automaticamente a cada 7 dias</p>
                   </div>
                 </div>
-                
+
                 <div className="space-y-4">
                   {savedSearches.map((search) => (
-                    <div 
+                    <div
                       key={search.id}
                       className={`p-4 rounded-xl border ${
                         search.has_new_results && search.pending_results?.length > 0
@@ -506,18 +563,16 @@ const AgentDashboard = () => {
                     >
                       <div className="flex items-start justify-between gap-4">
                         <div className="flex-1 min-w-0">
-                          {/* New results badge */}
                           {search.has_new_results && search.pending_results?.length > 0 && (
                             <div className="flex items-center gap-2 mb-2">
                               <Badge className="bg-green-500 text-white animate-pulse">
                                 <Sparkles className="w-3 h-3 mr-1" />
-                                {search.results_source === 'automatic_cron' 
-                                  ? 'Novos matches encontrados automaticamente!' 
+                                {search.results_source === 'automatic_cron'
+                                  ? 'Novos matches encontrados automaticamente!'
                                   : `${search.pending_results.length} resultado(s) encontrado(s)`}
                               </Badge>
                             </div>
                           )}
-                          
                           <p className="text-sm text-slate-800 font-medium line-clamp-2 mb-2">
                             {search.property_description}
                           </p>
@@ -532,7 +587,7 @@ const AgentDashboard = () => {
                             </Badge>
                             <Badge variant="outline" className="bg-white">
                               <Clock className="w-3 h-3 mr-1" />
-                              Verificado: {search.last_checked_at 
+                              Verificado: {search.last_checked_at
                                 ? new Date(search.last_checked_at).toLocaleDateString('pt-BR')
                                 : 'Nunca'}
                             </Badge>
@@ -556,8 +611,7 @@ const AgentDashboard = () => {
                           Desativar
                         </Button>
                       </div>
-                      
-                      {/* Pending results for this search */}
+
                       {search.pending_results?.length > 0 && (
                         <div className="mt-4 pt-4 border-t border-slate-200 space-y-3">
                           <p className="text-xs font-medium text-slate-600 flex items-center gap-1">
@@ -568,10 +622,7 @@ const AgentDashboard = () => {
                             const expandKey = `${search.id}-${result.comprador_id}`;
                             const isExpanded = expandedResults[expandKey];
                             return (
-                              <div
-                                key={result.comprador_id}
-                                className="p-3 bg-white rounded-lg border border-slate-200 shadow-sm"
-                              >
+                              <div key={result.comprador_id} className="p-3 bg-white rounded-lg border border-slate-200 shadow-sm">
                                 <div className="flex items-center justify-between gap-3">
                                   <div className="flex-1 min-w-0">
                                     <div className="flex items-center gap-2 mb-1">
@@ -619,14 +670,7 @@ const AgentDashboard = () => {
                                       return (
                                         <Button
                                           size="sm"
-                                          onClick={() => {
-                                            if (!config.disabled) {
-                                              handleMatchFromAI({
-                                                ...result,
-                                                _searchId: search.id
-                                              });
-                                            }
-                                          }}
+                                          onClick={() => { if (!config.disabled) handleMatchFromSavedSearch(result, search); }}
                                           disabled={config.disabled}
                                           className={`${config.className} text-xs px-3`}
                                         >
@@ -666,111 +710,197 @@ const AgentDashboard = () => {
               </Card>
             )}
 
-            {/* AI Discovery Input */}
-            <Card className="p-6 rounded-2xl" data-testid="ai-discovery-card">
-              <div className="flex items-start gap-3 mb-4">
-                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center flex-shrink-0">
-                  <Sparkles className="w-5 h-5 text-white" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-semibold text-slate-900">Descoberta Inteligente</h3>
-                  <p className="text-sm text-muted-foreground">
-                    Nossa IA irá cruzar o perfil do imóvel descrito com os perfis dos compradores já cadastrados para encontrar possíveis matches para seu imóvel.
-                  </p>
-                </div>
-              </div>
-              
-              {/* Required Filters - Above description */}
-              <div className="mb-4 p-4 bg-slate-50 rounded-xl">
-                <div className="flex items-center gap-2 mb-3">
-                  <Filter className="w-4 h-4 text-indigo-600" />
-                  <span className="text-sm font-semibold text-slate-700">Filtros obrigatórios</span>
-                </div>
-                
-                <div className="grid grid-cols-2 gap-4">
+            {/* ======= STEP 1: Describe property ======= */}
+            {discoveryStep === 1 && (
+              <Card className="p-6 rounded-2xl" data-testid="ai-discovery-card">
+                <div className="flex items-start gap-3 mb-4">
+                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center flex-shrink-0">
+                    <Sparkles className="w-5 h-5 text-white" />
+                  </div>
                   <div>
-                    <label className="text-sm font-medium text-slate-700 mb-1 block">
-                      Valor do Imóvel (R$) *
-                    </label>
-                    <div className="relative">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-sm">R$</span>
-                      <Input
-                        type="text"
-                        value={propertyPriceDisplay}
-                        onChange={handlePriceChange}
-                        placeholder="Ex: 500.000"
-                        className="rounded-lg pl-10"
-                        data-testid="property-price-input"
-                        required
-                      />
+                    <h3 className="text-lg font-semibold text-slate-900">Descoberta Inteligente</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Preencha os dados básicos e descreva o imóvel — a IA irá completar a ficha e cruzar com os compradores cadastrados.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Price + Type */}
+                <div className="mb-4 p-4 bg-slate-50 rounded-xl">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Filter className="w-4 h-4 text-indigo-600" />
+                    <span className="text-sm font-semibold text-slate-700">Filtros obrigatórios</span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label className="text-sm font-medium text-slate-700 mb-1 block">Valor do Imóvel (R$) *</Label>
+                      <div className="relative">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-sm">R$</span>
+                        <Input
+                          type="text"
+                          value={propertyPriceDisplay}
+                          onChange={handlePriceChange}
+                          placeholder="Ex: 500.000"
+                          className="rounded-lg pl-10"
+                          data-testid="property-price-input"
+                        />
+                      </div>
                     </div>
-                    {propertyPrice && (
-                      <p className="text-xs text-slate-500 mt-1">
-                        Valor: R$ {parseInt(propertyPrice, 10).toLocaleString('pt-BR')}
-                      </p>
-                    )}
-                  </div>
-                  
-                  <div>
-                    <label className="text-sm font-medium text-slate-700 mb-1 block">
-                      Tipo do Imóvel *
-                    </label>
-                    <select
-                      value={propertyType}
-                      onChange={(e) => setPropertyType(e.target.value)}
-                      className="w-full h-10 px-3 rounded-lg border border-slate-200 focus:border-indigo-500 focus:outline-none bg-white text-sm"
-                      data-testid="property-type-select"
-                      required
-                    >
-                      <option value="">Selecione o tipo</option>
-                      <option value="apartamento">Apartamento</option>
-                      <option value="casa">Casa</option>
-                      <option value="casa_condominio">Casa de Condomínio</option>
-                      <option value="terreno">Terreno</option>
-                      <option value="terreno_condominio">Terreno de Condomínio</option>
-                      <option value="sala_comercial">Sala Comercial</option>
-                      <option value="studio_loft">Studio/Loft</option>
-                    </select>
+                    <div>
+                      <Label className="text-sm font-medium text-slate-700 mb-1 block">Tipo do Imóvel *</Label>
+                      <select
+                        value={propertyType}
+                        onChange={(e) => setPropertyType(e.target.value)}
+                        className="w-full h-10 px-3 rounded-lg border border-slate-200 focus:border-indigo-500 focus:outline-none bg-white text-sm"
+                        data-testid="property-type-select"
+                      >
+                        <option value="">Selecione o tipo</option>
+                        <option value="apartamento">Apartamento</option>
+                        <option value="casa">Casa</option>
+                        <option value="casa_condominio">Casa de Condomínio</option>
+                        <option value="terreno">Terreno</option>
+                        <option value="studio_loft">Studio/Loft</option>
+                        <option value="sala_comercial">Sala Comercial</option>
+                      </select>
+                    </div>
                   </div>
                 </div>
-              </div>
-              
-              <Textarea
-                data-testid="property-description-input"
-                value={propertyDescription}
-                onChange={(e) => setPropertyDescription(e.target.value)}
-                className="min-h-[150px] rounded-xl mb-4 resize-none"
-                placeholder="Descreva o imóvel que você quer ofertar: localização, características, diferenciais, estado de conservação, o que torna esse imóvel especial...
 
-Dica: quanto mais você descrever — localização, entorno, luz, silêncio, estado de conservação, diferenciais, limitações — mais preciso será o matching. Não se preocupe com formato."
-              />
-              
-              <Button
-                data-testid="ai-discovery-button"
-                onClick={handleAIDiscovery}
-                disabled={aiLoading || !propertyPrice || !propertyType || propertyDescription.trim().length < 20}
-                className="w-full h-12 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500"
-              >
-                {aiLoading ? (
-                  <>
-                    <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                    Analisando perfis...
-                  </>
-                ) : (
-                  <>
-                    <Sparkles className="w-5 h-5 mr-2" />
-                    Encontrar compradores compatíveis
-                  </>
+                {/* Description */}
+                <Textarea
+                  data-testid="property-description-input"
+                  value={propertyDescription}
+                  onChange={(e) => setPropertyDescription(e.target.value)}
+                  className="min-h-[150px] rounded-xl mb-4 resize-none"
+                  placeholder="Descreva o imóvel que você quer ofertar: localização, características, diferenciais, estado de conservação, o que torna esse imóvel especial...
+
+Dica: quanto mais você descrever — localização, entorno, luz, silêncio, estado de conservação, diferenciais, limitações — mais preciso será o matching."
+                />
+
+                <Button
+                  data-testid="ai-discovery-button"
+                  onClick={handleAnalyzeProperty}
+                  disabled={analyzeLoading || !propertyPrice || !propertyType || propertyDescription.trim().length < 20}
+                  className="w-full h-12 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500"
+                >
+                  {analyzeLoading ? (
+                    <>
+                      <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                      Analisando descrição...
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="w-5 h-5 mr-2" />
+                      Analisar descrição
+                    </>
+                  )}
+                </Button>
+              </Card>
+            )}
+
+            {/* ======= STEP 2: Complete property form ======= */}
+            {discoveryStep === 2 && (
+              <Card className="p-6 rounded-2xl" data-testid="property-form-card">
+                {/* Header */}
+                <div className="flex items-center gap-3 mb-5">
+                  <button
+                    onClick={() => setDiscoveryStep(1)}
+                    className="text-slate-400 hover:text-slate-600 flex-shrink-0"
+                  >
+                    <ArrowLeft className="w-5 h-5" />
+                  </button>
+                  <div className="flex-1">
+                    <h3 className="text-lg font-semibold text-slate-900">Ficha do Imóvel</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Confira os campos preenchidos pela IA e complete os que ficaram em branco.
+                    </p>
+                  </div>
+                </div>
+
+                {/* AI notice */}
+                <div className="flex items-start gap-3 p-4 bg-indigo-50 rounded-xl border border-indigo-200 mb-5">
+                  <Sparkles className="w-4 h-4 text-indigo-600 mt-0.5 flex-shrink-0" />
+                  <div>
+                    <p className="text-sm text-indigo-800 font-medium">Ficha preenchida pela IA</p>
+                    <p className="text-xs text-indigo-600 mt-0.5">
+                      {filledCount}/{totalRequired} campos obrigatórios preenchidos. Complete os restantes antes de buscar.
+                    </p>
+                  </div>
+                </div>
+
+                {/* AI Summary */}
+                {typeof propertyFormData.ai_summary === 'string' && propertyFormData.ai_summary && (
+                  <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 mb-5">
+                    <p className="text-xs font-medium text-slate-500 mb-1">Resumo gerado pela IA</p>
+                    <p className="text-sm text-slate-700">{propertyFormData.ai_summary}</p>
+                  </div>
                 )}
-              </Button>
-            </Card>
 
-            {/* AI Results */}
-            {hasSearched && !aiLoading && (
+                {/* Dynamic form */}
+                <PropertyFormFields
+                  formData={propertyFormData}
+                  onChange={handlePropertyFormChange}
+                  errors={propertyFormErrors}
+                  fields={currentFields}
+                  aiBadgeKeys={aiBadgeKeys}
+                />
+
+                {Object.keys(propertyFormErrors).length > 0 && (
+                  <div className="flex items-center gap-2 p-3 bg-red-50 rounded-xl border border-red-200 mt-4">
+                    <AlertTriangle className="w-4 h-4 text-red-500 flex-shrink-0" />
+                    <p className="text-sm text-red-700">
+                      {Object.keys(propertyFormErrors).length} campo(s) obrigatório(s) não preenchido(s).
+                    </p>
+                  </div>
+                )}
+
+                <div className="flex gap-3 pt-5">
+                  <Button
+                    variant="outline"
+                    onClick={() => setDiscoveryStep(1)}
+                    className="flex-1 rounded-xl"
+                  >
+                    <ArrowLeft className="w-4 h-4 mr-2" />
+                    Voltar
+                  </Button>
+                  <Button
+                    onClick={handleSearchWithPropertyData}
+                    disabled={aiLoading}
+                    className="flex-1 h-12 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500"
+                    data-testid="search-buyers-button"
+                  >
+                    {aiLoading ? (
+                      <>
+                        <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                        Buscando compradores...
+                      </>
+                    ) : (
+                      <>
+                        <Search className="w-5 h-5 mr-2" />
+                        Buscar compradores compatíveis
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </Card>
+            )}
+
+            {/* ======= STEP 3: Results ======= */}
+            {discoveryStep === 3 && !aiLoading && (
               <>
+                {/* Back to form */}
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => setDiscoveryStep(2)}
+                    className="text-slate-500 hover:text-slate-700 flex items-center gap-1 text-sm"
+                  >
+                    <ArrowLeft className="w-4 h-4" />
+                    Editar ficha do imóvel
+                  </button>
+                </div>
+
                 {aiResults.length === 0 ? (
                   <Card className="p-8 md:p-12 rounded-3xl text-center" data-testid="no-ai-results">
-                    {/* Caso 1: Todos filtrados no pré-filtro (nenhum enviado à IA) */}
                     {prefilterStats && prefilterStats.sent_to_ai === 0 ? (
                       <>
                         <div className="w-20 h-20 bg-amber-100 rounded-full mx-auto mb-4 flex items-center justify-center">
@@ -781,7 +911,7 @@ Dica: quanto mais você descrever — localização, entorno, luz, silêncio, es
                         </h3>
                         <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 max-w-lg mx-auto mb-4">
                           <p className="text-amber-800 text-sm leading-relaxed">
-                            Não há compradores cadastrados com interesse no <strong>tipo de imóvel</strong> e/ou <strong>faixa de valor</strong> que você informou.
+                            Não há compradores com interesse no <strong>tipo de imóvel</strong> e/ou <strong>faixa de valor</strong> que você informou.
                           </p>
                         </div>
                         <div className="text-sm text-muted-foreground space-y-1">
@@ -794,11 +924,10 @@ Dica: quanto mais você descrever — localização, entorno, luz, silêncio, es
                           )}
                         </div>
                         <p className="text-xs text-muted-foreground mt-4">
-                          Aguarde novos cadastros de compradores ou ajuste o valor/tipo do imóvel.
+                          Sua busca foi salva — quando novos compradores se cadastrarem, você será notificado automaticamente.
                         </p>
                       </>
                     ) : (
-                      /* Caso 2: Passou pelo pré-filtro mas a IA não encontrou matches com score >= 50 */
                       <>
                         <div className="w-20 h-20 bg-indigo-100 rounded-full mx-auto mb-4 flex items-center justify-center">
                           <Sparkles className="w-10 h-10 text-indigo-600" />
@@ -810,18 +939,12 @@ Dica: quanto mais você descrever — localização, entorno, luz, silêncio, es
                           <p className="text-indigo-800 text-sm leading-relaxed mb-3">
                             Analisamos <strong>{prefilterStats?.sent_to_ai || totalEvaluated}</strong> perfis de compradores, mas nenhum atingiu o score mínimo de compatibilidade (50%).
                           </p>
-                          <p className="text-indigo-700 text-sm leading-relaxed">
-                            A IA avalia não só tipo e preço, mas também <strong>localização</strong>, <strong>características desejadas</strong>, <strong>estilo de vida</strong> e <strong>critérios inegociáveis</strong> de cada comprador.
-                          </p>
-                        </div>
-                        <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 max-w-lg mx-auto">
-                          <p className="text-slate-700 text-sm font-medium mb-2">💡 Dica para melhorar os resultados:</p>
-                          <p className="text-slate-600 text-sm leading-relaxed">
-                            Descreva o imóvel com mais detalhes: <strong>localização exata</strong> (bairro, proximidades), <strong>características</strong> (suíte, varanda, piscina), <strong>estado de conservação</strong> e <strong>diferenciais</strong>. Quanto mais informações, melhor será o matching da IA.
+                          <p className="text-indigo-700 text-sm">
+                            A IA avalia tipo, preço, localização, características, estilo de vida e critérios inegociáveis de cada comprador.
                           </p>
                         </div>
                         <p className="text-xs text-muted-foreground mt-4">
-                          Exemplo: "Casa térrea de 180m² no Jardim Europa, Jundiaí. 3 suítes, piscina aquecida, churrasqueira gourmet. Condomínio fechado com segurança 24h. Aceita financiamento."
+                          Sua busca foi salva — novos compradores que se cadastrarem serão avaliados automaticamente.
                         </p>
                       </>
                     )}
@@ -843,7 +966,7 @@ Dica: quanto mais você descrever — localização, entorno, luz, silêncio, es
                         )}
                       </div>
                     </div>
-                    
+
                     {aiResults.map((result, index) => (
                       <motion.div
                         key={result.comprador_id}
@@ -860,13 +983,13 @@ Dica: quanto mais você descrever — localização, entorno, luz, silêncio, es
                                 </Badge>
                                 <h3 className="text-lg font-semibold">{result.buyer_name}</h3>
                               </div>
-                              
+
                               {result.ai_profile && (
                                 <Badge className="rounded-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white text-xs px-3 py-1 mb-2">
                                   {result.ai_profile}
                                 </Badge>
                               )}
-                              
+
                               <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground mb-3">
                                 <span className="flex items-center gap-1">
                                   <Building2 className="w-4 h-4" />
@@ -901,13 +1024,13 @@ Dica: quanto mais você descrever — localização, entorno, luz, silêncio, es
                                 )}
                               </div>
                             </div>
-                            
+
                             {(() => {
                               const config = getMatchButtonConfig(result.comprador_id);
                               return (
                                 <Button
                                   data-testid={`match-button-ai-${result.comprador_id}`}
-                                  onClick={() => !config.disabled && handleMatchFromAI(result)}
+                                  onClick={() => !config.disabled && handleMatchDirectly(result)}
                                   disabled={config.disabled}
                                   className={config.className}
                                 >
@@ -917,8 +1040,7 @@ Dica: quanto mais você descrever — localização, entorno, luz, silêncio, es
                               );
                             })()}
                           </div>
-                          
-                          {/* AI Justification */}
+
                           <div className="bg-slate-50 rounded-xl p-4">
                             <p className="text-sm text-slate-700 flex items-start gap-2">
                               <Sparkles className="w-4 h-4 text-indigo-500 mt-0.5 flex-shrink-0" />
@@ -932,15 +1054,31 @@ Dica: quanto mais você descrever — localização, entorno, luz, silêncio, es
                 )}
               </>
             )}
-            
-            {/* Initial state - no search yet */}
-            {!hasSearched && !aiLoading && (
+
+            {/* Initial placeholder (step 1 only) */}
+            {discoveryStep === 1 && (
               <Card className="p-12 rounded-3xl text-center bg-gradient-to-br from-indigo-50 to-purple-50" data-testid="ai-discovery-initial">
                 <Sparkles className="w-16 h-16 text-indigo-400 mx-auto mb-4" />
                 <h3 className="text-xl font-semibold mb-2">Descreva seu imóvel acima</h3>
                 <p className="text-muted-foreground max-w-md mx-auto">
-                  Nossa IA irá analisar os perfis dos compradores cadastrados e encontrar os mais compatíveis com o imóvel que você está oferecendo.
+                  A IA irá extrair os dados estruturados da descrição, você completa os campos faltantes e então buscamos os compradores mais compatíveis.
                 </p>
+                <div className="flex justify-center gap-6 mt-6 text-sm text-slate-500">
+                  <div className="flex items-center gap-2">
+                    <span className="w-6 h-6 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center text-xs font-bold">1</span>
+                    Descreva
+                  </div>
+                  <div className="w-8 h-px bg-slate-200 self-center" />
+                  <div className="flex items-center gap-2">
+                    <span className="w-6 h-6 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center text-xs font-bold">2</span>
+                    Complete a ficha
+                  </div>
+                  <div className="w-8 h-px bg-slate-200 self-center" />
+                  <div className="flex items-center gap-2">
+                    <span className="w-6 h-6 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center text-xs font-bold">3</span>
+                    Receba matches
+                  </div>
+                </div>
               </Card>
             )}
           </TabsContent>
@@ -954,11 +1092,7 @@ Dica: quanto mais você descrever — localização, entorno, luz, silêncio, es
               </Card>
             ) : (
               myMatches.map((match) => (
-                <motion.div
-                  key={match.id}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                >
+                <motion.div key={match.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
                   <Card className="p-6 rounded-2xl hover:shadow-lg transition-all border-l-4 border-l-red-500" data-testid={`agent-match-card-${match.id}`}>
                     <div className="flex justify-between items-start mb-4">
                       <div className="flex-1">
@@ -981,10 +1115,7 @@ Dica: quanto mais você descrever — localização, entorno, luz, silêncio, es
                       </div>
                       <Button
                         data-testid={`delete-match-${match.id}`}
-                        onClick={() => {
-                          setSelectedMatch(match);
-                          setShowDeleteModal(true);
-                        }}
+                        onClick={() => { setSelectedMatch(match); setShowDeleteModal(true); }}
                         variant="ghost"
                         size="icon"
                         className="rounded-full text-red-600 hover:text-red-700 hover:bg-red-50"
@@ -1006,14 +1137,13 @@ Dica: quanto mais você descrever — localização, entorno, luz, silêncio, es
                       </div>
                     )}
 
-                    {/* AI Compatibility */}
                     {match.ai_compatibility && (
                       <div className="bg-gradient-to-r from-indigo-50 to-purple-50 p-4 rounded-xl mb-4 border border-indigo-200">
                         <div className="flex items-center gap-2 mb-2">
                           <Sparkles className="w-4 h-4 text-indigo-600" />
                           <span className="text-sm font-semibold text-indigo-700">Compatibilidade da IA</span>
                           <Badge className={`ml-auto rounded-full text-xs ${
-                            match.ai_compatibility.score >= 80 ? 'bg-green-500' : 
+                            match.ai_compatibility.score >= 80 ? 'bg-green-500' :
                             match.ai_compatibility.score >= 60 ? 'bg-yellow-500' : 'bg-orange-500'
                           } text-white`}>
                             {match.ai_compatibility.score}%
@@ -1038,42 +1168,28 @@ Dica: quanto mais você descrever — localização, entorno, luz, silêncio, es
         <DeleteConfirmModal
           type="match"
           item={selectedMatch}
-          onClose={() => {
-            setShowDeleteModal(false);
-            setSelectedMatch(null);
-          }}
-          onSuccess={() => {
-            setShowDeleteModal(false);
-            setSelectedMatch(null);
-            fetchData();
-          }}
+          onClose={() => { setShowDeleteModal(false); setSelectedMatch(null); }}
+          onSuccess={() => { setShowDeleteModal(false); setSelectedMatch(null); fetchData(); }}
         />
       )}
 
       {showPropertyModal && selectedInterest && (
         <PropertyInfoModal
           isOpen={showPropertyModal}
-          onClose={() => {
-            setShowPropertyModal(false);
-            setSelectedInterest(null);
-          }}
+          onClose={() => { setShowPropertyModal(false); setSelectedInterest(null); setPropertyModalInitialExtracted(null); }}
           onSubmit={handlePropertySubmit}
           buyerName={selectedInterest.buyer_name || 'Comprador'}
           interestLocation={selectedInterest.location}
-          initialDescription={selectedInterest.ai_compatibility?.property_description || propertyDescription}
-          propertyType={propertyType}
+          initialDescription={propertyDescription}
+          propertyType={propertyModalType}
           propertyPrice={parseInt(propertyPrice, 10) || null}
-          initialExtracted={extractedProperty}
+          initialExtracted={propertyModalInitialExtracted}
         />
       )}
 
-      {/* Deactivation Modal */}
       <DeactivationModal
         isOpen={showDeactivationModal}
-        onClose={() => {
-          setShowDeactivationModal(false);
-          setSearchToDeactivate(null);
-        }}
+        onClose={() => { setShowDeactivationModal(false); setSearchToDeactivate(null); }}
         onConfirm={handleDeactivateSearch}
         searchDescription={searchToDeactivate?.property_description || ''}
       />

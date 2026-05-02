@@ -9,24 +9,58 @@ from openai import AsyncOpenAI
 
 logger = logging.getLogger(__name__)
 
+def _format_property_data(property_data: dict, property_description: str) -> str:
+    """Format structured property data into a readable description for the AI prompt."""
+    field_labels = {
+        "property_type": "Tipo", "location": "Localização", "address": "Endereço",
+        "price": "Preço (R$)", "area_m2": "Área útil (m²)", "land_area_m2": "Área do terreno (m²)",
+        "bedrooms": "Quartos", "suites": "Suítes", "bathrooms": "Banheiros",
+        "parking_spots": "Vagas de garagem", "floor": "Andar",
+        "has_balcony": "Varanda", "has_backyard": "Quintal", "has_pool": "Piscina própria",
+        "has_bbq": "Churrasqueira", "has_ac": "Ar condicionado central", "has_generator": "Gerador",
+        "condition": "Estado de conservação", "furnished": "Mobília", "style": "Estilo arquitetônico",
+        "layout_type": "Configuração", "layout": "Layout",
+        "condo_fee": "Condomínio (R$/mês)", "iptu": "IPTU anual (R$)",
+        "condo_amenities": "Áreas do condomínio", "pet_friendly": "Aceita pets no condomínio",
+        "accepts_financing": "Aceita financiamento", "accepts_exchange": "Aceita permuta",
+        "accepts_pj": "Aceita pessoa jurídica", "zoning": "Zoneamento",
+        "topography": "Topografia", "documentation_status": "Situação documental",
+        "payment_methods": "Formas de pagamento aceitas",
+    }
+    currency_fields = {"price", "condo_fee", "iptu"}
+    parts = ["## IMÓVEL OFERECIDO (dados estruturados):"]
+    for key, label in field_labels.items():
+        val = property_data.get(key)
+        if val is None or val == "" or val == []:
+            continue
+        if isinstance(val, bool):
+            val = "Sim" if val else "Não"
+        elif isinstance(val, list):
+            val = ", ".join(str(v) for v in val)
+        elif key in currency_fields and isinstance(val, (int, float)):
+            val = f"R$ {val:,.0f}"
+        parts.append(f"{label}: {val}")
+    ai_summary = property_data.get("ai_summary")
+    if ai_summary and isinstance(ai_summary, str):
+        parts.append(f"Informações adicionais: {ai_summary}")
+    elif property_description:
+        parts.append(f"\nDescrição livre do corretor: {property_description}")
+    return "\n".join(parts)
+
+
 async def evaluate_buyers_with_openai(
     property_description: str,
-    buyer_profiles: List[Dict[str, Any]]
+    buyer_profiles: List[Dict[str, Any]],
+    property_data: dict = None
 ) -> List[Dict[str, Any]]:
     """
-    Evaluate buyer compatibility using OpenAI GPT-4o
-    
-    Args:
-        property_description: Description of the property
-        buyer_profiles: List of buyer profile dictionaries (enriched with all form data)
-        
-    Returns:
-        List of evaluation results with scores and justifications
+    Evaluate buyer compatibility using OpenAI GPT-4o.
+    When property_data is provided (structured form), uses it for richer matching.
     """
     api_key = os.environ.get('OPENAI_API_KEY')
     if not api_key:
         raise ValueError("OPENAI_API_KEY not configured")
-    
+
     client = AsyncOpenAI(api_key=api_key)
     
     # Build simplified profiles for the prompt (to reduce tokens)
@@ -71,11 +105,15 @@ async def evaluate_buyers_with_openai(
         simplified_profiles.append(simplified)
     
     profiles_json = json.dumps(simplified_profiles, ensure_ascii=False, indent=2)
-    
+
+    if property_data:
+        property_section = _format_property_data(property_data, property_description)
+    else:
+        property_section = f"## IMÓVEL OFERECIDO PELO CORRETOR:\n{property_description}"
+
     prompt = f"""Você é um especialista em mercado imobiliário brasileiro com 20+ anos de experiência em matching entre imóveis e compradores.
 
-## IMÓVEL OFERECIDO PELO CORRETOR:
-{property_description}
+{property_section}
 
 ## PERFIS DOS COMPRADORES CADASTRADOS:
 {profiles_json}

@@ -221,8 +221,9 @@ async def analyze_property(request: PropertyAnalysisRequest, current_user: dict 
 
 class AIDiscoveryRequest(BaseModel):
     property_description: str
-    property_price: Optional[float] = None  # Preço do imóvel para pré-filtro
-    property_type: Optional[str] = None     # Tipo do imóvel para pré-filtro (apartamento, casa, etc)
+    property_price: Optional[float] = None
+    property_type: Optional[str] = None
+    property_data: Optional[dict] = None  # Structured property form data (step 2 output)
 
 class BuyerMatch(BaseModel):
     comprador_id: str
@@ -242,13 +243,10 @@ class BuyerMatch(BaseModel):
 class AIDiscoveryResponse(BaseModel):
     matches: List[BuyerMatch]
     total_evaluated: int
-    # Pre-filter metrics
     total_before_prefilter: int = 0
     filtered_by_budget: int = 0
     filtered_by_type: int = 0
     sent_to_ai: int = 0
-    # Property fields extracted in parallel during discovery
-    extracted_property: Optional[dict] = None
 
 
 @router.post("/agents/ai-discovery", response_model=AIDiscoveryResponse)
@@ -530,27 +528,11 @@ async def ai_discovery(request: AIDiscoveryRequest, current_user: dict = Depends
         buyer_profiles.append(profile)
     
     try:
-        import asyncio
-        # Run buyer matching and property field extraction concurrently
-        api_key = os.environ.get('OPENAI_API_KEY')
-        extraction_coro = _extract_property_fields(
-            request.property_type, request.property_price, request.property_description, api_key
-        ) if api_key and request.property_type else None
-
-        if extraction_coro:
-            ai_results, extracted_property = await asyncio.gather(
-                evaluate_buyers_with_openai(
-                    property_description=request.property_description,
-                    buyer_profiles=buyer_profiles
-                ),
-                extraction_coro
-            )
-        else:
-            ai_results = await evaluate_buyers_with_openai(
-                property_description=request.property_description,
-                buyer_profiles=buyer_profiles
-            )
-            extracted_property = None
+        ai_results = await evaluate_buyers_with_openai(
+            property_description=request.property_description,
+            buyer_profiles=buyer_profiles,
+            property_data=request.property_data
+        )
         
         # Filter and enrich results
         matches = []
@@ -596,13 +578,13 @@ async def ai_discovery(request: AIDiscoveryRequest, current_user: dict = Depends
             "property_type": request.property_type,
             "property_price": request.property_price,
             "property_description": request.property_description,
+            "property_data": request.property_data,  # structured form data for cron re-use
             "status": "active",
             "last_checked_at": now,
             "created_at": now,
             "last_match_found_at": now if matches else None,
             "deactivation_reason": None,
             "deactivated_at": None,
-            # Store found results
             "pending_results": matches_data,
             "has_new_results": True if matches else False,
             "results_source": "manual_search"
@@ -619,7 +601,6 @@ async def ai_discovery(request: AIDiscoveryRequest, current_user: dict = Depends
             filtered_by_budget=filtered_by_budget,
             filtered_by_type=filtered_by_type,
             sent_to_ai=sent_to_ai,
-            extracted_property=extracted_property
         )
         
     except ValueError as e:
@@ -943,7 +924,8 @@ async def process_saved_searches(request: Request):
                 try:
                     ai_results = await evaluate_buyers_with_openai(
                         property_description=search["property_description"],
-                        buyer_profiles=buyer_profiles
+                        buyer_profiles=buyer_profiles,
+                        property_data=search.get("property_data")
                     )
                     
                     # Filter matches with score >= 50
