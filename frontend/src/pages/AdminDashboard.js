@@ -263,25 +263,27 @@ const AdminDashboard = () => {
         )}
 
         <Tabs defaultValue="pending-matches" className="w-full">
-          <TabsList className="grid w-full grid-cols-6 mb-6 rounded-xl" data-testid="admin-tabs">
-            <TabsTrigger value="pending-matches" className="rounded-lg" data-testid="admin-tab-pending">
-              Aprovar {pendingMatches.length > 0 && <Badge className="ml-1 rounded-full">{pendingMatches.length}</Badge>}
-            </TabsTrigger>
-            <TabsTrigger value="all-matches" className="rounded-lg" data-testid="admin-tab-matches">Matches</TabsTrigger>
-            <TabsTrigger value="buyers" className="rounded-lg" data-testid="admin-tab-buyers">Compradores</TabsTrigger>
-            <TabsTrigger value="agents" className="rounded-lg" data-testid="admin-tab-agents">Corretores</TabsTrigger>
-            <TabsTrigger value="curators" className="rounded-lg" data-testid="admin-tab-curators">
-              <UserCog className="w-4 h-4 mr-1" />
-              Curadores
-            </TabsTrigger>
-            <TabsTrigger value="interests" className="rounded-lg" data-testid="admin-tab-interests">Interesses</TabsTrigger>
-            {user?.role === 'admin' && (
-              <TabsTrigger value="analytics" className="rounded-lg" data-testid="admin-tab-analytics">
-                <BarChart3 className="w-4 h-4 mr-1" />
-                Analytics
+          <div className="overflow-x-auto mb-6 -mx-2 px-2">
+            <TabsList className="flex w-max min-w-full rounded-xl" data-testid="admin-tabs">
+              <TabsTrigger value="pending-matches" className="rounded-lg whitespace-nowrap flex-shrink-0" data-testid="admin-tab-pending">
+                Aprovar {pendingMatches.length > 0 && <Badge className="ml-1 rounded-full">{pendingMatches.length}</Badge>}
               </TabsTrigger>
-            )}
-          </TabsList>
+              <TabsTrigger value="all-matches" className="rounded-lg whitespace-nowrap flex-shrink-0" data-testid="admin-tab-matches">Matches</TabsTrigger>
+              <TabsTrigger value="buyers" className="rounded-lg whitespace-nowrap flex-shrink-0" data-testid="admin-tab-buyers">Compradores</TabsTrigger>
+              <TabsTrigger value="agents" className="rounded-lg whitespace-nowrap flex-shrink-0" data-testid="admin-tab-agents">Corretores</TabsTrigger>
+              <TabsTrigger value="curators" className="rounded-lg whitespace-nowrap flex-shrink-0" data-testid="admin-tab-curators">
+                <UserCog className="w-4 h-4 mr-1" />
+                Curadores
+              </TabsTrigger>
+              <TabsTrigger value="interests" className="rounded-lg whitespace-nowrap flex-shrink-0" data-testid="admin-tab-interests">Interesses</TabsTrigger>
+              {user?.role === 'admin' && (
+                <TabsTrigger value="analytics" className="rounded-lg whitespace-nowrap flex-shrink-0" data-testid="admin-tab-analytics">
+                  <BarChart3 className="w-4 h-4 mr-1" />
+                  Analytics
+                </TabsTrigger>
+              )}
+            </TabsList>
+          </div>
 
           <TabsContent value="pending-matches" className="space-y-4">
             {pendingMatches.length === 0 ? (
