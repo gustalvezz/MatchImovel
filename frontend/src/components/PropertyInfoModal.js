@@ -219,7 +219,7 @@ const FieldRenderer = ({ fieldKey, meta, value, onChange, error }) => {
 };
 
 // ---- Main Modal ----
-const PropertyInfoModal = ({ isOpen, onClose, onSubmit, buyerName, interestLocation, initialDescription = '', propertyType = 'casa', propertyPrice = null }) => {
+const PropertyInfoModal = ({ isOpen, onClose, onSubmit, buyerName, interestLocation, initialDescription = '', propertyType = 'casa', propertyPrice = null, initialExtracted = null }) => {
   const [step, setStep] = useState(1); // 1 = description, 2 = form
   const [description, setDescription] = useState(initialDescription);
   const [analyzing, setAnalyzing] = useState(false);
@@ -231,12 +231,18 @@ const PropertyInfoModal = ({ isOpen, onClose, onSubmit, buyerName, interestLocat
 
   useEffect(() => {
     if (isOpen) {
-      setStep(1);
       setDescription(initialDescription);
-      setFormData({});
       setErrors({});
+      if (initialExtracted) {
+        const { ai_summary, ...formFields } = normalizeExtracted(initialExtracted);
+        setFormData({ ...formFields, ai_summary: ai_summary || null });
+        setStep(2);
+      } else {
+        setStep(1);
+        setFormData({});
+      }
     }
-  }, [isOpen, initialDescription]);
+  }, [isOpen, initialDescription, initialExtracted]);
 
   const handleAnalyze = async () => {
     if (!description.trim() || description.trim().length < 20) {

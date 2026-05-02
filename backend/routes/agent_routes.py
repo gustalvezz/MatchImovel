@@ -170,6 +170,36 @@ class PropertyAnalysisResponse(BaseModel):
     extracted: dict
     fields: List[str]
 
+async def _extract_property_fields(property_type: str, property_price: float, description: str, api_key: str) -> dict:
+    """Extract structured property fields from a free-text description using GPT-4o."""
+    fields = PROPERTY_FIELDS_BY_TYPE.get(property_type, PROPERTY_FIELDS_BY_TYPE["casa"])
+    field_descriptions = "\n".join([f'- "{f}": {FIELD_DESCRIPTIONS[f]}' for f in fields])
+    prompt = f"""Você é um assistente especialista em imóveis brasileiros.
+
+Com base na descrição abaixo de um imóvel do tipo "{property_type}" com valor de R$ {property_price:,.0f}, extraia as informações e retorne um JSON com exatamente estes campos:
+
+{field_descriptions}
+
+Regras:
+- Retorne SOMENTE o JSON, sem markdown, sem explicações
+- Para campos não mencionados na descrição, use null
+- Não invente informações que não estejam na descrição
+- O campo "price" deve ser {property_price} (já fornecido)
+
+Descrição do corretor:
+{description}"""
+    from openai import AsyncOpenAI
+    client = AsyncOpenAI(api_key=api_key)
+    response = await client.chat.completions.create(
+        model="gpt-4o",
+        messages=[{"role": "user", "content": prompt}],
+        temperature=0,
+        response_format={"type": "json_object"},
+    )
+    extracted = json.loads(response.choices[0].message.content)
+    extracted["price"] = property_price
+    return extracted
+
 @router.post("/agents/analyze-property", response_model=PropertyAnalysisResponse)
 async def analyze_property(request: PropertyAnalysisRequest, current_user: dict = Depends(get_current_user)):
     if current_user["role"] != "agent":
@@ -179,39 +209,13 @@ async def analyze_property(request: PropertyAnalysisRequest, current_user: dict 
     if not api_key:
         raise HTTPException(status_code=503, detail="Serviço de IA não configurado")
 
-    fields = PROPERTY_FIELDS_BY_TYPE.get(request.property_type, PROPERTY_FIELDS_BY_TYPE["casa"])
-    field_descriptions = "\n".join([f'- "{f}": {FIELD_DESCRIPTIONS[f]}' for f in fields])
-
-    prompt = f"""Você é um assistente especialista em imóveis brasileiros.
-
-Com base na descrição abaixo de um imóvel do tipo "{request.property_type}" com valor de R$ {request.property_price:,.0f}, extraia as informações e retorne um JSON com exatamente estes campos:
-
-{field_descriptions}
-
-Regras:
-- Retorne SOMENTE o JSON, sem markdown, sem explicações
-- Para campos não mencionados na descrição, use null
-- Não invente informações que não estejam na descrição
-- O campo "price" deve ser {request.property_price} (já fornecido)
-
-Descrição do corretor:
-{request.description}"""
-
     try:
-        from openai import AsyncOpenAI
-        client = AsyncOpenAI(api_key=api_key)
-        response = await client.chat.completions.create(
-            model="gpt-4o",
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0,
-            response_format={"type": "json_object"},
-        )
-        extracted = json.loads(response.choices[0].message.content)
-        extracted["price"] = request.property_price
+        extracted = await _extract_property_fields(request.property_type, request.property_price, request.description, api_key)
     except Exception as e:
         logger.error(f"Property analysis failed: {e}")
         raise HTTPException(status_code=500, detail="Erro ao analisar descrição. Tente novamente.")
 
+    fields = PROPERTY_FIELDS_BY_TYPE.get(request.property_type, PROPERTY_FIELDS_BY_TYPE["casa"])
     return PropertyAnalysisResponse(extracted=extracted, fields=fields)
 
 
@@ -243,6 +247,8 @@ class AIDiscoveryResponse(BaseModel):
     filtered_by_budget: int = 0
     filtered_by_type: int = 0
     sent_to_ai: int = 0
+    # Property fields extracted in parallel during discovery
+    extracted_property: Optional[dict] = None
 
 
 @router.post("/agents/ai-discovery", response_model=AIDiscoveryResponse)
@@ -524,11 +530,27 @@ async def ai_discovery(request: AIDiscoveryRequest, current_user: dict = Depends
         buyer_profiles.append(profile)
     
     try:
-        # Call OpenAI for evaluation
-        ai_results = await evaluate_buyers_with_openai(
-            property_description=request.property_description,
-            buyer_profiles=buyer_profiles
-        )
+        import asyncio
+        # Run buyer matching and property field extraction concurrently
+        api_key = os.environ.get('OPENAI_API_KEY')
+        extraction_coro = _extract_property_fields(
+            request.property_type, request.property_price, request.property_description, api_key
+        ) if api_key and request.property_type else None
+
+        if extraction_coro:
+            ai_results, extracted_property = await asyncio.gather(
+                evaluate_buyers_with_openai(
+                    property_description=request.property_description,
+                    buyer_profiles=buyer_profiles
+                ),
+                extraction_coro
+            )
+        else:
+            ai_results = await evaluate_buyers_with_openai(
+                property_description=request.property_description,
+                buyer_profiles=buyer_profiles
+            )
+            extracted_property = None
         
         # Filter and enrich results
         matches = []
@@ -596,7 +618,8 @@ async def ai_discovery(request: AIDiscoveryRequest, current_user: dict = Depends
             total_before_prefilter=total_before_prefilter,
             filtered_by_budget=filtered_by_budget,
             filtered_by_type=filtered_by_type,
-            sent_to_ai=sent_to_ai
+            sent_to_ai=sent_to_ai,
+            extracted_property=extracted_property
         )
         
     except ValueError as e:

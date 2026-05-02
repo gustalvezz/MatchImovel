@@ -164,6 +164,7 @@ const AgentDashboard = () => {
   const [totalEvaluated, setTotalEvaluated] = useState(0);
   const [prefilterStats, setPrefilterStats] = useState(null);
   const [expandedResults, setExpandedResults] = useState({});
+  const [extractedProperty, setExtractedProperty] = useState(null);
 
   useEffect(() => {
     fetchData();
@@ -287,6 +288,7 @@ const AgentDashboard = () => {
       
       setAiResults(response.data.matches);
       setTotalEvaluated(response.data.total_evaluated);
+      setExtractedProperty(response.data.extracted_property || null);
       
       // Store pre-filter stats
       setPrefilterStats({
@@ -1061,6 +1063,7 @@ Dica: quanto mais você descrever — localização, entorno, luz, silêncio, es
           initialDescription={selectedInterest.ai_compatibility?.property_description || propertyDescription}
           propertyType={propertyType}
           propertyPrice={parseInt(propertyPrice, 10) || null}
+          initialExtracted={extractedProperty}
         />
       )}
 
