@@ -112,6 +112,109 @@ from pydantic import BaseModel
 from typing import List, Optional
 import json
 
+# ============ PROPERTY ANALYSIS ENDPOINT ============
+
+PROPERTY_FIELDS_BY_TYPE = {
+    "apartamento": ["location", "address", "price", "payment_methods", "floor", "area_m2", "bedrooms", "suites", "bathrooms", "parking_spots", "has_balcony", "condition", "furnished", "style", "condo_fee", "condo_amenities", "iptu", "accepts_financing", "accepts_exchange", "link", "ai_summary"],
+    "casa": ["location", "address", "price", "payment_methods", "area_m2", "land_area_m2", "bedrooms", "suites", "bathrooms", "parking_spots", "has_backyard", "has_pool", "has_bbq", "condition", "furnished", "style", "iptu", "accepts_financing", "accepts_exchange", "link", "ai_summary"],
+    "casa_condominio": ["location", "address", "price", "payment_methods", "area_m2", "land_area_m2", "bedrooms", "suites", "bathrooms", "parking_spots", "has_backyard", "has_pool", "has_bbq", "condition", "furnished", "style", "condo_fee", "condo_amenities", "pet_friendly", "iptu", "accepts_financing", "accepts_exchange", "link", "ai_summary"],
+    "terreno": ["location", "address", "price", "payment_methods", "land_area_m2", "frontage_m", "zoning", "topography", "documentation_status", "accepts_financing", "accepts_exchange", "link", "ai_summary"],
+    "studio_loft": ["location", "address", "price", "payment_methods", "floor", "area_m2", "bathrooms", "parking_spots", "layout_type", "has_balcony", "condition", "furnished", "style", "condo_fee", "condo_amenities", "iptu", "accepts_financing", "accepts_exchange", "link", "ai_summary"],
+    "sala_comercial": ["location", "address", "price", "payment_methods", "floor", "area_m2", "parking_spots", "layout", "has_ac", "has_generator", "condo_fee", "iptu", "accepts_pj", "accepts_financing", "accepts_exchange", "link", "ai_summary"],
+}
+
+FIELD_DESCRIPTIONS = {
+    "location": "cidade e bairro",
+    "address": "endereço completo (rua, número, complemento)",
+    "price": "valor de venda em reais (número)",
+    "payment_methods": "formas de pagamento aceitas: lista com quaisquer de ['À vista', 'Financiamento', 'Permuta', 'FGTS']",
+    "floor": "andar (número inteiro, 0 = térreo)",
+    "area_m2": "área útil construída em m² (número)",
+    "land_area_m2": "área total do terreno em m² (número)",
+    "frontage_m": "frente do terreno em metros (número)",
+    "bedrooms": "número de quartos (número inteiro)",
+    "suites": "número de suítes (número inteiro)",
+    "bathrooms": "número de banheiros (número inteiro)",
+    "parking_spots": "número de vagas de garagem (número inteiro)",
+    "has_balcony": "tem varanda: true ou false",
+    "has_backyard": "tem quintal: true ou false",
+    "has_pool": "tem piscina própria: true ou false",
+    "has_bbq": "tem churrasqueira: true ou false",
+    "condition": "estado de conservação: 'novo', 'reformado', 'original_conservado' ou 'precisa_reforma'",
+    "furnished": "mobília: 'mobiliado', 'semimobiliado' ou 'sem_moveis'",
+    "style": "estilo arquitetônico: 'moderno', 'classico', 'rustico', 'industrial', 'retrofit', 'minimalista' ou 'sem_estilo_definido'",
+    "layout_type": "configuração do studio: 'conjugado', 'studio' ou 'loft_aberto'",
+    "layout": "layout da sala: 'planta_livre' ou 'dividida'",
+    "has_ac": "tem ar condicionado central: true ou false",
+    "has_generator": "tem gerador: true ou false",
+    "condo_fee": "valor do condomínio mensal em reais (número)",
+    "condo_amenities": "lista com quaisquer de: ['portaria_24h', 'academia', 'piscina', 'salao_festas', 'playground', 'quadra', 'camera_seguranca', 'gerador']",
+    "pet_friendly": "aceita pets no condomínio: true ou false",
+    "iptu": "valor anual do IPTU em reais (número)",
+    "accepts_financing": "aceita financiamento bancário: true ou false",
+    "accepts_exchange": "aceita permuta: true, false ou 'parcial'",
+    "accepts_pj": "aceita pessoa jurídica: true ou false",
+    "zoning": "zoneamento: 'residencial', 'comercial' ou 'misto'",
+    "topography": "topografia: 'plano', 'aclive' ou 'declive'",
+    "documentation_status": "situação documental: 'regular', 'inventario', 'financiado_com_saldo' ou 'acao_judicial'",
+    "link": "link do anúncio (url ou null)",
+    "ai_summary": "resumo descritivo do imóvel em 2-4 linhas usando as informações da descrição que NÃO foram capturadas nos outros campos — diferenciais, entorno, estilo de vida que o imóvel proporciona, contexto relevante. Se não houver informação extra, retorne null.",
+}
+
+class PropertyAnalysisRequest(BaseModel):
+    property_type: str
+    property_price: float
+    description: str
+
+class PropertyAnalysisResponse(BaseModel):
+    extracted: dict
+    fields: List[str]
+
+@router.post("/agents/analyze-property", response_model=PropertyAnalysisResponse)
+async def analyze_property(request: PropertyAnalysisRequest, current_user: dict = Depends(get_current_user)):
+    if current_user["role"] != "agent":
+        raise HTTPException(status_code=403, detail="Apenas corretores podem usar esta funcionalidade")
+
+    api_key = os.environ.get('OPENAI_API_KEY')
+    if not api_key:
+        raise HTTPException(status_code=503, detail="Serviço de IA não configurado")
+
+    fields = PROPERTY_FIELDS_BY_TYPE.get(request.property_type, PROPERTY_FIELDS_BY_TYPE["casa"])
+    field_descriptions = "\n".join([f'- "{f}": {FIELD_DESCRIPTIONS[f]}' for f in fields])
+
+    prompt = f"""Você é um assistente especialista em imóveis brasileiros.
+
+Com base na descrição abaixo de um imóvel do tipo "{request.property_type}" com valor de R$ {request.property_price:,.0f}, extraia as informações e retorne um JSON com exatamente estes campos:
+
+{field_descriptions}
+
+Regras:
+- Retorne SOMENTE o JSON, sem markdown, sem explicações
+- Para campos não mencionados na descrição, use null
+- Não invente informações que não estejam na descrição
+- O campo "price" deve ser {request.property_price} (já fornecido)
+
+Descrição do corretor:
+{request.description}"""
+
+    try:
+        from openai import AsyncOpenAI
+        client = AsyncOpenAI(api_key=api_key)
+        response = await client.chat.completions.create(
+            model="gpt-4o",
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0,
+            response_format={"type": "json_object"},
+        )
+        extracted = json.loads(response.choices[0].message.content)
+        extracted["price"] = request.property_price
+    except Exception as e:
+        logger.error(f"Property analysis failed: {e}")
+        raise HTTPException(status_code=500, detail="Erro ao analisar descrição. Tente novamente.")
+
+    return PropertyAnalysisResponse(extracted=extracted, fields=fields)
+
+
 class AIDiscoveryRequest(BaseModel):
     property_description: str
     property_price: Optional[float] = None  # Preço do imóvel para pré-filtro

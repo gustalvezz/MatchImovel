@@ -35,6 +35,12 @@ const AdminDashboard = () => {
   const [expandedMatch, setExpandedMatch] = useState(null);
   const [deletingInterestId, setDeletingInterestId] = useState(null);
 
+  // Interests filter + pagination
+  const [interestFilterType, setInterestFilterType] = useState('');
+  const [interestFilterBudget, setInterestFilterBudget] = useState('');
+  const [interestPage, setInterestPage] = useState(1);
+  const INTERESTS_PER_PAGE = 10;
+
   const handleDeleteInterest = async (interestId) => {
     if (!window.confirm('ATENÇÃO: Esta ação irá excluir permanentemente o interesse e TODOS os dados relacionados (matches, visitas, conversas, etc). Deseja continuar?')) {
       return;
@@ -263,25 +269,27 @@ const AdminDashboard = () => {
         )}
 
         <Tabs defaultValue="pending-matches" className="w-full">
-          <TabsList className="grid w-full grid-cols-6 mb-6 rounded-xl" data-testid="admin-tabs">
-            <TabsTrigger value="pending-matches" className="rounded-lg" data-testid="admin-tab-pending">
-              Aprovar {pendingMatches.length > 0 && <Badge className="ml-1 rounded-full">{pendingMatches.length}</Badge>}
-            </TabsTrigger>
-            <TabsTrigger value="all-matches" className="rounded-lg" data-testid="admin-tab-matches">Matches</TabsTrigger>
-            <TabsTrigger value="buyers" className="rounded-lg" data-testid="admin-tab-buyers">Compradores</TabsTrigger>
-            <TabsTrigger value="agents" className="rounded-lg" data-testid="admin-tab-agents">Corretores</TabsTrigger>
-            <TabsTrigger value="curators" className="rounded-lg" data-testid="admin-tab-curators">
-              <UserCog className="w-4 h-4 mr-1" />
-              Curadores
-            </TabsTrigger>
-            <TabsTrigger value="interests" className="rounded-lg" data-testid="admin-tab-interests">Interesses</TabsTrigger>
-            {user?.role === 'admin' && (
-              <TabsTrigger value="analytics" className="rounded-lg" data-testid="admin-tab-analytics">
-                <BarChart3 className="w-4 h-4 mr-1" />
-                Analytics
+          <div className="overflow-x-auto mb-6 -mx-2 px-2">
+            <TabsList className="flex w-max min-w-full rounded-xl" data-testid="admin-tabs">
+              <TabsTrigger value="pending-matches" className="rounded-lg whitespace-nowrap flex-shrink-0" data-testid="admin-tab-pending">
+                Aprovar {pendingMatches.length > 0 && <Badge className="ml-1 rounded-full">{pendingMatches.length}</Badge>}
               </TabsTrigger>
-            )}
-          </TabsList>
+              <TabsTrigger value="all-matches" className="rounded-lg whitespace-nowrap flex-shrink-0" data-testid="admin-tab-matches">Matches</TabsTrigger>
+              <TabsTrigger value="buyers" className="rounded-lg whitespace-nowrap flex-shrink-0" data-testid="admin-tab-buyers">Compradores</TabsTrigger>
+              <TabsTrigger value="agents" className="rounded-lg whitespace-nowrap flex-shrink-0" data-testid="admin-tab-agents">Corretores</TabsTrigger>
+              <TabsTrigger value="curators" className="rounded-lg whitespace-nowrap flex-shrink-0" data-testid="admin-tab-curators">
+                <UserCog className="w-4 h-4 mr-1" />
+                Curadores
+              </TabsTrigger>
+              <TabsTrigger value="interests" className="rounded-lg whitespace-nowrap flex-shrink-0" data-testid="admin-tab-interests">Interesses</TabsTrigger>
+              {user?.role === 'admin' && (
+                <TabsTrigger value="analytics" className="rounded-lg whitespace-nowrap flex-shrink-0" data-testid="admin-tab-analytics">
+                  <BarChart3 className="w-4 h-4 mr-1" />
+                  Analytics
+                </TabsTrigger>
+              )}
+            </TabsList>
+          </div>
 
           <TabsContent value="pending-matches" className="space-y-4">
             {pendingMatches.length === 0 ? (
@@ -699,7 +707,76 @@ const AdminDashboard = () => {
           </TabsContent>
 
           <TabsContent value="interests" className="space-y-4">
-            {interests.map((interest) => {
+            {/* Filters */}
+            <div className="flex flex-wrap gap-3 p-4 bg-slate-50 rounded-2xl border border-slate-200">
+              <select
+                value={interestFilterType}
+                onChange={e => { setInterestFilterType(e.target.value); setInterestPage(1); }}
+                className="h-9 px-3 rounded-lg border border-slate-200 bg-white text-sm focus:border-indigo-500 focus:outline-none"
+              >
+                <option value="">Todos os tipos</option>
+                <option value="apartamento">Apartamento</option>
+                <option value="casa">Casa</option>
+                <option value="casa_condominio">Casa de Condomínio</option>
+                <option value="terreno">Terreno</option>
+                <option value="studio_loft">Studio / Loft</option>
+                <option value="sala_comercial">Sala Comercial</option>
+              </select>
+              <select
+                value={interestFilterBudget}
+                onChange={e => { setInterestFilterBudget(e.target.value); setInterestPage(1); }}
+                className="h-9 px-3 rounded-lg border border-slate-200 bg-white text-sm focus:border-indigo-500 focus:outline-none"
+              >
+                <option value="">Todos os orçamentos</option>
+                <option value="ate_400k">Até R$ 400 mil</option>
+                <option value="400k_550k">R$ 400 a 550 mil</option>
+                <option value="550k_700k">R$ 550 a 700 mil</option>
+                <option value="700k_800k">R$ 700 a 800 mil</option>
+                <option value="800k_1500k">R$ 800 mil a 1,5 mi</option>
+                <option value="acima_1500k">Acima de R$ 1,5 mi</option>
+                <option value="ate_550k">Até R$ 550 mil</option>
+                <option value="ate_700k">Até R$ 700 mil</option>
+                <option value="ate_800k">Até R$ 800 mil</option>
+                <option value="ate_1500k">Até R$ 1,5 milhão</option>
+                <option value="ate_2500k">Até R$ 2,5 milhões</option>
+                <option value="ate_5000k">Até R$ 5 milhões</option>
+                <option value="acima_5000k">Acima de R$ 5 milhões</option>
+              </select>
+              {(interestFilterType || interestFilterBudget) && (
+                <button
+                  onClick={() => { setInterestFilterType(''); setInterestFilterBudget(''); setInterestPage(1); }}
+                  className="h-9 px-3 rounded-lg border border-slate-200 bg-white text-sm text-slate-500 hover:text-slate-700 hover:border-slate-300"
+                >
+                  Limpar filtros
+                </button>
+              )}
+              <span className="ml-auto text-sm text-muted-foreground self-center">
+                {(() => {
+                  const filtered = interests.filter(i =>
+                    (!interestFilterType || (i.property_type_key || i.property_type) === interestFilterType) &&
+                    (!interestFilterBudget || i.budget_range === interestFilterBudget)
+                  );
+                  return `${filtered.length} resultado${filtered.length !== 1 ? 's' : ''}`;
+                })()}
+              </span>
+            </div>
+
+            {(() => {
+              const filtered = interests.filter(i =>
+                (!interestFilterType || (i.property_type_key || i.property_type) === interestFilterType) &&
+                (!interestFilterBudget || i.budget_range === interestFilterBudget)
+              );
+              const totalPages = Math.ceil(filtered.length / INTERESTS_PER_PAGE);
+              const paginated = filtered.slice((interestPage - 1) * INTERESTS_PER_PAGE, interestPage * INTERESTS_PER_PAGE);
+
+              return (
+                <>
+                  {paginated.length === 0 && (
+                    <Card className="p-12 rounded-3xl text-center">
+                      <p className="text-muted-foreground">Nenhum interesse encontrado com esses filtros.</p>
+                    </Card>
+                  )}
+                  {paginated.map((interest) => {
               const budgetLabels = {
                 'ate_400k': 'Até R$ 400 mil',
                 '400k_550k': 'R$ 400 a 550 mil',
@@ -1010,6 +1087,55 @@ const AdminDashboard = () => {
                 </Card>
               );
             })}
+
+                  {/* Pagination */}
+                  {totalPages > 1 && (
+                    <div className="flex items-center justify-center gap-2 pt-2">
+                      <button
+                        onClick={() => setInterestPage(p => Math.max(1, p - 1))}
+                        disabled={interestPage === 1}
+                        className="h-9 px-4 rounded-lg border border-slate-200 text-sm text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                      >
+                        ← Anterior
+                      </button>
+                      <div className="flex gap-1">
+                        {Array.from({ length: totalPages }, (_, i) => i + 1)
+                          .filter(p => p === 1 || p === totalPages || Math.abs(p - interestPage) <= 1)
+                          .reduce((acc, p, idx, arr) => {
+                            if (idx > 0 && p - arr[idx - 1] > 1) acc.push('...');
+                            acc.push(p);
+                            return acc;
+                          }, [])
+                          .map((p, idx) =>
+                            p === '...' ? (
+                              <span key={`ellipsis-${idx}`} className="h-9 w-9 flex items-center justify-center text-slate-400 text-sm">…</span>
+                            ) : (
+                              <button
+                                key={p}
+                                onClick={() => setInterestPage(p)}
+                                className={`h-9 w-9 rounded-lg text-sm font-medium ${
+                                  interestPage === p
+                                    ? 'bg-indigo-600 text-white'
+                                    : 'border border-slate-200 text-slate-600 hover:bg-slate-50'
+                                }`}
+                              >
+                                {p}
+                              </button>
+                            )
+                          )}
+                      </div>
+                      <button
+                        onClick={() => setInterestPage(p => Math.min(totalPages, p + 1))}
+                        disabled={interestPage === totalPages}
+                        className="h-9 px-4 rounded-lg border border-slate-200 text-sm text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                      >
+                        Próxima →
+                      </button>
+                    </div>
+                  )}
+                </>
+              );
+            })()}
           </TabsContent>
 
           {user?.role === 'admin' && (

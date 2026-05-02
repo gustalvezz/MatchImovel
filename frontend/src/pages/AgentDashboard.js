@@ -1059,6 +1059,8 @@ Dica: quanto mais você descrever — localização, entorno, luz, silêncio, es
           buyerName={selectedInterest.buyer_name || 'Comprador'}
           interestLocation={selectedInterest.location}
           initialDescription={selectedInterest.ai_compatibility?.property_description || propertyDescription}
+          propertyType={propertyType}
+          propertyPrice={parseInt(propertyPrice, 10) || null}
         />
       )}
 
