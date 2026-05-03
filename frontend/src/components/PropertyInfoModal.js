@@ -213,16 +213,13 @@ const PropertyInfoModal = ({ isOpen, onClose, onSubmit, buyerName, interestLocat
                 {/* AI notice */}
                 <div className="flex items-start gap-3 p-4 bg-indigo-50 rounded-xl border border-indigo-200">
                   <Sparkles className="w-4 h-4 text-indigo-600 mt-0.5 flex-shrink-0" />
-                  <div className="flex-1">
+                  <div>
                     <p className="text-sm text-indigo-800 font-medium">Ficha preenchida pela IA</p>
                     <p className="text-xs text-indigo-600 mt-0.5">
                       Confira os campos abaixo e preencha os que ficaram em branco.{' '}
                       <span className="font-medium">{filledCount}/{totalRequired} obrigatórios preenchidos.</span>
                     </p>
                   </div>
-                  <button type="button" onClick={() => setStep(1)} className="text-xs text-indigo-600 hover:underline flex-shrink-0">
-                    Editar descrição
-                  </button>
                 </div>
 
                 {/* AI Summary preview (read-only) */}
