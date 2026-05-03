@@ -191,8 +191,8 @@ class MatchCreate(BaseModel):
 class MatchCreateWithProperty(BaseModel):
     buyer_id: str
     interest_id: str
-    property_info: PropertyInfo
-    ai_compatibility: Optional[dict] = None  # {score: int, justificativa: str, property_description: str}
+    property_info: Optional[dict] = None
+    ai_compatibility: Optional[dict] = None
 
 
 # ============ VISIT MODELS ============

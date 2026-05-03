@@ -1018,7 +1018,7 @@ async def create_match(match_data: MatchCreateWithProperty, current_user: dict =
         agent_id=current_user["user_id"],
         interest_id=match_data.interest_id,
         status="pending_approval",
-        property_info=match_data.property_info.model_dump() if match_data.property_info else None,
+        property_info=match_data.property_info if match_data.property_info else None,
         ai_compatibility=match_data.ai_compatibility
     )
     
