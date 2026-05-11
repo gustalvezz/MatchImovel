@@ -756,11 +756,11 @@ async def process_saved_searches(request: Request):
     from services.openai_service import evaluate_buyers_with_openai
     from services.email_service import send_saved_search_results_email
     
-    # Validate internal API key
+    # Validate internal API key — always required (reject if env var not configured)
     internal_key = request.headers.get("X-Internal-Key")
     expected_key = os.environ.get("INTERNAL_API_KEY")
-    
-    if expected_key and internal_key != expected_key:
+
+    if not expected_key or internal_key != expected_key:
         logger.warning("Unauthorized attempt to call process-saved-searches endpoint")
         raise HTTPException(status_code=401, detail="Unauthorized")
     
