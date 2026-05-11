@@ -1,0 +1,28 @@
+name: Process Saved Searches
+
+on:
+  schedule:
+    - cron: '0 6 * * 1'  # toda segunda-feira às 06h (horário UTC = 03h Brasília)
+  workflow_dispatch:       # permite rodar manualmente pelo GitHub
+
+jobs:
+  process:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Trigger saved searches processing
+        run: |
+          response=$(curl -s -o /tmp/response.json -w "%{http_code}" \
+            -X POST "${{ secrets.BACKEND_URL }}/api/internal/process-saved-searches" \
+            -H "X-Internal-Key: ${{ secrets.INTERNAL_API_KEY }}" \
+            -H "Content-Type: application/json")
+
+          echo "HTTP status: $response"
+          echo "Response body:"
+          cat /tmp/response.json
+
+          if [ "$response" != "200" ]; then
+            echo "Error: unexpected status $response"
+            exit 1
+          fi
