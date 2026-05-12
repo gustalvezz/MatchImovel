@@ -1,6 +1,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Home, Loader2 } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
+import AppLogo from '@/components/AppLogo';
 
 const DashboardLoading = ({ message = "Carregando seu dashboard..." }) => {
   return (
@@ -13,7 +14,7 @@ const DashboardLoading = ({ message = "Carregando seu dashboard..." }) => {
       >
         {/* Logo */}
         <div className="flex items-center gap-2 mb-8">
-          <Home className="w-10 h-10 text-slate-900" />
+          <AppLogo className="h-10 w-auto" />
           <span className="text-2xl font-bold text-slate-900">Match</span>
           <span className="text-2xl font-bold text-indigo-600">Imovel</span>
         </div>

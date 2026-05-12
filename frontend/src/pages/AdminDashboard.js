@@ -9,7 +9,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/context/AuthContext';
-import { Home, LogOut, Users, Heart, Building2, TrendingUp, CheckCircle, XCircle, Clock, UserPlus, MessageSquare, BarChart3, Shield, AlertTriangle, MapPin, DollarSign, Sparkles, UserCog, FileCheck, Trash2 } from 'lucide-react';
+import { LogOut, Users, Heart, Building2, TrendingUp, CheckCircle, XCircle, Clock, UserPlus, MessageSquare, BarChart3, Shield, AlertTriangle, MapPin, DollarSign, Sparkles, UserCog, FileCheck, Trash2 } from 'lucide-react';
+import AppLogo from '@/components/AppLogo';
 import { toast } from 'sonner';
 import CreateCuratorModal from '@/components/CreateCuratorModal';
 import MatchFollowUp from '@/components/MatchFollowUp';
@@ -142,7 +143,7 @@ const AdminDashboard = () => {
       <header className="bg-white/70 backdrop-blur-xl border-b border-slate-200/50 sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
           <div className="flex items-center gap-2">
-            <Home className="w-8 h-8 text-slate-900" />
+            <AppLogo />
             <div>
               <h1 className="text-xl font-bold flex items-center gap-0.5" data-testid="admin-dashboard-title">
                 <span className="text-slate-900">Match</span>

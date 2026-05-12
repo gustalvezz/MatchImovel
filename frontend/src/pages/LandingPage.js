@@ -3,7 +3,8 @@ import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { Home, Search, Users, Zap, Building2, CheckCircle2, ArrowRight, Shield, Target, Eye, TrendingUp, Lock, ChevronLeft, ChevronRight, Star, Menu, X } from 'lucide-react';
+import { Search, Users, Zap, Building2, CheckCircle2, ArrowRight, Shield, Target, Eye, TrendingUp, Lock, ChevronLeft, ChevronRight, Star, Menu, X } from 'lucide-react';
+import AppLogo from '@/components/AppLogo';
 
 const LandingPage = () => {
   const navigate = useNavigate();
@@ -82,7 +83,7 @@ const LandingPage = () => {
             className="text-2xl font-bold flex items-center gap-1 cursor-pointer"
             onClick={() => scrollToSection('hero')}
           >
-            <Home className="w-8 h-8 text-slate-900" />
+            <AppLogo />
             <span className="text-slate-900">Match</span>
             <span className="text-indigo-600">Imovel</span>
           </div>
@@ -620,7 +621,7 @@ const LandingPage = () => {
       <footer className="bg-slate-900 text-slate-400 py-12">
         <div className="max-w-7xl mx-auto px-6 text-center">
           <div className="flex items-center justify-center gap-1 mb-4">
-            <Home className="w-6 h-6" />
+            <AppLogo className="h-6 w-auto" />
             <span className="text-xl font-bold">
               <span className="text-white">Match</span>
               <span className="text-indigo-400">Imovel</span>

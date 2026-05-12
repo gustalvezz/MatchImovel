@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/context/AuthContext';
 import { Home, Plus, Heart, Calendar, LogOut, Building2, MapPin, DollarSign, Trash2, Sparkles, BedDouble, Bath, Ruler, ExternalLink, Link as LinkIcon, Clock, Search, Loader2, CheckCircle2 } from 'lucide-react';
+import AppLogo from '@/components/AppLogo';
 import { toast } from 'sonner';
 import InterestFormModal from '@/components/InterestFormModal';
 import DeleteConfirmModal from '@/components/DeleteConfirmModal';
@@ -95,7 +96,7 @@ const BuyerDashboard = () => {
       <header className="bg-white/70 backdrop-blur-xl border-b border-slate-200/50 sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
           <div className="flex items-center gap-2">
-            <Home className="w-8 h-8 text-slate-900" />
+            <AppLogo />
             <div>
               <h1 className="text-xl font-bold flex items-center gap-0.5" data-testid="dashboard-title">
                 <span className="text-slate-900">Match</span>

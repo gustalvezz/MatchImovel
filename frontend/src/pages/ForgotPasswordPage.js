@@ -5,7 +5,8 @@ import axios from 'axios';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Home, Mail, ArrowLeft, CheckCircle, Loader2 } from 'lucide-react';
+import { Mail, ArrowLeft, CheckCircle, Loader2 } from 'lucide-react';
+import AppLogo from '@/components/AppLogo';
 import { toast } from 'sonner';
 
 const API = process.env.REACT_APP_BACKEND_URL;
@@ -45,7 +46,7 @@ const ForgotPasswordPage = () => {
       >
         <div className="text-center mb-8">
           <Link to="/" className="inline-flex items-center gap-1 text-2xl font-bold mb-2">
-            <Home className="w-8 h-8 text-slate-900" />
+            <AppLogo />
             <span className="text-slate-900">Match</span>
             <span className="text-indigo-600">Imovel</span>
           </Link>

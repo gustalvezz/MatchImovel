@@ -7,7 +7,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card } from '@/components/ui/card';
 import { useAuth } from '@/context/AuthContext';
-import { Home, Mail, Lock, User, Phone, Shield, MapPin, Eye, EyeOff, FileText, X, ExternalLink } from 'lucide-react';
+import { Mail, Lock, User, Phone, Shield, MapPin, Eye, EyeOff, FileText, X, ExternalLink } from 'lucide-react';
+import AppLogo from '@/components/AppLogo';
 import { toast } from 'sonner';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
@@ -338,7 +339,7 @@ const RegisterPage = () => {
       >
         <div className="text-center mb-8">
           <Link to="/" className="inline-flex items-center gap-1 text-2xl font-bold mb-2">
-            <Home className="w-8 h-8 text-slate-900" />
+            <AppLogo />
             <span className="text-slate-900">Match</span>
             <span className="text-indigo-600">Imovel</span>
           </Link>

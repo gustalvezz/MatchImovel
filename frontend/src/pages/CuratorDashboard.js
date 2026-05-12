@@ -11,11 +11,12 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useAuth } from '@/context/AuthContext';
-import { 
-  Home, LogOut, Users, Heart, Building2, CheckCircle, XCircle, 
-  Clock, MessageSquare, Phone, MapPin, DollarSign, BedDouble, 
+import {
+  Home, LogOut, Users, Heart, Building2, CheckCircle, XCircle,
+  Clock, MessageSquare, Phone, MapPin, DollarSign, BedDouble,
   Car, Bath, ChevronDown, ChevronUp, Calendar, Link as LinkIcon, Ruler, ExternalLink, Sparkles, BadgeCheck
 } from 'lucide-react';
+import AppLogo from '@/components/AppLogo';
 import { toast } from 'sonner';
 import MatchFollowUp from '@/components/MatchFollowUp';
 import DashboardLoading from '@/components/DashboardLoading';
@@ -585,7 +586,7 @@ const CuratorDashboard = () => {
       <header className="bg-white/70 backdrop-blur-xl border-b border-slate-200/50 sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
           <div className="flex items-center gap-2">
-            <Home className="w-8 h-8 text-slate-900" />
+            <AppLogo />
             <div>
               <h1 className="text-xl font-bold flex items-center gap-0.5" data-testid="curator-dashboard-title">
                 <span className="text-slate-900">Match</span>

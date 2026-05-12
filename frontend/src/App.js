@@ -2,7 +2,8 @@ import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from '@/context/AuthContext';
 import { Toaster } from '@/components/ui/sonner';
-import { Home, Loader2 } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
+import AppLogo from '@/components/AppLogo';
 import LandingPage from '@/pages/LandingPage';
 import RegisterPage from '@/pages/RegisterPage';
 import LoginPage from '@/pages/LoginPage';
@@ -20,7 +21,7 @@ import '@/App.css';
 const LoadingScreen = () => (
   <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-white flex flex-col items-center justify-center">
     <div className="flex items-center gap-2 mb-6">
-      <Home className="w-10 h-10 text-slate-900" />
+      <AppLogo className="h-10 w-auto" />
       <span className="text-2xl font-bold text-slate-900">Match</span>
       <span className="text-2xl font-bold text-indigo-600">Imovel</span>
     </div>
