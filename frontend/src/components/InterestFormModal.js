@@ -910,20 +910,19 @@ const InterestFormModal = ({ isOpen, onClose, onSuccess, userInfo }) => {
                   onCheckedChange={(checked) => setTermsAccepted(checked)}
                   className="mt-0.5 data-[state=checked]:bg-indigo-600 data-[state=checked]:border-indigo-600"
                 />
-                <label htmlFor="terms-checkbox" className="text-xs text-slate-600 leading-relaxed cursor-pointer">
-                  Li e aceito os{' '}
+                <div className="text-xs text-slate-600 leading-relaxed">
+                  <label htmlFor="terms-checkbox" className="cursor-pointer">
+                    Li e aceito os{' '}
+                  </label>
                   <button
                     type="button"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      setShowTermsModal(true);
-                    }}
+                    onClick={() => setShowTermsModal(true)}
                     className="text-indigo-600 hover:text-indigo-700 font-medium underline inline-flex items-center gap-1"
                   >
                     Termos de Uso e Compromisso de Intermediação
                     <ExternalLink className="w-3 h-3" />
                   </button>
-                </label>
+                </div>
               </div>
             </div>
 
