@@ -114,8 +114,8 @@ const InterestFormModal = ({ isOpen, onClose, onSuccess, userInfo }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [showTermsModal, setShowTermsModal] = useState(false);
-  
-  const [formData, setFormData] = useState({
+
+  const getInitialFormData = () => ({
     // BLOCO 1 - QUEM É VOCÊ
     age_range: '',
     profile_type: '',
@@ -158,8 +158,10 @@ const InterestFormModal = ({ isOpen, onClose, onSuccess, userInfo }) => {
     // User info
     name: userInfo?.name || '',
     phone: userInfo?.phone || '',
-    email: userInfo?.email || ''
+    email: userInfo?.email || '',
   });
+
+  const [formData, setFormData] = useState(getInitialFormData);
 
   // Define all screens including conditionals
   const allScreens = useMemo(() => {
@@ -296,6 +298,9 @@ const InterestFormModal = ({ isOpen, onClose, onSuccess, userInfo }) => {
         terms_accepted_at: new Date().toISOString()
       });
       toast.success('Interesse cadastrado com sucesso!');
+      setCurrentStep(0);
+      setFormData(getInitialFormData());
+      setTermsAccepted(false);
       onSuccess?.();
       onClose();
     } catch (error) {
