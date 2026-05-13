@@ -84,7 +84,7 @@ const LandingPage = () => {
             onClick={() => scrollToSection('hero')}
           >
             <AppLogo />
-            <span className="text-slate-900">Match</span><span className="text-indigo-600">Imovel</span>
+            <span><span className="text-slate-900">Match</span><span className="text-indigo-600">Imovel</span></span>
           </div>
           
           {/* Desktop Menu */}
@@ -622,7 +622,7 @@ const LandingPage = () => {
           <div className="flex items-center justify-center gap-1 mb-4">
             <AppLogo className="h-6 w-auto brightness-0 invert" />
             <span className="text-xl font-bold">
-              <span className="text-white">Match</span><span className="text-indigo-400">Imovel</span>
+              <span><span className="text-white">Match</span><span className="text-indigo-400">Imovel</span></span>
             </span>
           </div>
           <p>© 2026 MatchImovel. Todos os direitos reservados.</p>

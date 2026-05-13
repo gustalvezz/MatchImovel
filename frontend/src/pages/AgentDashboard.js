@@ -450,7 +450,7 @@ const AgentDashboard = () => {
             <AppLogo />
             <div>
               <h1 className="text-xl font-bold flex items-center gap-0.5" data-testid="agent-dashboard-title">
-                <span className="text-slate-900">Match</span><span className="text-indigo-600">Imovel</span>
+                <span><span className="text-slate-900">Match</span><span className="text-indigo-600">Imovel</span></span>
                 <span className="text-slate-900"> - Corretor</span>
               </h1>
               <p className="text-sm text-muted-foreground">Olá, {user?.name}</p>

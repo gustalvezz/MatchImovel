@@ -58,7 +58,7 @@ const LoginPage = () => {
         <div className="text-center mb-8">
           <Link to="/" className="inline-flex items-center gap-1 text-2xl font-bold mb-2">
             <AppLogo />
-            <span className="text-slate-900">Match</span><span className="text-indigo-600">Imovel</span>
+            <span><span className="text-slate-900">Match</span><span className="text-indigo-600">Imovel</span></span>
           </Link>
           <h1 className="text-3xl font-semibold mt-4 mb-2" data-testid="login-title">Entrar</h1>
           <p className="text-muted-foreground">Acesse sua conta</p>

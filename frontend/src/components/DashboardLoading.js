@@ -15,7 +15,7 @@ const DashboardLoading = ({ message = "Carregando seu dashboard..." }) => {
         {/* Logo */}
         <div className="flex items-center gap-2 mb-8">
           <AppLogo className="h-10 w-auto" />
-          <span className="text-2xl font-bold text-slate-900">Match</span><span className="text-2xl font-bold text-indigo-600">Imovel</span>
+          <span><span className="text-2xl font-bold text-slate-900">Match</span><span className="text-2xl font-bold text-indigo-600">Imovel</span></span>
         </div>
         
         {/* Loading Animation */}
