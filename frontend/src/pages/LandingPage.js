@@ -621,7 +621,7 @@ const LandingPage = () => {
       <footer className="bg-slate-900 text-slate-400 py-12">
         <div className="max-w-7xl mx-auto px-6 text-center">
           <div className="flex items-center justify-center gap-1 mb-4">
-            <AppLogo className="h-6 w-auto" />
+            <AppLogo className="h-6 w-auto brightness-0 invert" />
             <span className="text-xl font-bold">
               <span className="text-white">Match</span>
               <span className="text-indigo-400">Imovel</span>
