@@ -259,7 +259,7 @@ const InterestFormModal = ({ isOpen, onClose, onSuccess, userInfo }) => {
       case 'transportation': return formData.transportation.length > 0;
       case 'deal_breakers': return formData.deal_breakers.length > 0 && formData.deal_breakers.length <= 3;
       case 'proximity_needs': return formData.proximity_needs.length > 0 && formData.proximity_needs.length <= 3;
-      case 'finalization': return formData.additional_notes.trim().length >= 20 && termsAccepted;
+      case 'finalization': return formData.additional_notes.trim().length >= 15 && termsAccepted;
       default: return true;
     }
   };
@@ -282,8 +282,8 @@ const InterestFormModal = ({ isOpen, onClose, onSuccess, userInfo }) => {
       return;
     }
     
-    if (formData.additional_notes.trim().length < 20) {
-      toast.error('O campo de observações deve ter no mínimo 20 caracteres');
+    if (formData.additional_notes.trim().length < 15) {
+      toast.error('Preencha o campo de observações com pelo menos 15 caracteres — use-o para informar o que não foi coberto pelas perguntas anteriores.');
       return;
     }
     
@@ -876,7 +876,7 @@ const InterestFormModal = ({ isOpen, onClose, onSuccess, userInfo }) => {
 
       // TELA 18: Finalização
       case 'finalization':
-        const minChars = 20;
+        const minChars = 15;
         const currentChars = formData.additional_notes?.length || 0;
         const isFieldValid = currentChars >= minChars;
         
@@ -929,7 +929,7 @@ const InterestFormModal = ({ isOpen, onClose, onSuccess, userInfo }) => {
 
             <Button
               onClick={handleSubmit}
-              disabled={!isFieldValid || !termsAccepted || isSubmitting}
+              disabled={isSubmitting}
               className="w-full rounded-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 h-10"
             >
               {isSubmitting ? 'Enviando...' : 'Finalizar Cadastro'}
