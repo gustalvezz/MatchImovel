@@ -146,8 +146,7 @@ const AdminDashboard = () => {
             <AppLogo />
             <div>
               <h1 className="text-xl font-bold flex items-center gap-0.5" data-testid="admin-dashboard-title">
-                <span className="text-slate-900">Match</span>
-                <span className="text-indigo-600">Imovel</span>
+                <span className="text-slate-900">Match</span><span className="text-indigo-600">Imovel</span>
                 <span className="text-slate-900"> - Admin</span>
               </h1>
               <p className="text-sm text-muted-foreground">Olá, {user?.name}</p>

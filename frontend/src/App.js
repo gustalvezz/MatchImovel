@@ -22,8 +22,7 @@ const LoadingScreen = () => (
   <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-white flex flex-col items-center justify-center">
     <div className="flex items-center gap-2 mb-6">
       <AppLogo className="h-10 w-auto" />
-      <span className="text-2xl font-bold text-slate-900">Match</span>
-      <span className="text-2xl font-bold text-indigo-600">Imovel</span>
+      <span className="text-2xl font-bold text-slate-900">Match</span><span className="text-2xl font-bold text-indigo-600">Imovel</span>
     </div>
     <div className="flex flex-col items-center gap-4">
       <Loader2 className="w-10 h-10 text-indigo-600 animate-spin" />
