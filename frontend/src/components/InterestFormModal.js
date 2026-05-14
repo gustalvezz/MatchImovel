@@ -124,37 +124,45 @@ const InterestFormModal = ({ isOpen, onClose, onSuccess, userInfo }) => {
     children_count: '',
     children_ages: [],
     urgency: '',
-    
+
     // BLOCO 2 - O QUE VOCÊ BUSCA
     property_type: '',
     floor_preference: '',
+    investment_goal: '',
     land_priorities: [],
     location: '',
     budget_range: '',
     payment_method: [],
     current_property_status: '',
-    
+
     // BLOCO 3 - COMO DEVE SER
     indispensable: [],
     indispensable_other: '',
+    indispensable_investor: [],
+    indispensable_terreno: [],
     space_size: '',
+    land_area_size: '',
     property_condition: [],
+    land_condition: '',
     ambiance: '',
-    
+    land_ambiance: '',
+
     // BLOCO 4 - COMO VOCÊ VIVE
     has_pets: '',
     daily_routine: [],
     transportation: [],
-    
+    transportation_investor: [],
+
     // BLOCO 5 - O QUE VOCÊ REJEITA
     deal_breakers: [],
-    
+    deal_breakers_terreno: [],
+
     // BLOCO 6 - ENTORNO
     proximity_needs: [],
-    
+
     // BLOCO 7 - FINALIZAÇÃO
     additional_notes: '',
-    
+
     // User info
     name: userInfo?.name || '',
     phone: userInfo?.phone || '',
@@ -165,53 +173,79 @@ const InterestFormModal = ({ isOpen, onClose, onSuccess, userInfo }) => {
 
   // Define all screens including conditionals
   const allScreens = useMemo(() => {
+    const isInvestidor = formData.profile_type === 'investidor';
+    const isTerreno = ['terreno', 'terreno_condominio'].includes(formData.property_type);
+
     const screens = [
       { id: 'age_range', block: 1 },
       { id: 'profile_type', block: 1 },
-      { id: 'who_will_live', block: 1 },
     ];
-    
-    // CONDICIONAL 1: Se selecionou "Filho(s)"
-    if (formData.who_will_live.includes('Filho(s)')) {
-      screens.push({ id: 'children_count', block: 1, conditional: true });
-      screens.push({ id: 'children_ages', block: 1, conditional: true });
+
+    // Investidor pula perguntas de moradia
+    if (!isInvestidor) {
+      screens.push({ id: 'who_will_live', block: 1 });
+      if (formData.who_will_live.includes('Filho(s)')) {
+        screens.push({ id: 'children_count', block: 1, conditional: true });
+        screens.push({ id: 'children_ages', block: 1, conditional: true });
+      }
     }
-    
+
     screens.push({ id: 'urgency', block: 1 });
     screens.push({ id: 'property_type', block: 2 });
-    
-    // CONDICIONAL 2: Se selecionou "Apartamento" ou "Studio / Loft"
-    if (['apartamento', 'studio_loft'].includes(formData.property_type)) {
+
+    // Investidor: objetivo de investimento (substitui floor_preference)
+    if (isInvestidor) {
+      screens.push({ id: 'investment_goal', block: 2, conditional: true });
+    } else if (['apartamento', 'studio_loft'].includes(formData.property_type)) {
       screens.push({ id: 'floor_preference', block: 2, conditional: true });
     }
-    
-    // CONDICIONAL 3: Se selecionou "Terreno" ou "Terreno de condomínio"
-    if (['terreno', 'terreno_condominio'].includes(formData.property_type)) {
+
+    // Terreno: prioridades específicas
+    if (isTerreno) {
       screens.push({ id: 'land_priorities', block: 2, conditional: true });
     }
-    
+
     screens.push({ id: 'location', block: 2 });
     screens.push({ id: 'budget_range', block: 2 });
     screens.push({ id: 'payment_method', block: 2 });
-    
-    // CONDICIONAL 4: Se selecionou "Tenho imóvel para dar como parte do pagamento"
+
     if (formData.payment_method.includes('Tenho imóvel para dar como parte do pagamento')) {
       screens.push({ id: 'current_property_status', block: 2, conditional: true });
     }
-    
-    screens.push({ id: 'indispensable', block: 3 });
-    screens.push({ id: 'space_size', block: 3 });
-    screens.push({ id: 'property_condition', block: 3 });
-    screens.push({ id: 'ambiance', block: 3 });
-    screens.push({ id: 'has_pets', block: 4 });
-    screens.push({ id: 'daily_routine', block: 4 });
-    screens.push({ id: 'transportation', block: 4 });
-    screens.push({ id: 'deal_breakers', block: 5 });
+
+    // Bloco 3: variantes por perfil/tipo
+    if (isTerreno) {
+      screens.push({ id: 'indispensable_terreno', block: 3 });
+      screens.push({ id: 'land_area_size', block: 3 });
+      screens.push({ id: 'land_condition', block: 3 });
+      screens.push({ id: 'land_ambiance', block: 3 });
+    } else if (isInvestidor) {
+      screens.push({ id: 'indispensable_investor', block: 3 });
+      screens.push({ id: 'space_size', block: 3 });
+      screens.push({ id: 'property_condition', block: 3 });
+      // ambiance pulado para investidor
+    } else {
+      screens.push({ id: 'indispensable', block: 3 });
+      screens.push({ id: 'space_size', block: 3 });
+      screens.push({ id: 'property_condition', block: 3 });
+      screens.push({ id: 'ambiance', block: 3 });
+    }
+
+    // Bloco 4: investidor pula has_pets e daily_routine
+    if (!isInvestidor) {
+      screens.push({ id: 'has_pets', block: 4 });
+      screens.push({ id: 'daily_routine', block: 4 });
+    }
+    screens.push({ id: isInvestidor ? 'transportation_investor' : 'transportation', block: 4 });
+
+    // Bloco 5: deal_breakers por tipo
+    screens.push({ id: isTerreno ? 'deal_breakers_terreno' : 'deal_breakers', block: 5 });
+
     screens.push({ id: 'proximity_needs', block: 6 });
     screens.push({ id: 'finalization', block: 7 });
-    
+
     return screens;
-  }, [formData.who_will_live, formData.property_type, formData.payment_method]);
+  }, [formData.profile_type, formData.who_will_live, formData.property_type, formData.payment_method]);
 
   const totalSteps = allScreens.length;
   const currentScreenId = allScreens[currentStep]?.id;
@@ -250,15 +284,23 @@ const InterestFormModal = ({ isOpen, onClose, onSuccess, userInfo }) => {
       case 'budget_range': return formData.budget_range !== '';
       case 'payment_method': return formData.payment_method.length > 0;
       case 'current_property_status': return formData.current_property_status !== '';
+      case 'investment_goal': return formData.investment_goal !== '';
       case 'indispensable': return formData.indispensable.length > 0 || (formData.indispensable.includes('Outro') && formData.indispensable_other.trim() !== '');
+      case 'indispensable_investor': return formData.indispensable_investor.length > 0;
+      case 'indispensable_terreno': return formData.indispensable_terreno.length > 0;
       case 'space_size': return formData.space_size !== '';
+      case 'land_area_size': return formData.land_area_size !== '';
       case 'property_condition': return formData.property_condition.length > 0;
+      case 'land_condition': return formData.land_condition !== '';
       case 'ambiance': return formData.ambiance !== '';
+      case 'land_ambiance': return formData.land_ambiance !== '';
       case 'has_pets': return formData.has_pets !== '';
-      case 'daily_routine': return formData.daily_routine.length > 0 && formData.daily_routine.length <= 3;
+      case 'daily_routine': return formData.daily_routine.length > 0 && formData.daily_routine.length <= 5;
       case 'transportation': return formData.transportation.length > 0;
-      case 'deal_breakers': return formData.deal_breakers.length > 0 && formData.deal_breakers.length <= 3;
-      case 'proximity_needs': return formData.proximity_needs.length > 0 && formData.proximity_needs.length <= 3;
+      case 'transportation_investor': return formData.transportation_investor.length > 0;
+      case 'deal_breakers': return formData.deal_breakers.length > 0 && formData.deal_breakers.length <= 5;
+      case 'deal_breakers_terreno': return formData.deal_breakers_terreno.length > 0 && formData.deal_breakers_terreno.length <= 5;
+      case 'proximity_needs': return formData.proximity_needs.length > 0 && formData.proximity_needs.length <= 5;
       case 'finalization': return formData.additional_notes.trim().length >= 15 && termsAccepted;
       default: return true;
     }
@@ -767,13 +809,13 @@ const InterestFormModal = ({ isOpen, onClose, onSuccess, userInfo }) => {
                 <CheckboxCard
                   key={item}
                   selected={formData.daily_routine.includes(item)}
-                  onClick={() => handleMultiSelect('daily_routine', item, 3)}
+                  onClick={() => handleMultiSelect('daily_routine', item, 5)}
                   text={item}
-                  disabled={formData.daily_routine.length >= 3 && !formData.daily_routine.includes(item)}
+                  disabled={formData.daily_routine.length >= 5 && !formData.daily_routine.includes(item)}
                 />
               ))}
             </div>
-            <p className="text-xs text-slate-500 mt-2 text-center">{formData.daily_routine.length}/3 selecionados</p>
+            <p className="text-xs text-slate-500 mt-2 text-center">{formData.daily_routine.length}/5 selecionados</p>
           </div>
         );
 
@@ -818,13 +860,13 @@ const InterestFormModal = ({ isOpen, onClose, onSuccess, userInfo }) => {
                 <CheckboxCard
                   key={item}
                   selected={formData.deal_breakers.includes(item)}
-                  onClick={() => handleMultiSelect('deal_breakers', item, 3)}
+                  onClick={() => handleMultiSelect('deal_breakers', item, 5)}
                   text={item}
-                  disabled={formData.deal_breakers.length >= 3 && !formData.deal_breakers.includes(item)}
+                  disabled={formData.deal_breakers.length >= 5 && !formData.deal_breakers.includes(item)}
                 />
               ))}
             </div>
-            <p className="text-xs text-slate-500 mt-2 text-center">{formData.deal_breakers.length}/3 selecionados</p>
+            <p className="text-xs text-slate-500 mt-2 text-center">{formData.deal_breakers.length}/5 selecionados</p>
           </div>
         );
 
@@ -854,7 +896,7 @@ const InterestFormModal = ({ isOpen, onClose, onSuccess, userInfo }) => {
                       if (formData.proximity_needs.includes('Tanto faz')) {
                         setFormData(prev => ({ ...prev, proximity_needs: [item] }));
                       } else {
-                        handleMultiSelect('proximity_needs', item, 3);
+                        handleMultiSelect('proximity_needs', item, 5);
                       }
                     }
                   }}
@@ -862,15 +904,166 @@ const InterestFormModal = ({ isOpen, onClose, onSuccess, userInfo }) => {
                   disabled={
                     item !== 'Tanto faz' && 
                     !formData.proximity_needs.includes('Tanto faz') &&
-                    formData.proximity_needs.length >= 3 && 
+                    formData.proximity_needs.length >= 5 && 
                     !formData.proximity_needs.includes(item)
                   }
                 />
               ))}
             </div>
             {!formData.proximity_needs.includes('Tanto faz') && (
-              <p className="text-xs text-slate-500 mt-2 text-center">{formData.proximity_needs.length}/3 selecionados</p>
+              <p className="text-xs text-slate-500 mt-2 text-center">{formData.proximity_needs.length}/5 selecionados</p>
             )}
+          </div>
+        );
+
+      // INVESTIDOR: Objetivo de investimento
+      case 'investment_goal':
+        return (
+          <div>
+            <h2 className="text-base md:text-lg font-bold mb-1">Qual seu objetivo com esse investimento?</h2>
+            <p className="text-slate-500 mb-3 text-xs">Selecione uma opção</p>
+            <div className="space-y-2">
+              <OptionCard selected={formData.investment_goal === 'renda_aluguel'} onClick={() => handleSingleSelect('investment_goal', 'renda_aluguel')} letter="A" title="Renda de aluguel" subtitle="Quero fluxo mensal" />
+              <OptionCard selected={formData.investment_goal === 'valorizacao'} onClick={() => handleSingleSelect('investment_goal', 'valorizacao')} letter="B" title="Valorização" subtitle="Comprar, segurar e vender" />
+              <OptionCard selected={formData.investment_goal === 'reforma_revenda'} onClick={() => handleSingleSelect('investment_goal', 'reforma_revenda')} letter="C" title="Reforma e revenda" subtitle="Comprar abaixo do mercado" />
+              <OptionCard selected={formData.investment_goal === 'construir_vender'} onClick={() => handleSingleSelect('investment_goal', 'construir_vender')} letter="D" title="Construir para vender" subtitle="Terreno ou imóvel na planta" />
+              <OptionCard selected={formData.investment_goal === 'diversificar'} onClick={() => handleSingleSelect('investment_goal', 'diversificar')} letter="E" title="Diversificar patrimônio" subtitle="Qualquer estratégia que faça sentido" />
+            </div>
+          </div>
+        );
+
+      // INVESTIDOR: O que é indispensável para liquidez
+      case 'indispensable_investor':
+        return (
+          <div>
+            <h2 className="text-base md:text-lg font-bold mb-1">O que é indispensável para o imóvel ter boa liquidez?</h2>
+            <p className="text-slate-500 mb-3 text-xs">Selecione quantas opções quiser</p>
+            <div className="grid grid-cols-2 gap-1.5">
+              {[
+                '2+ quartos', 'Vaga de garagem', 'Localização consolidada',
+                'Portaria 24h / Condomínio fechado', 'Área de lazer (valoriza aluguel)',
+                'Varanda', 'Metragem acima de 60m²', 'Pronto para morar / sem reforma',
+                'Documentação regularizada', 'Próximo ao metrô / transporte'
+              ].map(item => (
+                <CheckboxCard key={item} selected={formData.indispensable_investor.includes(item)} onClick={() => handleMultiSelect('indispensable_investor', item)} text={item} />
+              ))}
+            </div>
+          </div>
+        );
+
+      // TERRENO: O que é indispensável no terreno
+      case 'indispensable_terreno':
+        return (
+          <div>
+            <h2 className="text-base md:text-lg font-bold mb-1">O que é indispensável no terreno?</h2>
+            <p className="text-slate-500 mb-3 text-xs">Selecione quantas opções quiser</p>
+            <div className="grid grid-cols-2 gap-1.5">
+              {[
+                'Topografia plana', 'Metragem acima de 500m²', 'Lote de esquina',
+                'Infraestrutura completa (água, luz, asfalto)', 'Documentação regularizada',
+                'Já tem projeto aprovado', 'Permite construção imediata',
+                'Dentro de condomínio fechado', 'Zoneamento residencial', 'Zoneamento comercial / misto'
+              ].map(item => (
+                <CheckboxCard key={item} selected={formData.indispensable_terreno.includes(item)} onClick={() => handleMultiSelect('indispensable_terreno', item)} text={item} />
+              ))}
+            </div>
+          </div>
+        );
+
+      // TERRENO: Faixa de metragem do terreno
+      case 'land_area_size':
+        return (
+          <div>
+            <h2 className="text-base md:text-lg font-bold mb-1">Qual faixa de metragem do terreno?</h2>
+            <p className="text-slate-500 mb-3 text-xs">Selecione uma opção</p>
+            <div className="space-y-2">
+              <OptionCard selected={formData.land_area_size === 'ate_300'} onClick={() => handleSingleSelect('land_area_size', 'ate_300')} letter="A" title="Até 300m²" subtitle="Lote compacto, menor investimento" />
+              <OptionCard selected={formData.land_area_size === '300_600'} onClick={() => handleSingleSelect('land_area_size', '300_600')} letter="B" title="300 a 600m²" subtitle="Padrão residencial" />
+              <OptionCard selected={formData.land_area_size === '600_1500'} onClick={() => handleSingleSelect('land_area_size', '600_1500')} letter="C" title="600m² a 1.500m²" subtitle="Amplo, projetos maiores" />
+              <OptionCard selected={formData.land_area_size === 'acima_1500'} onClick={() => handleSingleSelect('land_area_size', 'acima_1500')} letter="D" title="Acima de 1.500m²" subtitle="Grande porte / incorporação" />
+            </div>
+          </div>
+        );
+
+      // TERRENO: Situação ideal do terreno
+      case 'land_condition':
+        return (
+          <div>
+            <h2 className="text-base md:text-lg font-bold mb-1">Qual a situação ideal do terreno?</h2>
+            <p className="text-slate-500 mb-3 text-xs">Selecione uma opção</p>
+            <div className="space-y-2">
+              <OptionCard selected={formData.land_condition === 'pronto'} onClick={() => handleSingleSelect('land_condition', 'pronto')} letter="A" title="Pronto para construir imediatamente" />
+              <OptionCard selected={formData.land_condition === 'aceito_pendencias'} onClick={() => handleSingleSelect('land_condition', 'aceito_pendencias')} letter="B" title="Aceito pendências documentais se o preço compensar" />
+              <OptionCard selected={formData.land_condition === 'loteamento'} onClick={() => handleSingleSelect('land_condition', 'loteamento')} letter="C" title="Prefiro dentro de loteamento / condomínio fechado" />
+              <OptionCard selected={formData.land_condition === 'tanto_faz'} onClick={() => handleSingleSelect('land_condition', 'tanto_faz')} letter="D" title="Tanto faz" subtitle="O que importa é localização e preço" />
+            </div>
+          </div>
+        );
+
+      // TERRENO: Tipo de entorno
+      case 'land_ambiance':
+        return (
+          <div>
+            <h2 className="text-base md:text-lg font-bold mb-1">Que tipo de entorno você busca?</h2>
+            <p className="text-slate-500 mb-3 text-xs">Selecione uma opção</p>
+            <div className="space-y-2">
+              <OptionCard selected={formData.land_ambiance === 'residencial'} onClick={() => handleSingleSelect('land_ambiance', 'residencial')} letter="A" title="Bairro residencial consolidado" />
+              <OptionCard selected={formData.land_ambiance === 'loteamento'} onClick={() => handleSingleSelect('land_ambiance', 'loteamento')} letter="B" title="Condomínio fechado / loteamento privado" />
+              <OptionCard selected={formData.land_ambiance === 'valorizando'} onClick={() => handleSingleSelect('land_ambiance', 'valorizando')} letter="C" title="Região em desenvolvimento / valorizando" />
+              <OptionCard selected={formData.land_ambiance === 'afastado'} onClick={() => handleSingleSelect('land_ambiance', 'afastado')} letter="D" title="Área mais afastada" subtitle="Sítio ou chácara" />
+              <OptionCard selected={formData.land_ambiance === 'comercial'} onClick={() => handleSingleSelect('land_ambiance', 'comercial')} letter="E" title="Região comercial ou de alto fluxo" />
+            </div>
+          </div>
+        );
+
+      // INVESTIDOR: Infraestrutura que valoriza
+      case 'transportation_investor':
+        return (
+          <div>
+            <h2 className="text-base md:text-lg font-bold mb-1">Que infraestrutura valoriza mais o imóvel para você?</h2>
+            <p className="text-slate-500 mb-3 text-xs">Selecione todas que se aplicam</p>
+            <div className="space-y-2">
+              {[
+                'Próximo ao metrô / trem',
+                'Fácil acesso a vias principais',
+                'Comércio e serviços no entorno',
+                'Parques e área verde (valoriza alto padrão)',
+                'Escola e creche no bairro',
+                'Região em processo de valorização'
+              ].map(item => (
+                <CheckboxCard key={item} selected={formData.transportation_investor.includes(item)} onClick={() => handleMultiSelect('transportation_investor', item)} text={item} />
+              ))}
+            </div>
+          </div>
+        );
+
+      // TERRENO: O que mais incomoda num terreno
+      case 'deal_breakers_terreno':
+        return (
+          <div>
+            <h2 className="text-base md:text-lg font-bold mb-1">O que mais te incomoda num terreno?</h2>
+            <p className="text-slate-500 mb-3 text-xs">Selecione até 5 opções</p>
+            <div className="grid grid-cols-2 gap-1.5">
+              {[
+                'Documentação irregular',
+                'Topografia muito inclinada',
+                'Restrição ambiental que limita construção',
+                'Rua sem asfalto ou infraestrutura precária',
+                'Metragem menor do que o anunciado',
+                'Sem muro ou segurança',
+                'Localização muito afastada',
+                'Vizinhança muito densa / sem privacidade'
+              ].map(item => (
+                <CheckboxCard
+                  key={item}
+                  selected={formData.deal_breakers_terreno.includes(item)}
+                  onClick={() => handleMultiSelect('deal_breakers_terreno', item, 5)}
+                  text={item}
+                  disabled={formData.deal_breakers_terreno.length >= 5 && !formData.deal_breakers_terreno.includes(item)}
+                />
+              ))}
+            </div>
+            <p className="text-xs text-slate-500 mt-2 text-center">{formData.deal_breakers_terreno.length}/5 selecionados</p>
           </div>
         );
 
