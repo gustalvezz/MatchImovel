@@ -2,6 +2,7 @@ import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from '@/context/AuthContext';
 import { Toaster } from '@/components/ui/sonner';
+import { Analytics } from '@vercel/analytics/react';
 import { Loader2 } from 'lucide-react';
 import AppLogo from '@/components/AppLogo';
 import LandingPage from '@/pages/LandingPage';
@@ -140,6 +141,7 @@ function App() {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
         <Toaster position="top-right" richColors />
+        <Analytics />
       </BrowserRouter>
     </AuthProvider>
   );
