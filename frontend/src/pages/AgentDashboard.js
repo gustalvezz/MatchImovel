@@ -16,6 +16,7 @@ import { toast } from 'sonner';
 import DeleteConfirmModal from '@/components/DeleteConfirmModal';
 import PropertyInfoModal from '@/components/PropertyInfoModal';
 import DashboardLoading from '@/components/DashboardLoading';
+import { AgentVisitSection } from '@/components/VisitCard';
 import {
   FIELDS_BY_TYPE,
   FIELD_META,
@@ -1156,6 +1157,10 @@ Dica: quanto mais você descrever — localização, entorno, luz, silêncio, es
                     <p className="text-sm text-muted-foreground">
                       Criado em: {new Date(match.created_at).toLocaleDateString('pt-BR')}
                     </p>
+
+                    {match.status === 'visit_scheduled' && (match.visits || []).filter(v => v.status !== 'cancelled').map(visit => (
+                      <AgentVisitSection key={visit.id} visit={{ ...visit, property_info: match.property_info }} onRefresh={fetchData} />
+                    ))}
                   </Card>
                 </motion.div>
               ))

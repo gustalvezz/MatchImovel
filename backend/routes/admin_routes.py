@@ -248,7 +248,12 @@ async def get_all_matches(current_user: dict = Depends(get_current_user)):
             curator = await db.users.find_one({"id": match['curator_id']}, {"_id": 0})
             if curator:
                 match['curator_name'] = curator.get('name')
-    
+
+        visits = await db.visits.find({"match_id": match["id"]}, {"_id": 0}).to_list(10)
+        for v in visits:
+            v["feedback"] = await db.visit_feedback.find_one({"visit_id": v["id"]}, {"_id": 0})
+        match['visits'] = visits
+
     return matches
 
 

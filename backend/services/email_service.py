@@ -802,6 +802,251 @@ async def send_visit_notification(
     return await send_email(to_email, subject, email_html)
 
 
+def _fmt_date(date_str: str) -> str:
+    """Convert YYYY-MM-DD to DD/MM/YYYY"""
+    try:
+        parts = date_str.split('-')
+        if len(parts) == 3:
+            return f"{parts[2]}/{parts[1]}/{parts[0]}"
+    except Exception:
+        pass
+    return date_str
+
+
+async def send_visit_scheduled_with_actions(
+    to_email: str,
+    to_name: str,
+    visit_date: str,
+    visit_time: str,
+    property_address: str,
+    confirm_url: str,
+    reschedule_url: str,
+    cancel_url: str,
+) -> bool:
+    """Send visit scheduling email with confirm/reschedule/cancel action links"""
+    formatted_date = _fmt_date(visit_date)
+    subject = "🏠 Visita agendada - MatchImovel"
+    html = f"""
+    <!DOCTYPE html><html><head><meta charset="UTF-8">
+    <style>
+        body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
+        .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
+        .header {{ background: linear-gradient(135deg, #6366f1, #8b5cf6); padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }}
+        .header h1 {{ color: white; margin: 0; font-size: 28px; }}
+        .content {{ background: #f9fafb; padding: 30px; border-radius: 0 0 10px 10px; }}
+        .info-box {{ background: #e0e7ff; padding: 20px; border-radius: 8px; margin: 15px 0; }}
+        .actions {{ display: flex; gap: 10px; margin: 20px 0; flex-wrap: wrap; }}
+        .btn {{ display: inline-block; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: bold; text-align: center; min-width: 140px; }}
+        .btn-confirm {{ background: #16a34a; color: white; }}
+        .btn-reschedule {{ background: #d97706; color: white; }}
+        .btn-cancel {{ background: #dc2626; color: white; }}
+        .footer {{ text-align: center; margin-top: 20px; color: #666; font-size: 12px; }}
+    </style></head><body>
+    <div class="container">
+        <div class="header"><h1>MatchImovel</h1></div>
+        <div class="content">
+            <h2>Nova visita agendada!</h2>
+            <p>Olá, <strong>{to_name}</strong>!</p>
+            <p>Uma visita foi agendada para você. Confirme sua presença ou, se necessário, solicite reagendamento.</p>
+            <div class="info-box">
+                <p><strong>📍 Endereço:</strong> {property_address}</p>
+                <p><strong>📅 Data:</strong> {formatted_date}</p>
+                <p><strong>🕐 Horário:</strong> {visit_time}</p>
+            </div>
+            <p><strong>O que deseja fazer?</strong></p>
+            <div class="actions">
+                <a href="{confirm_url}" class="btn btn-confirm">✅ Confirmar presença</a>
+                <a href="{reschedule_url}" class="btn btn-reschedule">🔄 Solicitar reagendamento</a>
+                <a href="{cancel_url}" class="btn btn-cancel">❌ Cancelar</a>
+            </div>
+            <p style="font-size: 12px; color: #666;">Estes links expiram em 7 dias. Em caso de dúvidas, entre em contato com nossa equipe.</p>
+        </div>
+        <div class="footer"><p>&copy; 2026 MatchImovel - Todos os direitos reservados</p></div>
+    </div></body></html>"""
+    return await send_email(to_email, subject, html)
+
+
+async def send_visit_confirmed_to_curator(
+    curator_email: str,
+    curator_name: str,
+    actor_name: str,
+    actor_type: str,
+    visit_date: str,
+    visit_time: str,
+    property_address: str,
+) -> bool:
+    """Notify curator that buyer or agent confirmed the visit"""
+    formatted_date = _fmt_date(visit_date)
+    actor_label = "Comprador" if actor_type == "buyer" else "Corretor"
+    subject = f"✅ {actor_label} confirmou a visita - MatchImovel"
+    html = f"""
+    <!DOCTYPE html><html><head><meta charset="UTF-8">
+    <style>
+        body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
+        .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
+        .header {{ background: linear-gradient(135deg, #16a34a, #15803d); padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }}
+        .header h1 {{ color: white; margin: 0; }}
+        .content {{ background: #f9fafb; padding: 30px; border-radius: 0 0 10px 10px; }}
+        .info-box {{ background: #dcfce7; padding: 20px; border-radius: 8px; margin: 15px 0; }}
+        .footer {{ text-align: center; margin-top: 20px; color: #666; font-size: 12px; }}
+    </style></head><body>
+    <div class="container">
+        <div class="header"><h1>MatchImovel</h1></div>
+        <div class="content">
+            <h2>✅ Confirmação de visita</h2>
+            <p>Olá, <strong>{curator_name}</strong>!</p>
+            <p>O <strong>{actor_label} {actor_name}</strong> confirmou presença na visita.</p>
+            <div class="info-box">
+                <p><strong>📍 Endereço:</strong> {property_address}</p>
+                <p><strong>📅 Data:</strong> {formatted_date}</p>
+                <p><strong>🕐 Horário:</strong> {visit_time}</p>
+            </div>
+            <p>Acesse o dashboard para ver o status completo da visita.</p>
+        </div>
+        <div class="footer"><p>&copy; 2026 MatchImovel - Todos os direitos reservados</p></div>
+    </div></body></html>"""
+    return await send_email(curator_email, subject, html)
+
+
+async def send_reschedule_request_notification(
+    to_emails: list,
+    to_names: list,
+    requester_name: str,
+    requester_type: str,
+    visit_date: str,
+    visit_time: str,
+    property_address: str,
+    reason: str,
+    proposed_date: str = None,
+    proposed_time: str = None,
+) -> bool:
+    """Send reschedule request to curator + agent/buyer (whoever didn't request)"""
+    formatted_date = _fmt_date(visit_date)
+    requester_label = "Comprador" if requester_type == "buyer" else "Corretor"
+    proposed_info = ""
+    if proposed_date:
+        proposed_info = f"<p><strong>📅 Nova data proposta:</strong> {_fmt_date(proposed_date)}" + (f" às {proposed_time}" if proposed_time else "") + "</p>"
+
+    subject = f"🔄 Pedido de reagendamento de visita - MatchImovel"
+    html = f"""
+    <!DOCTYPE html><html><head><meta charset="UTF-8">
+    <style>
+        body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
+        .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
+        .header {{ background: linear-gradient(135deg, #d97706, #b45309); padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }}
+        .header h1 {{ color: white; margin: 0; }}
+        .content {{ background: #f9fafb; padding: 30px; border-radius: 0 0 10px 10px; }}
+        .info-box {{ background: #fef3c7; padding: 20px; border-radius: 8px; margin: 15px 0; }}
+        .reason-box {{ background: #fff7ed; border-left: 4px solid #d97706; padding: 15px; border-radius: 4px; margin: 15px 0; }}
+        .footer {{ text-align: center; margin-top: 20px; color: #666; font-size: 12px; }}
+    </style></head><body>
+    <div class="container">
+        <div class="header"><h1>MatchImovel</h1></div>
+        <div class="content">
+            <h2>🔄 Pedido de reagendamento</h2>
+            <p>O <strong>{requester_label} {requester_name}</strong> solicitou o reagendamento da visita abaixo.</p>
+            <div class="info-box">
+                <p><strong>📍 Endereço:</strong> {property_address}</p>
+                <p><strong>📅 Data original:</strong> {formatted_date}</p>
+                <p><strong>🕐 Horário original:</strong> {visit_time}</p>
+                {proposed_info}
+            </div>
+            <div class="reason-box">
+                <p><strong>Motivo:</strong> {reason}</p>
+            </div>
+            <p>Acesse o dashboard do curador para aprovar o reagendamento e definir a nova data.</p>
+        </div>
+        <div class="footer"><p>&copy; 2026 MatchImovel - Todos os direitos reservados</p></div>
+    </div></body></html>"""
+
+    results = []
+    for email, name in zip(to_emails, to_names):
+        results.append(await send_email(email, subject, html))
+    return any(results)
+
+
+async def send_post_visit_feedback_request(
+    buyer_email: str,
+    buyer_name: str,
+    visit_date: str,
+    visit_time: str,
+    property_address: str,
+    feedback_url: str,
+) -> bool:
+    """Ask buyer to fill in post-visit impressions"""
+    formatted_date = _fmt_date(visit_date)
+    subject = "🏠 Como foi sua visita? Conte-nos suas impressões - MatchImovel"
+    html = f"""
+    <!DOCTYPE html><html><head><meta charset="UTF-8">
+    <style>
+        body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
+        .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
+        .header {{ background: linear-gradient(135deg, #6366f1, #8b5cf6); padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }}
+        .header h1 {{ color: white; margin: 0; }}
+        .content {{ background: #f9fafb; padding: 30px; border-radius: 0 0 10px 10px; }}
+        .info-box {{ background: #e0e7ff; padding: 20px; border-radius: 8px; margin: 15px 0; }}
+        .btn {{ display: inline-block; padding: 14px 32px; background: linear-gradient(135deg, #6366f1, #8b5cf6); color: white; border-radius: 8px; text-decoration: none; font-weight: bold; margin: 10px 0; }}
+        .footer {{ text-align: center; margin-top: 20px; color: #666; font-size: 12px; }}
+    </style></head><body>
+    <div class="container">
+        <div class="header"><h1>MatchImovel</h1></div>
+        <div class="content">
+            <h2>Como foi sua visita?</h2>
+            <p>Olá, <strong>{buyer_name}</strong>!</p>
+            <p>Gostaríamos de saber suas impressões sobre o imóvel que você visitou. Seu feedback é muito importante para nosso time de curadoria.</p>
+            <div class="info-box">
+                <p><strong>📍 Imóvel visitado:</strong> {property_address}</p>
+                <p><strong>📅 Data da visita:</strong> {formatted_date}</p>
+                <p><strong>🕐 Horário:</strong> {visit_time}</p>
+            </div>
+            <p>Clique abaixo para preencher suas impressões (leva menos de 2 minutos):</p>
+            <a href="{feedback_url}" class="btn">📝 Deixar minhas impressões</a>
+            <p style="font-size: 12px; color: #666; margin-top: 20px;">Este link é pessoal e expira em 30 dias.</p>
+        </div>
+        <div class="footer"><p>&copy; 2026 MatchImovel - Todos os direitos reservados</p></div>
+    </div></body></html>"""
+    return await send_email(buyer_email, subject, html)
+
+
+async def send_match_rejection_to_agent(
+    agent_email: str,
+    agent_name: str,
+    buyer_name: str,
+    rejection_reason: str,
+    property_address: str,
+) -> bool:
+    """Notify agent that buyer rejected the match (after curator approval)"""
+    subject = "ℹ️ Comprador não tem interesse no imóvel - MatchImovel"
+    html = f"""
+    <!DOCTYPE html><html><head><meta charset="UTF-8">
+    <style>
+        body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
+        .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
+        .header {{ background: linear-gradient(135deg, #64748b, #475569); padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }}
+        .header h1 {{ color: white; margin: 0; }}
+        .content {{ background: #f9fafb; padding: 30px; border-radius: 0 0 10px 10px; }}
+        .info-box {{ background: #f1f5f9; padding: 20px; border-radius: 8px; margin: 15px 0; }}
+        .reason-box {{ background: #fef2f2; border-left: 4px solid #ef4444; padding: 15px; border-radius: 4px; margin: 15px 0; }}
+        .footer {{ text-align: center; margin-top: 20px; color: #666; font-size: 12px; }}
+    </style></head><body>
+    <div class="container">
+        <div class="header"><h1>MatchImovel</h1></div>
+        <div class="content">
+            <h2>Atualização sobre o match</h2>
+            <p>Olá, <strong>{agent_name}</strong>!</p>
+            <p>Após a visita, o comprador <strong>{buyer_name}</strong> informou que não tem interesse no imóvel neste momento.</p>
+            <div class="info-box">
+                <p><strong>📍 Imóvel:</strong> {property_address}</p>
+            </div>
+            <div class="reason-box">
+                <p><strong>Motivo informado:</strong> {rejection_reason or "Não especificado"}</p>
+            </div>
+            <p>Nossa equipe de curadoria já está ciente e pode entrar em contato para mais detalhes. Continuamos buscando o match ideal para seu imóvel!</p>
+        </div>
+        <div class="footer"><p>&copy; 2026 MatchImovel - Todos os direitos reservados</p></div>
+    </div></body></html>"""
+    return await send_email(agent_email, subject, html)
+
 
 async def send_saved_search_results_email(
     to_email: str,

@@ -205,15 +205,55 @@ class Visit(BaseModel):
     visit_date: str
     visit_time: str
     notes: Optional[str] = None
-    status: str = "scheduled"
+    status: str = "scheduled"  # scheduled | cancelled | rescheduling
     reminder_sent: bool = False
     reminder_2h_sent: bool = False
+    # Confirmations
+    buyer_confirmed: bool = False
+    buyer_confirmed_at: Optional[str] = None
+    agent_confirmed: bool = False
+    agent_confirmed_at: Optional[str] = None
+    # Outcome (recorded by curator)
+    outcome: Optional[str] = None  # completed | no_show | cancelled
+    outcome_notes: Optional[str] = None
+    outcome_recorded_by: Optional[str] = None
+    outcome_recorded_at: Optional[str] = None
+    # Reschedule request (set by buyer or agent)
+    reschedule_request: Optional[dict] = None
+    # Post-visit feedback email tracking
+    feedback_email_sent: bool = False
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 class ScheduleVisitRequest(BaseModel):
     visit_date: str
     visit_time: str
     notes: Optional[str] = None
+
+class VisitOutcomeRequest(BaseModel):
+    outcome: str  # completed | no_show | cancelled
+    notes: Optional[str] = None
+
+class VisitFeedbackSubmit(BaseModel):
+    impressions: str
+    interest_level: str  # interested | not_interested
+    rejection_reason: Optional[str] = None
+
+class CuratorFeedbackOverride(BaseModel):
+    impressions: str
+    interest_level: str  # interested | not_interested
+    rejection_reason: Optional[str] = None
+
+class ApproveRescheduleRequest(BaseModel):
+    new_date: str
+    new_time: str
+    notes: Optional[str] = None
+
+class VisitTokenActionRequest(BaseModel):
+    token: str
+    action: str  # confirm | cancel | reschedule
+    reason: Optional[str] = None
+    proposed_date: Optional[str] = None
+    proposed_time: Optional[str] = None
 
 
 # ============ BOT MODELS ============

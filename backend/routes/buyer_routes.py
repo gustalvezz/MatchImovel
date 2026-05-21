@@ -4,7 +4,7 @@ Handles buyer interests and matches
 """
 from fastapi import APIRouter, HTTPException, Depends, Request, BackgroundTasks
 from datetime import datetime, timezone
-from typing import List
+from typing import List, Optional
 import uuid
 import secrets
 import os
@@ -311,7 +311,12 @@ async def get_my_matches(current_user: dict = Depends(get_current_user)):
         agent = await db.agents.find_one({"user_id": match["agent_id"]}, {"_id": 0})
         if agent:
             match['agent'] = {"name": agent.get("name"), "company": agent.get("company")}
-    
+
+        visits = await db.visits.find({"match_id": match["id"]}, {"_id": 0}).to_list(10)
+        for v in visits:
+            v["feedback"] = await db.visit_feedback.find_one({"visit_id": v["id"]}, {"_id": 0})
+        match['visits'] = visits
+
     return matches
 
 
@@ -716,3 +721,79 @@ async def create_full_interest_v2(request: Request, background_tasks: Background
         "has_ai_interpretation": False,  # Will be processed in background
         "ai_processing": "pending"
     }
+
+
+# ─── Visit actions (authenticated) ───────────────────────────────────────────
+
+@router.post("/buyer/visits/{visit_id}/confirm")
+async def buyer_confirm_visit(visit_id: str, current_user: dict = Depends(get_current_user)):
+    if current_user["role"] != "buyer":
+        raise HTTPException(status_code=403, detail="Acesso negado")
+    visit = await db.visits.find_one({"id": visit_id}, {"_id": 0})
+    if not visit:
+        raise HTTPException(status_code=404, detail="Visita não encontrada")
+    match = await db.matches.find_one({"id": visit["match_id"]}, {"_id": 0})
+    if not match or match["buyer_id"] != current_user["user_id"]:
+        raise HTTPException(status_code=403, detail="Acesso negado")
+    now = datetime.now(timezone.utc).isoformat()
+    await db.visits.update_one({"id": visit_id}, {"$set": {"buyer_confirmed": True, "buyer_confirmed_at": now}})
+    return {"status": "success"}
+
+
+@router.post("/buyer/visits/{visit_id}/reschedule-request")
+async def buyer_reschedule_visit(visit_id: str, data: dict, current_user: dict = Depends(get_current_user)):
+    if current_user["role"] != "buyer":
+        raise HTTPException(status_code=403, detail="Acesso negado")
+    visit = await db.visits.find_one({"id": visit_id}, {"_id": 0})
+    if not visit:
+        raise HTTPException(status_code=404, detail="Visita não encontrada")
+    match = await db.matches.find_one({"id": visit["match_id"]}, {"_id": 0})
+    if not match or match["buyer_id"] != current_user["user_id"]:
+        raise HTTPException(status_code=403, detail="Acesso negado")
+
+    now = datetime.now(timezone.utc).isoformat()
+    reschedule_request = {
+        "requested_by_type": "buyer",
+        "requested_by_id": current_user["user_id"],
+        "reason": data.get("reason", ""),
+        "proposed_date": data.get("proposed_date"),
+        "proposed_time": data.get("proposed_time"),
+        "requested_at": now,
+    }
+    await db.visits.update_one({"id": visit_id}, {"$set": {"status": "rescheduling", "reschedule_request": reschedule_request}})
+
+    # Notify curator + agent
+    from services.email_service import send_reschedule_request_notification
+    property_address = (match.get("property_info") or {}).get("address", "Endereço a confirmar")
+    buyer = await db.buyers.find_one({"user_id": current_user["user_id"]}, {"_id": 0})
+    agent = await db.agents.find_one({"user_id": match["agent_id"]}, {"_id": 0})
+    curator_user = await db.users.find_one({"id": match.get("curator_id", "")}, {"_id": 0})
+
+    to_emails, to_names = [], []
+    if curator_user and curator_user.get("email"):
+        to_emails.append(curator_user["email"]); to_names.append(curator_user.get("name", "Curador"))
+    if agent and agent.get("email"):
+        to_emails.append(agent["email"]); to_names.append(agent.get("name", "Corretor"))
+    if to_emails:
+        await send_reschedule_request_notification(
+            to_emails=to_emails, to_names=to_names,
+            requester_name=(buyer or {}).get("name", "Comprador"), requester_type="buyer",
+            visit_date=visit["visit_date"], visit_time=visit["visit_time"],
+            property_address=property_address, reason=data.get("reason", ""),
+            proposed_date=data.get("proposed_date"), proposed_time=data.get("proposed_time"),
+        )
+    return {"status": "success"}
+
+
+@router.post("/buyer/visits/{visit_id}/cancel")
+async def buyer_cancel_visit(visit_id: str, data: dict, current_user: dict = Depends(get_current_user)):
+    if current_user["role"] != "buyer":
+        raise HTTPException(status_code=403, detail="Acesso negado")
+    visit = await db.visits.find_one({"id": visit_id}, {"_id": 0})
+    if not visit:
+        raise HTTPException(status_code=404, detail="Visita não encontrada")
+    match = await db.matches.find_one({"id": visit["match_id"]}, {"_id": 0})
+    if not match or match["buyer_id"] != current_user["user_id"]:
+        raise HTTPException(status_code=403, detail="Acesso negado")
+    await db.visits.update_one({"id": visit_id}, {"$set": {"status": "cancelled"}})
+    return {"status": "success"}

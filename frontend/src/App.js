@@ -16,6 +16,8 @@ import CuratorDashboard from '@/pages/CuratorDashboard';
 import CompleteRegistration from '@/pages/CompleteRegistration';
 import AdminLogin from '@/pages/AdminLogin';
 import AdminDashboard from '@/pages/AdminDashboard';
+import VisitActionPage from '@/pages/VisitActionPage';
+import VisitFeedbackPage from '@/pages/VisitFeedbackPage';
 import '@/App.css';
 
 // Loading Screen Component
@@ -122,6 +124,8 @@ function App() {
             </PublicRoute>
           } />
           <Route path="/complete-registration" element={<CompleteRegistration />} />
+          <Route path="/visit-action" element={<VisitActionPage />} />
+          <Route path="/visit-feedback" element={<VisitFeedbackPage />} />
           <Route 
             path="/admin/dashboard" 
             element={

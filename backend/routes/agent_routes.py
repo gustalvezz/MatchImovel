@@ -1098,7 +1098,14 @@ async def get_agent_matches(current_user: dict = Depends(get_current_user)):
         buyer = await db.buyers.find_one({"user_id": match["buyer_id"]}, {"_id": 0})
         if buyer:
             match['buyer'] = {"name": buyer.get("name")}
-    
+
+        visits = await db.visits.find({"match_id": match["id"]}, {"_id": 0}).to_list(10)
+        for v in visits:
+            v["feedback"] = await db.visit_feedback.find_one({"visit_id": v["id"]}, {"_id": 0})
+            if buyer:
+                v["buyer"] = {"name": buyer.get("name")}
+        match['visits'] = visits
+
     return matches
 
 
@@ -1209,3 +1216,78 @@ Seja direto e objetivo. Quando tiver informações suficientes, confirme os dado
     )
     
     return {"response": assistant_response}
+
+
+# ─── Visit actions (authenticated) ───────────────────────────────────────────
+
+@router.post("/agent/visits/{visit_id}/confirm")
+async def agent_confirm_visit(visit_id: str, current_user: dict = Depends(get_current_user)):
+    if current_user["role"] != "agent":
+        raise HTTPException(status_code=403, detail="Acesso negado")
+    visit = await db.visits.find_one({"id": visit_id}, {"_id": 0})
+    if not visit:
+        raise HTTPException(status_code=404, detail="Visita não encontrada")
+    match = await db.matches.find_one({"id": visit["match_id"]}, {"_id": 0})
+    if not match or match["agent_id"] != current_user["user_id"]:
+        raise HTTPException(status_code=403, detail="Acesso negado")
+    now = datetime.now(timezone.utc).isoformat()
+    await db.visits.update_one({"id": visit_id}, {"$set": {"agent_confirmed": True, "agent_confirmed_at": now}})
+    return {"status": "success"}
+
+
+@router.post("/agent/visits/{visit_id}/reschedule-request")
+async def agent_reschedule_visit(visit_id: str, data: dict, current_user: dict = Depends(get_current_user)):
+    if current_user["role"] != "agent":
+        raise HTTPException(status_code=403, detail="Acesso negado")
+    visit = await db.visits.find_one({"id": visit_id}, {"_id": 0})
+    if not visit:
+        raise HTTPException(status_code=404, detail="Visita não encontrada")
+    match = await db.matches.find_one({"id": visit["match_id"]}, {"_id": 0})
+    if not match or match["agent_id"] != current_user["user_id"]:
+        raise HTTPException(status_code=403, detail="Acesso negado")
+
+    now = datetime.now(timezone.utc).isoformat()
+    reschedule_request = {
+        "requested_by_type": "agent",
+        "requested_by_id": current_user["user_id"],
+        "reason": data.get("reason", ""),
+        "proposed_date": data.get("proposed_date"),
+        "proposed_time": data.get("proposed_time"),
+        "requested_at": now,
+    }
+    await db.visits.update_one({"id": visit_id}, {"$set": {"status": "rescheduling", "reschedule_request": reschedule_request}})
+
+    from services.email_service import send_reschedule_request_notification
+    property_address = (match.get("property_info") or {}).get("address", "Endereço a confirmar")
+    agent = await db.agents.find_one({"user_id": current_user["user_id"]}, {"_id": 0})
+    buyer = await db.buyers.find_one({"user_id": match["buyer_id"]}, {"_id": 0})
+    curator_user = await db.users.find_one({"id": match.get("curator_id", "")}, {"_id": 0})
+
+    to_emails, to_names = [], []
+    if curator_user and curator_user.get("email"):
+        to_emails.append(curator_user["email"]); to_names.append(curator_user.get("name", "Curador"))
+    if buyer and buyer.get("email"):
+        to_emails.append(buyer["email"]); to_names.append(buyer.get("name", "Comprador"))
+    if to_emails:
+        await send_reschedule_request_notification(
+            to_emails=to_emails, to_names=to_names,
+            requester_name=(agent or {}).get("name", "Corretor"), requester_type="agent",
+            visit_date=visit["visit_date"], visit_time=visit["visit_time"],
+            property_address=property_address, reason=data.get("reason", ""),
+            proposed_date=data.get("proposed_date"), proposed_time=data.get("proposed_time"),
+        )
+    return {"status": "success"}
+
+
+@router.post("/agent/visits/{visit_id}/cancel")
+async def agent_cancel_visit(visit_id: str, data: dict, current_user: dict = Depends(get_current_user)):
+    if current_user["role"] != "agent":
+        raise HTTPException(status_code=403, detail="Acesso negado")
+    visit = await db.visits.find_one({"id": visit_id}, {"_id": 0})
+    if not visit:
+        raise HTTPException(status_code=404, detail="Visita não encontrada")
+    match = await db.matches.find_one({"id": visit["match_id"]}, {"_id": 0})
+    if not match or match["agent_id"] != current_user["user_id"]:
+        raise HTTPException(status_code=403, detail="Acesso negado")
+    await db.visits.update_one({"id": visit_id}, {"$set": {"status": "cancelled"}})
+    return {"status": "success"}

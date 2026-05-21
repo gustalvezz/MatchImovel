@@ -11,6 +11,7 @@ import { Home, Plus, Heart, Calendar, LogOut, Building2, MapPin, DollarSign, Tra
 import AppLogo from '@/components/AppLogo';
 import { toast } from 'sonner';
 import InterestFormModal from '@/components/InterestFormModal';
+import { BuyerVisitSection } from '@/components/VisitCard';
 import DeleteConfirmModal from '@/components/DeleteConfirmModal';
 import DashboardLoading from '@/components/DashboardLoading';
 
@@ -549,6 +550,11 @@ const BuyerDashboard = () => {
                         </p>
                       )}
                     </div>
+
+                    {/* Visits section */}
+                    {match.status === 'visit_scheduled' && (match.visits || []).filter(v => v.status !== 'cancelled').map(visit => (
+                      <BuyerVisitSection key={visit.id} visit={{ ...visit, property_info: match.property_info }} onRefresh={fetchData} />
+                    ))}
                   </Card>
                 </motion.div>
               ))

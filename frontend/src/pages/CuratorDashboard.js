@@ -20,6 +20,7 @@ import AppLogo from '@/components/AppLogo';
 import { toast } from 'sonner';
 import MatchFollowUp from '@/components/MatchFollowUp';
 import DashboardLoading from '@/components/DashboardLoading';
+import { CuratorVisitSection } from '@/components/VisitCard';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
@@ -59,6 +60,7 @@ const MatchCard = ({
   expandedMatch,
   setExpandedMatch,
   onToggleSold,
+  onRefresh,
 }) => (
   <Card className="p-6 rounded-2xl" data-testid={`match-${match.id}`}>
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
@@ -364,6 +366,51 @@ const MatchCard = ({
       </div>
     )}
 
+    {!showActions && match.status === 'visit_scheduled' && (
+      <div className="border-t pt-4 space-y-4">
+        {(match.visits || []).filter(v => v.status !== 'cancelled').map(visit => (
+          <CuratorVisitSection key={visit.id} visit={{ ...visit, property_info: match.property_info }} onRefresh={onRefresh} />
+        ))}
+
+        {/* Sold Through Platform Checkbox */}
+        <div className={`flex items-center gap-3 p-3 rounded-xl ${match.sold_through_platform ? 'bg-emerald-50 border border-emerald-200' : 'bg-slate-50'}`}>
+          <Checkbox
+            id={`sold-vs-${match.id}`}
+            checked={match.sold_through_platform || false}
+            onCheckedChange={() => onToggleSold(match.id, match.sold_through_platform)}
+            className="data-[state=checked]:bg-emerald-600 data-[state=checked]:border-emerald-600"
+          />
+          <label htmlFor={`sold-vs-${match.id}`} className="flex items-center gap-2 cursor-pointer">
+            <BadgeCheck className={`w-5 h-5 ${match.sold_through_platform ? 'text-emerald-600' : 'text-slate-400'}`} />
+            <span className={`text-sm font-medium ${match.sold_through_platform ? 'text-emerald-700' : 'text-slate-600'}`}>
+              Vendido pela plataforma
+            </span>
+            {match.sold_through_platform && match.sold_at && (
+              <span className="text-xs text-emerald-600">
+                ({new Date(match.sold_at).toLocaleDateString('pt-BR')})
+              </span>
+            )}
+          </label>
+        </div>
+
+        {/* Follow-ups */}
+        <Button
+          onClick={() => setExpandedMatch(expandedMatch === match.id ? null : match.id)}
+          variant="outline"
+          className="w-full rounded-full"
+        >
+          <MessageSquare className="w-4 h-4 mr-2" />
+          Follow-ups (CRM)
+          {expandedMatch === match.id ? <ChevronUp className="w-4 h-4 ml-2" /> : <ChevronDown className="w-4 h-4 ml-2" />}
+        </Button>
+        {expandedMatch === match.id && (
+          <div className="mt-4">
+            <MatchFollowUp match={match} />
+          </div>
+        )}
+      </div>
+    )}
+
     {!showActions && match.status === 'approved' && (
       <div className="border-t pt-4 space-y-4">
         {/* Sold Through Platform Checkbox */}
@@ -617,6 +664,7 @@ const CuratorDashboard = () => {
     expandedMatch,
     setExpandedMatch,
     onToggleSold: handleToggleSold,
+    onRefresh: fetchData,
   };
 
   return (
