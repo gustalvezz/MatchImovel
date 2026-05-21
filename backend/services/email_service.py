@@ -735,7 +735,15 @@ async def send_visit_notification(
     is_2h_reminder: bool = False
 ) -> bool:
     """Send visit notification email"""
-    
+
+    # Convert YYYY-MM-DD → DD/MM/YYYY for display
+    try:
+        parts = visit_date.split('-')
+        if len(parts) == 3:
+            visit_date = f"{parts[2]}/{parts[1]}/{parts[0]}"
+    except Exception:
+        pass
+
     if is_2h_reminder:
         subject = "⏰ Lembrete: Visita em 2 horas - MatchImovel"
         title = "Sua visita é em 2 horas!"
