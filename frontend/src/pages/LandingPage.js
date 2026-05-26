@@ -239,32 +239,32 @@ const LandingPage = () => {
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
           {[
-            { 
-              number: '1', 
-              icon: Search, 
-              title: 'Comprador cadastra', 
-              desc: 'Bairro, metragem, valor, necessidades específicas. Rápido e sem compromisso inicial.',
+            {
+              number: '1',
+              icon: Search,
+              title: 'Comprador cadastra',
+              desc: 'Formulário completo que vai além do básico: bairros, metragem e valor. Capturamos seus gostos, necessidades e estilo de vida para encontrar o imóvel que realmente combina com você.',
               color: 'bg-indigo-100 text-indigo-600'
             },
-            { 
-              number: '2', 
-              icon: Users, 
-              title: 'Corretor busca', 
-              desc: 'Corretores navegam na base de compradores e identificam matches com seus imóveis.',
+            {
+              number: '2',
+              icon: Building2,
+              title: 'Corretor cadastra',
+              desc: 'Corretores cadastram imóveis exclusivos na plataforma — muitas vezes não encontrados em portais ou ainda nem anunciados ao público.',
               color: 'bg-purple-100 text-purple-600'
             },
-            { 
-              number: '3', 
-              icon: Shield, 
-              title: 'Curadoria valida', 
-              desc: 'Nossa equipe verifica se é um match real antes de qualquer contato. Sem perda de tempo para ninguém.',
+            {
+              number: '3',
+              icon: Zap,
+              title: 'Match acontece!',
+              desc: 'Nosso sistema cruza todas as informações e encontra matches incríveis entre compradores e imóveis. Inteligência que trabalha por você.',
               color: 'bg-green-100 text-green-600'
             },
-            { 
-              number: '4', 
-              icon: CheckCircle2, 
-              title: 'Visita agendada', 
-              desc: 'Apresentação organizada com ambos os lados. Negociação segura e protegida pela plataforma.',
+            {
+              number: '4',
+              icon: Shield,
+              title: 'Curadoria valida',
+              desc: 'Nenhum imóvel fora do seu perfil chega até você. Nossa curadoria experiente filtra tudo — e nenhum corretor tem acesso aos seus dados. Você fala apenas com seu curador exclusivo MatchImovel.',
               color: 'bg-blue-100 text-blue-600'
             }
           ].map((step, idx) => (
@@ -280,7 +280,7 @@ const LandingPage = () => {
                   <div className={`w-10 h-10 rounded-full ${step.color} flex items-center justify-center flex-shrink-0`}>
                     <step.icon className="w-5 h-5" />
                   </div>
-                  <span className="text-2xl font-bold text-slate-300">{step.number}</span>
+                  <span className="text-2xl font-bold text-indigo-600">{step.number}</span>
                   <h3 className="text-lg font-bold text-slate-900">{step.title}</h3>
                 </div>
                 <p className="text-slate-600 leading-relaxed text-sm">{step.desc}</p>
@@ -304,7 +304,7 @@ const LandingPage = () => {
               O mercado é feito de imóveis.
               <span className="block text-indigo-400 italic mt-2">Nós somos feitos de compradores.</span>
             </h2>
-            <p className="text-lg text-slate-300 leading-relaxed">
+            <p className="text-lg text-white leading-relaxed">
               Em vez de mais um portal cheio de anúncios desatualizados, criamos uma vitrine de pessoas reais com intenção real de compra. Corretores encontram compradores. Compradores encontram o imóvel certo. Sem desperdício de tempo.
             </p>
           </motion.div>
