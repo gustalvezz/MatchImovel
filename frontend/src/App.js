@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { captureUTMs } from '@/utils/utm';
 import { AuthProvider, useAuth } from '@/context/AuthContext';
 import { Toaster } from '@/components/ui/sonner';
 import { Analytics } from '@vercel/analytics/react';
@@ -77,6 +78,8 @@ const PublicRoute = ({ children }) => {
 };
 
 function App() {
+  useEffect(() => { captureUTMs(); }, []);
+
   return (
     <AuthProvider>
       <BrowserRouter>

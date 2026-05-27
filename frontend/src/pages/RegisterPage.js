@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
+import { getAllUTMs } from '@/utils/utm';
 import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
 import { Button } from '@/components/ui/button';
@@ -303,6 +304,7 @@ const RegisterPage = () => {
     try {
       const payload = {
         ...formData,
+        utm: getAllUTMs(),
         // Include terms data for agents
         ...(formData.role === 'agent' && {
           terms_accepted: true,

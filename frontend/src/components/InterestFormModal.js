@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
+import { getAllUTMs } from '@/utils/utm';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -337,7 +338,8 @@ const InterestFormModal = ({ isOpen, onClose, onSuccess, userInfo }) => {
         phone: userInfo?.phone || formData.phone,
         email: userInfo?.email || formData.email,
         terms_accepted: true,
-        terms_accepted_at: new Date().toISOString()
+        terms_accepted_at: new Date().toISOString(),
+        utm: getAllUTMs()
       });
       toast.success('Interesse cadastrado com sucesso!');
       setCurrentStep(0);
