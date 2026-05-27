@@ -798,7 +798,7 @@ async def send_visit_notification(
     </body>
     </html>
     """
-    
+
     return await send_email(to_email, subject, email_html)
 
 
@@ -1131,5 +1131,39 @@ async def send_saved_search_results_email(
     </body>
     </html>
     """
-    
+
     return await send_email(to_email, subject, email_html)
+
+
+async def send_new_agent_notification(admin_email: str, admin_name: str, agent_name: str, agent_email: str, creci: str, creci_uf: str, phone: str, admin_url: str) -> bool:
+    subject = f"Novo corretor cadastrado: {agent_name}"
+    html = f"""
+    <!DOCTYPE html>
+    <html>
+    <head><meta charset="UTF-8"></head>
+    <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f8f9fa;">
+      <div style="text-align: center; margin-bottom: 30px;">
+        <h1 style="color: #4F46E5; font-size: 24px; margin: 0;">MatchImovel</h1>
+      </div>
+      <div style="background: white; border-radius: 16px; padding: 32px; box-shadow: 0 2px 8px rgba(0,0,0,0.08);">
+        <h2 style="color: #1e293b; margin-top: 0;">Novo corretor aguardando validação</h2>
+        <p style="color: #475569;">Olá, {admin_name}! Um novo corretor acabou de se cadastrar na plataforma e está aguardando a validação do CRECI.</p>
+        <div style="background: #f1f5f9; border-radius: 12px; padding: 20px; margin: 24px 0;">
+          <table style="width: 100%; border-collapse: collapse;">
+            <tr><td style="color: #64748b; padding: 6px 0; font-size: 14px; width: 120px;">Nome:</td><td style="color: #1e293b; font-weight: 600; font-size: 14px;">{agent_name}</td></tr>
+            <tr><td style="color: #64748b; padding: 6px 0; font-size: 14px;">E-mail:</td><td style="color: #1e293b; font-size: 14px;">{agent_email}</td></tr>
+            <tr><td style="color: #64748b; padding: 6px 0; font-size: 14px;">Telefone:</td><td style="color: #1e293b; font-size: 14px;">{phone or 'Não informado'}</td></tr>
+            <tr><td style="color: #64748b; padding: 6px 0; font-size: 14px;">CRECI:</td><td style="color: #4F46E5; font-weight: 700; font-size: 16px;">{creci_uf or ''}{creci or 'Não informado'}</td></tr>
+          </table>
+        </div>
+        <div style="text-align: center; margin-top: 28px;">
+          <a href="{admin_url}" style="display: inline-block; background: linear-gradient(135deg, #4F46E5, #7C3AED); color: white; text-decoration: none; padding: 14px 32px; border-radius: 50px; font-weight: 600; font-size: 15px;">
+            Verificar CRECI agora
+          </a>
+        </div>
+        <p style="text-align: center; color: #94a3b8; font-size: 12px; margin-top: 16px;">Acesse a aba <strong>Corretores</strong> no painel administrativo para validar ou bloquear o CRECI.</p>
+      </div>
+    </body>
+    </html>
+    """
+    return await send_email(admin_email, subject, html)

@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/context/AuthContext';
-import { LogOut, Users, Heart, Building2, TrendingUp, CheckCircle, XCircle, Clock, UserPlus, MessageSquare, BarChart3, Shield, AlertTriangle, MapPin, DollarSign, Sparkles, UserCog, FileCheck, Trash2 } from 'lucide-react';
+import { LogOut, Users, Heart, Building2, TrendingUp, CheckCircle, XCircle, Clock, UserPlus, MessageSquare, BarChart3, Shield, AlertTriangle, MapPin, DollarSign, Sparkles, UserCog, FileCheck, Trash2, ChevronDown, ChevronUp, Search } from 'lucide-react';
 import AppLogo from '@/components/AppLogo';
 import { toast } from 'sonner';
 import CreateCuratorModal from '@/components/CreateCuratorModal';
@@ -29,17 +29,24 @@ const AdminDashboard = () => {
   const [curators, setCurators] = useState([]);
   const [interests, setInterests] = useState([]);
   const [matches, setMatches] = useState([]);
+  const [searches, setSearches] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState('pending-matches');
   const [curatingMatch, setCuratingMatch] = useState(null);
   const [curationNotes, setCurationNotes] = useState('');
   const [showCreateCurator, setShowCreateCurator] = useState(false);
   const [expandedMatch, setExpandedMatch] = useState(null);
+  const [expandedBuyer, setExpandedBuyer] = useState(null);
+  const [expandedAgent, setExpandedAgent] = useState(null);
   const [deletingInterestId, setDeletingInterestId] = useState(null);
 
   // Interests filter + pagination
   const [interestFilterType, setInterestFilterType] = useState('');
   const [interestFilterBudget, setInterestFilterBudget] = useState('');
   const [interestPage, setInterestPage] = useState(1);
+
+  // Searches filter
+  const [searchFilterStatus, setSearchFilterStatus] = useState('');
   const INTERESTS_PER_PAGE = 10;
 
   const handleDeleteInterest = async (interestId) => {
@@ -76,13 +83,14 @@ const AdminDashboard = () => {
 
   const fetchData = async () => {
     try {
-      const [statsRes, buyersRes, agentsRes, curatorsRes, interestsRes, matchesRes] = await Promise.all([
+      const [statsRes, buyersRes, agentsRes, curatorsRes, interestsRes, matchesRes, searchesRes] = await Promise.all([
         axios.get(`${API}/admin/stats`),
         axios.get(`${API}/admin/buyers`),
         axios.get(`${API}/admin/agents`),
         axios.get(`${API}/admin/curators`).catch(() => ({ data: [] })),
         axios.get(`${API}/admin/interests`),
-        axios.get(`${API}/admin/matches`)
+        axios.get(`${API}/admin/matches`),
+        axios.get(`${API}/admin/searches`).catch(() => ({ data: [] }))
       ]);
       setStats(statsRes.data);
       setBuyers(buyersRes.data);
@@ -90,6 +98,7 @@ const AdminDashboard = () => {
       setCurators(curatorsRes.data);
       setInterests(interestsRes.data);
       setMatches(matchesRes.data);
+      setSearches(searchesRes.data);
     } catch (error) {
       toast.error('Erro ao carregar dados');
     } finally {
@@ -268,7 +277,7 @@ const AdminDashboard = () => {
           </motion.div>
         )}
 
-        <Tabs defaultValue="pending-matches" className="w-full">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <div className="overflow-x-auto mb-6 -mx-2 px-2">
             <TabsList className="flex w-max min-w-full rounded-xl" data-testid="admin-tabs">
               <TabsTrigger value="pending-matches" className="rounded-lg whitespace-nowrap flex-shrink-0" data-testid="admin-tab-pending">
@@ -282,6 +291,10 @@ const AdminDashboard = () => {
                 Curadores
               </TabsTrigger>
               <TabsTrigger value="interests" className="rounded-lg whitespace-nowrap flex-shrink-0" data-testid="admin-tab-interests">Interesses</TabsTrigger>
+              <TabsTrigger value="searches" className="rounded-lg whitespace-nowrap flex-shrink-0" data-testid="admin-tab-searches">
+                <Search className="w-4 h-4 mr-1" />
+                Buscas
+              </TabsTrigger>
               {user?.role === 'admin' && (
                 <TabsTrigger value="analytics" className="rounded-lg whitespace-nowrap flex-shrink-0" data-testid="admin-tab-analytics">
                   <BarChart3 className="w-4 h-4 mr-1" />
@@ -481,25 +494,67 @@ const AdminDashboard = () => {
           </TabsContent>
 
           <TabsContent value="buyers" className="space-y-4">
-            {buyers.map((buyer) => (
-              <Card key={buyer.id} className="p-6 rounded-2xl" data-testid={`buyer-${buyer.id}`}>
-                <div className="flex justify-between items-start">
-                  <div>
-                    <h3 className="text-lg font-semibold">{buyer.name}</h3>
-                    <p className="text-sm text-muted-foreground">{buyer.email}</p>
-                    {buyer.phone && <p className="text-sm text-muted-foreground">{buyer.phone}</p>}
+            {buyers.map((buyer) => {
+              const buyerInterests = interests.filter(i => i.buyer_id === buyer.user_id);
+              const isExpanded = expandedBuyer === buyer.user_id;
+              return (
+                <Card key={buyer.id} className="p-6 rounded-2xl" data-testid={`buyer-${buyer.id}`}>
+                  <div className="flex justify-between items-start mb-3">
+                    <div>
+                      <h3 className="text-lg font-semibold">{buyer.name}</h3>
+                      <p className="text-sm text-muted-foreground">{buyer.email}</p>
+                      {buyer.phone && <p className="text-sm text-muted-foreground">{buyer.phone}</p>}
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm font-semibold">{buyer.interest_count} interesses</p>
+                      <p className="text-sm text-muted-foreground">{buyer.match_count} matches</p>
+                    </div>
                   </div>
-                  <div className="text-right">
-                    <p className="text-sm font-semibold">{buyer.interest_count} interesses</p>
-                    <p className="text-sm text-muted-foreground">{buyer.match_count} matches</p>
-                  </div>
-                </div>
-              </Card>
-            ))}
+
+                  {buyerInterests.length > 0 && (
+                    <div className="border-t pt-3">
+                      <button
+                        onClick={() => setExpandedBuyer(isExpanded ? null : buyer.user_id)}
+                        className="flex items-center gap-2 text-sm font-medium text-indigo-600 hover:text-indigo-700"
+                      >
+                        {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                        Ver interesses cadastrados ({buyerInterests.length})
+                      </button>
+
+                      {isExpanded && (
+                        <div className="mt-3 space-y-2">
+                          {buyerInterests.map(interest => (
+                            <div key={interest.id} className="flex items-center justify-between bg-slate-50 px-3 py-2 rounded-lg text-sm">
+                              <span className="text-slate-700">
+                                {interest.property_type}
+                                {interest.location ? ` · ${interest.location}` : ''}
+                                {interest.min_price ? ` · R$ ${interest.min_price.toLocaleString('pt-BR')} – ${interest.max_price?.toLocaleString('pt-BR')}` : ''}
+                              </span>
+                              <Badge className={`ml-3 rounded-full text-xs flex-shrink-0 ${interest.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-slate-200 text-slate-500'}`}>
+                                {interest.status === 'active' ? 'Ativo' : 'Inativo'}
+                              </Badge>
+                            </div>
+                          ))}
+                          <button
+                            onClick={() => setActiveTab('interests')}
+                            className="text-xs text-indigo-600 hover:text-indigo-700 font-medium mt-1"
+                          >
+                            Ver detalhes completos na aba Interesses →
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </Card>
+              );
+            })}
           </TabsContent>
 
           <TabsContent value="agents" className="space-y-4">
-            {agents.map((agent) => (
+            {agents.map((agent) => {
+              const agentSearches = searches.filter(s => s.agent_id === agent.user_id);
+              const isAgentExpanded = expandedAgent === agent.user_id;
+              return (
               <Card key={agent.id} className={`p-6 rounded-2xl ${agent.creci_blocked ? 'border-2 border-red-300 bg-red-50' : ''}`} data-testid={`agent-${agent.id}`}>
                 <div className="flex justify-between items-start mb-4">
                   <div>
@@ -625,8 +680,44 @@ const AdminDashboard = () => {
                     </label>
                   </div>
                 </div>
+
+                {/* Agent searches collapsible */}
+                {agentSearches.length > 0 && (
+                  <div className="border-t pt-3 mt-2">
+                    <button
+                      onClick={() => setExpandedAgent(isAgentExpanded ? null : agent.user_id)}
+                      className="flex items-center gap-2 text-sm font-medium text-indigo-600 hover:text-indigo-700"
+                    >
+                      {isAgentExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                      Ver buscas ativas ({agentSearches.filter(s => s.status === 'active').length} ativa{agentSearches.filter(s => s.status === 'active').length !== 1 ? 's' : ''} / {agentSearches.length} total)
+                    </button>
+
+                    {isAgentExpanded && (
+                      <div className="mt-3 space-y-2">
+                        {agentSearches.map(search => (
+                          <div key={search.id} className="flex items-center justify-between bg-slate-50 px-3 py-2 rounded-lg text-sm">
+                            <span className="text-slate-700 truncate max-w-xs">
+                              {search.property_type}
+                              {search.property_description ? ` · ${search.property_description.slice(0, 60)}${search.property_description.length > 60 ? '…' : ''}` : ''}
+                            </span>
+                            <Badge className={`ml-3 rounded-full text-xs flex-shrink-0 ${search.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-slate-200 text-slate-500'}`}>
+                              {search.status === 'active' ? 'Ativa' : 'Inativa'}
+                            </Badge>
+                          </div>
+                        ))}
+                        <button
+                          onClick={() => setActiveTab('searches')}
+                          className="text-xs text-indigo-600 hover:text-indigo-700 font-medium mt-1"
+                        >
+                          Ver detalhes completos na aba Buscas →
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
               </Card>
-            ))}
+            );
+            })}
           </TabsContent>
 
           {/* Curators Tab */}
@@ -1136,6 +1227,88 @@ const AdminDashboard = () => {
                 </>
               );
             })()}
+          </TabsContent>
+
+          <TabsContent value="searches" className="space-y-4">
+            {/* Filters */}
+            <div className="flex flex-wrap gap-3 p-4 bg-slate-50 rounded-2xl border border-slate-200">
+              <select
+                value={searchFilterStatus}
+                onChange={e => setSearchFilterStatus(e.target.value)}
+                className="h-9 px-3 rounded-lg border border-slate-200 bg-white text-sm focus:border-indigo-500 focus:outline-none"
+              >
+                <option value="">Todos os status</option>
+                <option value="active">Ativas</option>
+                <option value="inactive">Inativas</option>
+              </select>
+              {searchFilterStatus && (
+                <button
+                  onClick={() => setSearchFilterStatus('')}
+                  className="h-9 px-3 rounded-lg border border-slate-200 bg-white text-sm text-slate-500 hover:text-slate-700"
+                >
+                  Limpar filtro
+                </button>
+              )}
+              <span className="ml-auto text-sm text-muted-foreground self-center">
+                {searches.filter(s => !searchFilterStatus || s.status === searchFilterStatus).length} busca(s)
+              </span>
+            </div>
+
+            {searches.filter(s => !searchFilterStatus || s.status === searchFilterStatus).length === 0 ? (
+              <Card className="p-12 rounded-3xl text-center">
+                <Search className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
+                <h3 className="text-xl font-semibold mb-2">Nenhuma busca encontrada</h3>
+                <p className="text-muted-foreground">Os corretores ainda não cadastraram buscas.</p>
+              </Card>
+            ) : (
+              searches
+                .filter(s => !searchFilterStatus || s.status === searchFilterStatus)
+                .map(search => (
+                  <Card key={search.id} className="p-5 rounded-2xl">
+                    <div className="flex justify-between items-start mb-3">
+                      <div>
+                        <div className="flex items-center gap-2 mb-1">
+                          <Building2 className="w-4 h-4 text-indigo-500" />
+                          <span className="font-semibold">{search.agent?.name || 'Corretor'}</span>
+                          <span className="text-sm text-muted-foreground">{search.agent?.email}</span>
+                        </div>
+                        <p className="text-sm text-slate-700 font-medium">{search.property_type}</p>
+                        {search.property_price > 0 && (
+                          <p className="text-sm text-indigo-700 font-semibold">
+                            R$ {search.property_price.toLocaleString('pt-BR')}
+                          </p>
+                        )}
+                      </div>
+                      <div className="flex flex-col items-end gap-2">
+                        <Badge className={`rounded-full text-xs ${search.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-slate-200 text-slate-500'}`}>
+                          {search.status === 'active' ? 'Ativa' : 'Inativa'}
+                        </Badge>
+                        {search.pending_results?.length > 0 && (
+                          <Badge className="bg-indigo-100 text-indigo-700 rounded-full text-xs">
+                            {search.pending_results.length} resultado{search.pending_results.length !== 1 ? 's' : ''} pendente{search.pending_results.length !== 1 ? 's' : ''}
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+
+                    {search.property_description && (
+                      <p className="text-sm text-slate-600 bg-slate-50 px-3 py-2 rounded-lg mb-3 line-clamp-2">
+                        "{search.property_description}"
+                      </p>
+                    )}
+
+                    <div className="flex gap-4 text-xs text-muted-foreground">
+                      <span>Criada em {new Date(search.created_at).toLocaleDateString('pt-BR')}</span>
+                      {search.last_checked_at && (
+                        <span>Última verificação: {new Date(search.last_checked_at).toLocaleDateString('pt-BR')}</span>
+                      )}
+                      {search.status === 'inactive' && search.deactivation_reason && (
+                        <span className="text-red-500">Motivo: {search.deactivation_reason}</span>
+                      )}
+                    </div>
+                  </Card>
+                ))
+            )}
           </TabsContent>
 
           {user?.role === 'admin' && (

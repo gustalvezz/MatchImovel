@@ -13,6 +13,7 @@ import logging
 from database import db
 from auth import hash_password, verify_password, create_access_token
 from config import BUSCACRECI_API, FRONTEND_URL
+from services.email_service import send_new_agent_notification
 from models.schemas import (
     UserRegister, UserLogin, AuthResponse,
     CreciValidationRequest, CreciValidationResponse,
@@ -164,7 +165,25 @@ async def register(user_data: UserRegister, request: Request):
             "terms_accepted_ip": client_ip if user_data.terms_accepted else None
         }
         await db.agents.insert_one(profile_doc)
-    
+
+        # Notify all admin users of new agent registration
+        admin_url = f"{FRONTEND_URL}/admin/dashboard" if FRONTEND_URL else ""
+        admin_users = await db.users.find({"role": "admin"}, {"_id": 0}).to_list(10)
+        for admin in admin_users:
+            try:
+                await send_new_agent_notification(
+                    admin_email=admin["email"],
+                    admin_name=admin.get("name", "Admin"),
+                    agent_name=user_data.name,
+                    agent_email=user_data.email,
+                    creci=user_data.creci,
+                    creci_uf=user_data.creci_uf,
+                    phone=user_data.phone,
+                    admin_url=admin_url,
+                )
+            except Exception:
+                pass
+
     token = create_access_token(user_id, user_data.role)
     return AuthResponse(token=token, user_id=user_id, role=user_data.role, name=user_data.name)
 

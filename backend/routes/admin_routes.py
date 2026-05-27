@@ -211,6 +211,18 @@ async def get_all_interests(current_user: dict = Depends(get_current_user)):
     return interests
 
 
+@router.get("/admin/searches")
+async def get_all_searches(current_user: dict = Depends(get_current_user)):
+    if current_user["role"] not in ["admin", "curator"]:
+        raise HTTPException(status_code=403, detail="Acesso negado")
+
+    searches = await db.agent_searches.find({}, {"_id": 0}).to_list(1000)
+    for s in searches:
+        agent = await db.agents.find_one({"user_id": s["agent_id"]}, {"_id": 0})
+        s["agent"] = {"name": agent.get("name"), "email": agent.get("email")} if agent else {}
+    return searches
+
+
 @router.get("/admin/matches")
 async def get_all_matches(current_user: dict = Depends(get_current_user)):
     if current_user["role"] not in ["admin", "curator"]:
