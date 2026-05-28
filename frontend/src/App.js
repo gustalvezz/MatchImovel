@@ -1,6 +1,8 @@
 import React, { useEffect } from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { captureUTMs } from '@/utils/utm';
+import { initTrackers, trackPageView } from '@/utils/tracking';
+import { getCookieConsent } from '@/components/CookieBanner';
 import { AuthProvider, useAuth } from '@/context/AuthContext';
 import { Toaster } from '@/components/ui/sonner';
 import { Analytics } from '@vercel/analytics/react';
@@ -22,6 +24,13 @@ import VisitFeedbackPage from '@/pages/VisitFeedbackPage';
 import PrivacyPage from '@/pages/PrivacyPage';
 import CookieBanner from '@/components/CookieBanner';
 import '@/App.css';
+
+// Tracks pageviews on route changes (only when consent is 'all')
+const RouteTracker = () => {
+  const location = useLocation();
+  useEffect(() => { trackPageView(location.pathname + location.search); }, [location]);
+  return null;
+};
 
 // Loading Screen Component
 const LoadingScreen = () => (
@@ -80,11 +89,15 @@ const PublicRoute = ({ children }) => {
 };
 
 function App() {
-  useEffect(() => { captureUTMs(); }, []);
+  useEffect(() => {
+    captureUTMs();
+    if (getCookieConsent() === 'all') initTrackers();
+  }, []);
 
   return (
     <AuthProvider>
       <BrowserRouter>
+        <RouteTracker />
         <Routes>
           <Route path="/" element={<LandingPage />} />
           <Route path="/register" element={
@@ -152,7 +165,7 @@ function App() {
         </Routes>
         <Toaster position="top-right" richColors />
         <Analytics />
-        <CookieBanner />
+        <CookieBanner onConsent={(c) => { if (c === 'all') initTrackers(); }} />
       </BrowserRouter>
     </AuthProvider>
   );

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
-import { getAllUTMs } from '@/utils/utm';
+import { getAllUTMs, getUTMParam } from '@/utils/utm';
+import { trackLead } from '@/utils/tracking';
 import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
 import { Button } from '@/components/ui/button';
@@ -314,7 +315,9 @@ const RegisterPage = () => {
       
       const response = await axios.post(`${API}/auth/register`, payload);
       const { token, user_id, role, name } = response.data;
-      
+
+      if (role === 'buyer') trackLead(getUTMParam('utm_source'));
+
       login(token, { id: user_id, role, name, email: formData.email });
       toast.success('Cadastro realizado com sucesso!');
       
