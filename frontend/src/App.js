@@ -19,6 +19,8 @@ import AdminLogin from '@/pages/AdminLogin';
 import AdminDashboard from '@/pages/AdminDashboard';
 import VisitActionPage from '@/pages/VisitActionPage';
 import VisitFeedbackPage from '@/pages/VisitFeedbackPage';
+import PrivacyPage from '@/pages/PrivacyPage';
+import CookieBanner from '@/components/CookieBanner';
 import '@/App.css';
 
 // Loading Screen Component
@@ -145,10 +147,12 @@ function App() {
               </ProtectedRoute>
             } 
           />
+          <Route path="/privacidade" element={<PrivacyPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
         <Toaster position="top-right" richColors />
         <Analytics />
+        <CookieBanner />
       </BrowserRouter>
     </AuthProvider>
   );
