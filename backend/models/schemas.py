@@ -9,6 +9,13 @@ import uuid
 
 # ============ AUTH MODELS ============
 
+class UTMData(BaseModel):
+    utm_source: Optional[str] = None
+    utm_medium: Optional[str] = None
+    utm_campaign: Optional[str] = None
+    utm_content: Optional[str] = None
+    utm_term: Optional[str] = None
+
 class UserRegister(BaseModel):
     email: EmailStr
     password: str
@@ -20,6 +27,7 @@ class UserRegister(BaseModel):
     # Terms acceptance for agents
     terms_accepted: Optional[bool] = None
     terms_accepted_at: Optional[str] = None
+    utm: Optional[UTMData] = None
 
 class UserLogin(BaseModel):
     email: EmailStr
@@ -129,6 +137,7 @@ class FullInterestCreate(BaseModel):
     # Terms of Use acceptance
     terms_accepted: bool = False
     terms_accepted_at: Optional[str] = None
+    utm: Optional[UTMData] = None
 
 class BuyerProfile(BaseModel):
     model_config = ConfigDict(extra="ignore")

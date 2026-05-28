@@ -200,19 +200,19 @@ const LandingPage = () => {
             </p>
             
             <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-              <Button 
+              <Button
                 data-testid="hero-buyer-cta"
-                onClick={() => navigate('/register?role=buyer')} 
-                size="lg" 
+                onClick={() => { sessionStorage.setItem('utm_content', 'comprador'); navigate('/register?role=buyer'); }}
+                size="lg"
                 className="rounded-full h-14 px-10 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white shadow-lg shadow-indigo-500/25 text-lg font-medium"
               >
                 Cadastrar meu interesse <ArrowRight className="ml-2 w-5 h-5" />
               </Button>
-              <Button 
+              <Button
                 data-testid="hero-agent-cta"
-                onClick={() => navigate('/register?role=agent')} 
-                size="lg" 
-                variant="outline" 
+                onClick={() => { sessionStorage.setItem('utm_content', 'corretor'); navigate('/register?role=agent'); }}
+                size="lg"
+                variant="outline"
                 className="rounded-full h-14 px-10 text-lg font-medium border-2 border-slate-300 hover:border-indigo-600"
               >
                 Sou corretor
@@ -346,9 +346,9 @@ const LandingPage = () => {
                 ))}
               </div>
 
-              <Button 
-                onClick={() => navigate('/register?role=buyer')} 
-                size="lg" 
+              <Button
+                onClick={() => { sessionStorage.setItem('utm_content', 'comprador'); navigate('/register?role=buyer'); }}
+                size="lg"
                 className="rounded-full h-12 px-8 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white shadow-lg shadow-indigo-500/25"
               >
                 Cadastrar meu interesse <ArrowRight className="ml-2 w-5 h-5" />
@@ -420,9 +420,9 @@ const LandingPage = () => {
                 ))}
               </div>
 
-              <Button 
-                onClick={() => navigate('/register?role=agent')} 
-                size="lg" 
+              <Button
+                onClick={() => { sessionStorage.setItem('utm_content', 'corretor'); navigate('/register?role=agent'); }}
+                size="lg"
                 className="rounded-full h-12 px-8 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white shadow-lg shadow-purple-500/25"
               >
                 Encontrar compradores <ArrowRight className="ml-2 w-5 h-5" />

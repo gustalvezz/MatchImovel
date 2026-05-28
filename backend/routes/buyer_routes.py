@@ -339,6 +339,7 @@ async def create_full_interest(form_data: FullInterestCreate, request: Request):
         user_id = str(uuid.uuid4())
         temp_password = secrets.token_urlsafe(16)
         
+        utm_dict = form_data.utm.model_dump(exclude_none=True) if form_data.utm else {}
         new_user = {
             "id": user_id,
             "email": form_data.email or f"temp_{user_id}@matchimob.com",
@@ -347,16 +348,18 @@ async def create_full_interest(form_data: FullInterestCreate, request: Request):
             "name": form_data.name,
             "phone": form_data.phone,
             "created_at": datetime.now(timezone.utc).isoformat(),
-            "needs_password_setup": True
+            "needs_password_setup": True,
+            **({"utm": utm_dict} if utm_dict else {})
         }
         await db.users.insert_one(new_user)
-        
+
         buyer_profile = {
             "user_id": user_id,
             "name": form_data.name,
             "email": form_data.email,
             "phone": form_data.phone,
-            "created_at": datetime.now(timezone.utc).isoformat()
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            **({"utm": utm_dict} if utm_dict else {})
         }
         await db.buyers.insert_one(buyer_profile)
     
@@ -418,9 +421,10 @@ async def create_full_interest(form_data: FullInterestCreate, request: Request):
         # Terms of Use acceptance
         "terms_accepted": form_data.terms_accepted,
         "terms_accepted_at": form_data.terms_accepted_at,
-        "terms_accepted_ip": client_ip
+        "terms_accepted_ip": client_ip,
+        **({"utm": form_data.utm.model_dump(exclude_none=True)} if form_data.utm else {})
     }
-    
+
     await db.interests.insert_one(interest)
     
     if form_data.email:

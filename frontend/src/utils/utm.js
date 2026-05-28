@@ -4,7 +4,7 @@ export function captureUTMs() {
   const params = new URLSearchParams(window.location.search);
   UTM_KEYS.forEach(key => {
     const value = params.get(key);
-    if (value) sessionStorage.setItem(key, value);
+    if (value && !sessionStorage.getItem(key)) sessionStorage.setItem(key, value);
   });
 }
 

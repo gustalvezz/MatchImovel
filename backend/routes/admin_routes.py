@@ -578,6 +578,28 @@ async def get_analytics(current_user: dict = Depends(get_current_user)):
     }
 
 
+@router.get("/admin/analytics/utm")
+async def get_utm_analytics(current_user: dict = Depends(get_current_user)):
+    """Aggregate leads by utm_source from the users collection"""
+    if current_user["role"] not in ["admin", "curator"]:
+        raise HTTPException(status_code=403, detail="Acesso negado")
+
+    pipeline = [
+        {"$match": {"utm.utm_source": {"$exists": True, "$ne": None}}},
+        {"$group": {"_id": "$utm.utm_source", "leads": {"$sum": 1}}},
+        {"$sort": {"leads": -1}}
+    ]
+    results = await db.users.aggregate(pipeline).to_list(100)
+    por_canal = [{"canal": r["_id"], "leads": r["leads"]} for r in results]
+
+    sem_utm = await db.users.count_documents(
+        {"role": {"$in": ["buyer", "agent"]}, "utm": {"$exists": False}}
+    )
+    if sem_utm > 0:
+        por_canal.append({"canal": "direto", "leads": sem_utm})
+
+    return {"por_canal": por_canal}
+
 
 @router.delete("/admin/interests/{interest_id}")
 async def admin_delete_interest(interest_id: str, current_user: dict = Depends(get_current_user)):

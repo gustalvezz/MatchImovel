@@ -3,10 +3,10 @@ import { motion } from 'framer-motion';
 import axios from 'axios';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { 
-  Users, Building2, Heart, TrendingUp, TrendingDown, 
-  CheckCircle, XCircle, Clock, MessageSquare, MapPin, 
-  DollarSign, Home, BarChart3, PieChart, Activity
+import {
+  Users, Building2, Heart, TrendingUp, TrendingDown,
+  CheckCircle, XCircle, Clock, MessageSquare, MapPin,
+  DollarSign, Home, BarChart3, PieChart, Activity, Radio
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -15,23 +15,23 @@ const API = `${BACKEND_URL}/api`;
 
 const AnalyticsDashboard = () => {
   const [analytics, setAnalytics] = useState(null);
+  const [utmData, setUtmData] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetchAnalytics();
-    
-    // Auto-refresh a cada 30 segundos
-    const interval = setInterval(() => {
-      fetchAnalytics();
-    }, 30000);
-    
+    const interval = setInterval(() => { fetchAnalytics(); }, 30000);
     return () => clearInterval(interval);
   }, []);
 
   const fetchAnalytics = async () => {
     try {
-      const response = await axios.get(`${API}/admin/analytics`);
-      setAnalytics(response.data);
+      const [analyticsRes, utmRes] = await Promise.all([
+        axios.get(`${API}/admin/analytics`),
+        axios.get(`${API}/admin/analytics/utm`).catch(() => ({ data: { por_canal: [] } }))
+      ]);
+      setAnalytics(analyticsRes.data);
+      setUtmData(utmRes.data);
     } catch (error) {
       toast.error('Erro ao carregar analytics');
     } finally {
@@ -359,6 +359,38 @@ const AnalyticsDashboard = () => {
                 ))}
               </tbody>
             </table>
+          </div>
+        </Card>
+      )}
+
+      {/* Leads por canal (UTM) */}
+      {utmData && utmData.por_canal.length > 0 && (
+        <Card className="p-6 rounded-3xl" data-testid="analytics-utm-channels">
+          <div className="flex items-center gap-2 mb-4">
+            <Radio className="w-5 h-5 text-indigo-600" />
+            <h3 className="text-lg font-semibold">Leads por canal</h3>
+          </div>
+          <div className="space-y-3">
+            {(() => {
+              const total = utmData.por_canal.reduce((sum, c) => sum + c.leads, 0);
+              return utmData.por_canal.map((item) => {
+                const pct = total > 0 ? Math.round((item.leads / total) * 100) : 0;
+                return (
+                  <div key={item.canal} className="space-y-1">
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm font-medium capitalize">{item.canal}</span>
+                      <span className="text-sm text-muted-foreground">{item.leads} ({pct}%)</span>
+                    </div>
+                    <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full"
+                        style={{ width: `${pct}%` }}
+                      />
+                    </div>
+                  </div>
+                );
+              });
+            })()}
           </div>
         </Card>
       )}

@@ -17,7 +17,7 @@ from services.email_service import send_new_agent_notification
 from models.schemas import (
     UserRegister, UserLogin, AuthResponse,
     CreciValidationRequest, CreciValidationResponse,
-    CompleteCuratorRegistration
+    CompleteCuratorRegistration, UTMData
 )
 from services.email_service import send_email
 
@@ -124,6 +124,7 @@ async def register(user_data: UserRegister, request: Request):
     client_ip = request.client.host if request.client else "unknown"
     
     user_id = str(uuid.uuid4())
+    utm_dict = user_data.utm.model_dump(exclude_none=True) if user_data.utm else {}
     user_doc = {
         "id": user_id,
         "email": user_data.email,
@@ -131,11 +132,12 @@ async def register(user_data: UserRegister, request: Request):
         "role": user_data.role,
         "name": user_data.name,
         "phone": user_data.phone,
-        "created_at": datetime.now(timezone.utc).isoformat()
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        **({"utm": utm_dict} if utm_dict else {})
     }
-    
+
     await db.users.insert_one(user_doc)
-    
+
     if user_data.role == "buyer":
         profile_doc = {
             "id": str(uuid.uuid4()),
@@ -143,7 +145,8 @@ async def register(user_data: UserRegister, request: Request):
             "name": user_data.name,
             "email": user_data.email,
             "phone": user_data.phone,
-            "created_at": datetime.now(timezone.utc).isoformat()
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            **({"utm": utm_dict} if utm_dict else {})
         }
         await db.buyers.insert_one(profile_doc)
     elif user_data.role == "agent":
