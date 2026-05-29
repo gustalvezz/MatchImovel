@@ -1,0 +1,28 @@
+name: Weekly Uncovered Interests Summary
+
+on:
+  schedule:
+    - cron: '0 8 * * 5'  # toda sexta-feira às 08h UTC (05h Brasília)
+  workflow_dispatch:      # permite rodar manualmente pelo GitHub
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Send uncovered interests summary via WhatsApp
+        run: |
+          response=$(curl -s -o /tmp/response.json -w "%{http_code}" \
+            -X POST "${{ secrets.BACKEND_URL }}/api/internal/uncovered-interests-weekly" \
+            -H "X-Internal-Key: ${{ secrets.INTERNAL_API_KEY }}" \
+            -H "Content-Type: application/json")
+
+          echo "HTTP status: $response"
+          echo "Response body:"
+          cat /tmp/response.json
+
+          if [ "$response" != "200" ]; then
+            echo "Error: unexpected status $response"
+            exit 1
+          fi

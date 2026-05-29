@@ -30,3 +30,10 @@ FRONTEND_URL = os.environ.get('FRONTEND_URL')
 
 # CORS
 CORS_ORIGINS = os.environ.get('CORS_ORIGINS', '*').split(',')
+
+# WhatsApp / Meta Cloud API
+WHATSAPP_TOKEN = os.environ.get('WHATSAPP_TOKEN')
+WHATSAPP_PHONE_NUMBER_ID = os.environ.get('WHATSAPP_PHONE_NUMBER_ID')
+WHATSAPP_VERIFY_TOKEN = os.environ.get('WHATSAPP_VERIFY_TOKEN')
+WHATSAPP_MATCH_TEMPLATE_NAME = os.environ.get('WHATSAPP_MATCH_TEMPLATE_NAME', 'match_aprovado')
+WHATSAPP_VISIT_TEMPLATE_NAME = os.environ.get('WHATSAPP_VISIT_TEMPLATE_NAME', 'visita_agendada')

@@ -320,6 +320,77 @@ async def get_my_matches(current_user: dict = Depends(get_current_user)):
     return matches
 
 
+async def _insert_interest_from_data(user_id: str, form_data: dict,
+                                     client_ip: str = "whatsapp") -> str:
+    """
+    Insert an interest document from a plain dict. Called by both the HTTP
+    endpoint and the WhatsApp bot to guarantee identical MongoDB documents.
+    Returns the new interest_id.
+    """
+    budget_map = {
+        'ate_400k': (0, 400000),
+        '400k_550k': (400000, 550000),
+        '550k_700k': (550000, 700000),
+        '700k_800k': (700000, 800000),
+        '800k_1500k': (800000, 1500000),
+        'acima_1500k': (1500000, 10000000),
+    }
+    min_price, max_price = budget_map.get(form_data.get('budget_range', ''), (0, 1000000))
+
+    property_type = form_data.get('property_type', 'casa')
+    property_type_display = {
+        'apartamento': 'Apartamento',
+        'casa': 'Casa',
+        'casa_condominio': 'Casa de condomínio',
+        'terreno': 'Terreno',
+        'terreno_condominio': 'Terreno de condomínio',
+        'sala_comercial': 'Sala comercial',
+        'predio_comercial': 'Prédio comercial',
+        'studio_loft': 'Studio/Loft',
+    }.get(property_type, property_type)
+
+    indispensable = form_data.get('indispensable', [])
+    bedrooms = None
+    if any(x in indispensable for x in ('3+ quartos', 'Pelo menos 3 quartos')):
+        bedrooms = 3
+    elif any(x in indispensable for x in ('2+ quartos', 'Pelo menos 2 quartos')):
+        bedrooms = 2
+
+    ai_profile = await generate_ai_profile(form_data)
+    interest_id = str(uuid.uuid4())
+
+    interest = {
+        "id": interest_id,
+        "buyer_id": user_id,
+        "property_type": property_type_display,
+        "property_type_key": property_type,
+        "location": form_data.get('location', ''),
+        "neighborhoods": [],
+        "min_price": min_price,
+        "max_price": max_price,
+        "bedrooms": bedrooms,
+        "features": indispensable,
+        "additional_notes": form_data.get('indispensable_other'),
+        "status": "active",
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "profile_type": form_data.get('profile_type', 'outro'),
+        "urgency": form_data.get('urgency', 'sem_prazo'),
+        "budget_range": form_data.get('budget_range', ''),
+        "ambiance": form_data.get('ambiance', ''),
+        "deal_breakers": form_data.get('deal_breakers', []),
+        "proximity_needs": form_data.get('proximity_needs', []),
+        "experience_fears": form_data.get('experience_fears'),
+        "ai_profile": ai_profile,
+        "form_version": "whatsapp_v1",
+        "terms_accepted": True,
+        "terms_accepted_at": datetime.now(timezone.utc).isoformat(),
+        "terms_accepted_ip": client_ip,
+    }
+
+    await db.interests.insert_one(interest)
+    return interest_id
+
+
 @router.post("/interests/create-full")
 async def create_full_interest(form_data: FullInterestCreate, request: Request):
     """Create interest from the full multi-step form (public endpoint)"""

@@ -13,6 +13,7 @@ from routes.buyer_routes import router as buyer_router
 from routes.agent_routes import router as agent_router
 from routes.curator_routes import router as curator_router
 from routes.admin_routes import router as admin_router
+from routes.whatsapp_routes import router as whatsapp_router
 
 # Logger
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -31,6 +32,7 @@ app.include_router(buyer_router, prefix="/api")
 app.include_router(agent_router, prefix="/api")
 app.include_router(curator_router, prefix="/api")
 app.include_router(admin_router, prefix="/api")
+app.include_router(whatsapp_router, prefix="/api")
 
 # CORS middleware
 app.add_middleware(

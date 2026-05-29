@@ -980,7 +980,26 @@ async def process_saved_searches(request: Request):
                     results["emails_sent"] += 1
                 except Exception as e:
                     logger.error(f"Failed to send email for search {search_id}: {e}")
-            
+
+            # WhatsApp notification when cron finds new matches
+            if new_matches:
+                try:
+                    from services.whatsapp_service import send_text as _wa_text
+                    agent_user = await db.users.find_one({"id": agent_id}, {"_id": 0})
+                    agent_phone = (agent_user or {}).get("phone")
+                    if agent_phone:
+                        desc_short = search.get("property_description", "")[:60]
+                        if len(search.get("property_description", "")) > 60:
+                            desc_short += "..."
+                        await _wa_text(
+                            agent_phone,
+                            f"🔍 *Busca ativa — {len(new_matches)} comprador(es) encontrado(s)!*\n\n"
+                            f"Imóvel: {desc_short}\n\n"
+                            f"Acesse a plataforma para ver os perfis compatíveis."
+                        )
+                except Exception as e:
+                    logger.error(f"WhatsApp search notification failed for {search_id}: {e}")
+
             results["processed"] += 1
             logger.info(f"Processed search {search_id}: {len(new_matches)} new matches from {len(compatible_interests)} candidates")
             
@@ -994,6 +1013,162 @@ async def process_saved_searches(request: Request):
         "processed_at": now.isoformat(),
         **results
     }
+
+
+@router.post("/internal/uncovered-interests-weekly")
+async def send_uncovered_interests_weekly(request: Request):
+    """
+    Internal endpoint: for each agent with active saved searches, send a
+    WhatsApp summary of new buyer interests (last 7 days) whose property type
+    is NOT covered by any of their searches.
+
+    Intended to run every Friday via GitHub Actions.
+    Security: requires X-Internal-Key header.
+    """
+    from services.whatsapp_service import send_text as _wa_text
+
+    internal_key = request.headers.get("X-Internal-Key")
+    expected_key = os.environ.get("INTERNAL_API_KEY")
+    if not expected_key or internal_key != expected_key:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
+    now = datetime.now(timezone.utc)
+    week_ago = (now - __import__('datetime').timedelta(days=7)).isoformat()
+
+    # New interests from the last 7 days
+    new_interests = await db.interests.find(
+        {"status": "active", "created_at": {"$gte": week_ago}}, {"_id": 0}
+    ).to_list(500)
+
+    if not new_interests:
+        return {"status": "success", "message": "No new interests this week", "agents_notified": 0}
+
+    # Type groups (same as ai-discovery pre-filter)
+    type_groups = {
+        'apartamento': ['apartamento', 'studio', 'loft', 'studio/loft', 'studio_loft', 'flat'],
+        'casa': ['casa', 'casa de condomínio', 'casa_condominio', 'sobrado'],
+        'terreno': ['terreno', 'terreno de condomínio', 'terreno_condominio', 'lote'],
+        'comercial': ['sala comercial', 'sala_comercial', 'prédio comercial', 'predio_comercial'],
+    }
+
+    def get_group(pt: str) -> str | None:
+        if not pt:
+            return None
+        pt_l = pt.lower().strip()
+        for g, types in type_groups.items():
+            if pt_l in types or any(t in pt_l for t in types):
+                return g
+        return None
+
+    # Group new interests by type_group
+    interests_by_group: dict[str, list] = {}
+    for i in new_interests:
+        pt = i.get("property_type_key") or i.get("property_type", "")
+        g = get_group(pt) or "outros"
+        interests_by_group.setdefault(g, []).append(i)
+
+    # Get all agents with at least one active search
+    active_searches = await db.agent_searches.find(
+        {"status": "active"}, {"_id": 0, "agent_id": 1, "property_type": 1}
+    ).to_list(500)
+
+    # Map agent_id → set of covered type groups
+    agent_covered: dict[str, set] = {}
+    for s in active_searches:
+        aid = s["agent_id"]
+        g = get_group(s.get("property_type", ""))
+        if g:
+            agent_covered.setdefault(aid, set()).add(g)
+
+    agents_notified = 0
+    group_labels = {
+        "apartamento": "🏢 Apartamento/Studio",
+        "casa": "🏠 Casa",
+        "terreno": "🌱 Terreno",
+        "comercial": "🏪 Sala comercial",
+        "outros": "📦 Outros",
+    }
+
+    for agent_id, covered_groups in agent_covered.items():
+        uncovered_lines = []
+        for group, interests in interests_by_group.items():
+            if group not in covered_groups:
+                uncovered_lines.append(
+                    f"{group_labels.get(group, group)}: {len(interests)} comprador(es)"
+                )
+
+        if not uncovered_lines:
+            continue
+
+        agent_user = await db.users.find_one({"id": agent_id}, {"_id": 0})
+        agent_phone = (agent_user or {}).get("phone")
+        if not agent_phone:
+            continue
+
+        agent_name = (agent_user or {}).get("name", "Corretor")
+        body = (
+            f"📊 *Olá, {agent_name}!*\n\n"
+            f"Esta semana entraram *{len(new_interests)} novos compradores* na plataforma. "
+            f"Alguns tipos de imóvel *não estão cobertos* pelas suas buscas ativas:\n\n"
+            + "\n".join(uncovered_lines)
+            + "\n\nCrie uma nova busca na plataforma para não perder esses compradores!"
+        )
+
+        try:
+            await _wa_text(agent_phone, body)
+            agents_notified += 1
+        except Exception as e:
+            logger.error(f"WeeklyUncovered WhatsApp failed for agent {agent_id}: {e}")
+
+    logger.info(f"Weekly uncovered interests: {agents_notified} agents notified")
+    return {
+        "status": "success",
+        "processed_at": now.isoformat(),
+        "new_interests_total": len(new_interests),
+        "agents_with_active_searches": len(agent_covered),
+        "agents_notified": agents_notified,
+    }
+
+
+async def _insert_match_from_data(
+    buyer_id: str,
+    agent_id: str,
+    interest_id: str,
+    property_info: dict,
+    ai_compatibility: dict,
+) -> str | None:
+    """
+    Insert a match + bot conversation. Shared by the HTTP endpoint and the
+    WhatsApp bot so both produce identical MongoDB documents.
+    Returns match_id, or None if a duplicate already exists.
+    """
+    existing = await db.matches.find_one(
+        {"agent_id": agent_id, "interest_id": interest_id}, {"_id": 0}
+    )
+    if existing:
+        return None
+
+    match = Match(
+        buyer_id=buyer_id,
+        agent_id=agent_id,
+        interest_id=interest_id,
+        status="pending_approval",
+        property_info=property_info,
+        ai_compatibility=ai_compatibility,
+    )
+    doc = match.model_dump()
+    doc['created_at'] = doc['created_at'].isoformat()
+    doc['updated_at'] = doc['updated_at'].isoformat()
+    await db.matches.insert_one(doc)
+
+    conversation = BotConversation(match_id=match.id)
+    conv_doc = conversation.model_dump()
+    conv_doc['created_at'] = conv_doc['created_at'].isoformat()
+    for msg in conv_doc['messages']:
+        msg['timestamp'] = msg['timestamp'].isoformat()
+    await db.bot_conversations.insert_one(conv_doc)
+
+    return match.id
 
 
 @router.post("/agents/match")

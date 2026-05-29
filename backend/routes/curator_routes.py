@@ -165,6 +165,20 @@ async def decide_match(match_id: str, decision: CurationDecision, current_user: 
                 ai_compatibility=match.get("ai_compatibility")
             )
 
+        # WhatsApp notification to buyer
+        try:
+            from services.whatsapp_service import notify_buyer_match_approved
+            buyer_user = await db.users.find_one({"id": match["buyer_id"]}, {"_id": 0})
+            buyer_phone = (buyer or {}).get("phone") or (buyer_user or {}).get("phone")
+            if buyer_phone:
+                await notify_buyer_match_approved(
+                    match=await db.matches.find_one({"id": match_id}, {"_id": 0}),
+                    buyer=buyer or {},
+                    buyer_phone=buyer_phone,
+                )
+        except Exception as e:
+            logger.error(f"WhatsApp match notification failed: {e}")
+
         return {"status": "success", "match_status": new_status, "emails_sent": email_results}
 
     return {"status": "success", "match_status": new_status}
@@ -308,6 +322,24 @@ async def schedule_visit(match_id: str, visit_data: ScheduleVisitRequest, curren
             reschedule_url=_action_url(tokens["agent_reschedule"], "reschedule"),
             cancel_url=_action_url(tokens["agent_cancel"], "cancel"),
         )
+
+    # WhatsApp notification to buyer and agent
+    try:
+        from services.whatsapp_service import notify_visit_scheduled as _wa_visit
+        buyer_phone = (buyer or {}).get("phone") or (buyer_user or {}).get("phone")
+        agent_phone = (agent or {}).get("phone") or (agent_user or {}).get("phone")
+        await _wa_visit(
+            buyer_phone=buyer_phone,
+            buyer_name=(buyer or {}).get("name", "Comprador"),
+            buyer_id=match["buyer_id"],
+            agent_phone=agent_phone,
+            agent_name=(agent or {}).get("name", "Corretor"),
+            agent_id=match["agent_id"],
+            visit=doc,
+            property_address=property_address,
+        )
+    except Exception as e:
+        logger.error(f"WhatsApp visit notification failed: {e}")
 
     return {"status": "success", "visit_id": visit.id, "notifications_sent": notifications_sent}
 
@@ -508,6 +540,30 @@ async def approve_reschedule(
             reschedule_url=_action_url(tokens["agent_reschedule"], "reschedule"),
             cancel_url=_action_url(tokens["agent_cancel"], "cancel"),
         )
+
+    # WhatsApp notification to buyer and agent (reagendamento aprovado)
+    try:
+        from services.whatsapp_service import notify_visit_scheduled as _wa_visit
+        buyer_phone = (buyer or {}).get("phone")
+        agent_phone = (agent or {}).get("phone")
+        if not buyer_phone:
+            buyer_u = await db.users.find_one({"id": match["buyer_id"]}, {"_id": 0})
+            buyer_phone = (buyer_u or {}).get("phone")
+        if not agent_phone:
+            agent_u = await db.users.find_one({"id": match["agent_id"]}, {"_id": 0})
+            agent_phone = (agent_u or {}).get("phone")
+        await _wa_visit(
+            buyer_phone=buyer_phone,
+            buyer_name=(buyer or {}).get("name", "Comprador"),
+            buyer_id=match["buyer_id"],
+            agent_phone=agent_phone,
+            agent_name=(agent or {}).get("name", "Corretor"),
+            agent_id=match["agent_id"],
+            visit=new_doc,
+            property_address=property_address,
+        )
+    except Exception as e:
+        logger.error(f"WhatsApp reschedule approval notification failed: {e}")
 
     return {"status": "success", "new_visit_id": new_visit.id, "notifications_sent": notified}
 
