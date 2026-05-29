@@ -981,21 +981,18 @@ async def process_saved_searches(request: Request):
                 except Exception as e:
                     logger.error(f"Failed to send email for search {search_id}: {e}")
 
-            # WhatsApp notification when cron finds new matches
+            # WhatsApp notification when cron finds new matches (template)
             if new_matches:
                 try:
-                    from services.whatsapp_service import send_text as _wa_text
+                    from services.whatsapp_service import notify_agent_search_results
                     agent_user = await db.users.find_one({"id": agent_id}, {"_id": 0})
                     agent_phone = (agent_user or {}).get("phone")
                     if agent_phone:
-                        desc_short = search.get("property_description", "")[:60]
-                        if len(search.get("property_description", "")) > 60:
-                            desc_short += "..."
-                        await _wa_text(
-                            agent_phone,
-                            f"🔍 *Busca ativa — {len(new_matches)} comprador(es) encontrado(s)!*\n\n"
-                            f"Imóvel: {desc_short}\n\n"
-                            f"Acesse a plataforma para ver os perfis compatíveis."
+                        await notify_agent_search_results(
+                            agent_phone=agent_phone,
+                            agent_name=(agent_user or {}).get("name", "Corretor"),
+                            n_matches=len(new_matches),
+                            search_location=search.get("property_description", "")[:60],
                         )
                 except Exception as e:
                     logger.error(f"WhatsApp search notification failed for {search_id}: {e}")
@@ -1025,7 +1022,7 @@ async def send_uncovered_interests_weekly(request: Request):
     Intended to run every Friday via GitHub Actions.
     Security: requires X-Internal-Key header.
     """
-    from services.whatsapp_service import send_text as _wa_text
+    from services.whatsapp_service import notify_agent_new_interests
 
     internal_key = request.headers.get("X-Internal-Key")
     expected_key = os.environ.get("INTERNAL_API_KEY")
@@ -1106,16 +1103,18 @@ async def send_uncovered_interests_weekly(request: Request):
             continue
 
         agent_name = (agent_user or {}).get("name", "Corretor")
-        body = (
-            f"📊 *Olá, {agent_name}!*\n\n"
-            f"Esta semana entraram *{len(new_interests)} novos compradores* na plataforma. "
-            f"Alguns tipos de imóvel *não estão cobertos* pelas suas buscas ativas:\n\n"
-            + "\n".join(uncovered_lines)
-            + "\n\nCrie uma nova busca na plataforma para não perder esses compradores!"
-        )
+        interests_summary = [
+            {"property_type": group, "count": len(interests_by_group[group])}
+            for group, _ in interests_by_group.items()
+            if group not in covered_groups
+        ]
 
         try:
-            await _wa_text(agent_phone, body)
+            await notify_agent_new_interests(
+                agent_phone=agent_phone,
+                agent_name=agent_name,
+                new_interests=interests_summary,
+            )
             agents_notified += 1
         except Exception as e:
             logger.error(f"WeeklyUncovered WhatsApp failed for agent {agent_id}: {e}")
@@ -1237,7 +1236,23 @@ async def delete_match(match_id: str, reason_data: DeleteReason, current_user: d
                 reason=reason_data.reason,
                 description=reason_data.other_reason or ""
             )
-    
+        # WhatsApp notification to curator
+        if curator and curator.get("phone"):
+            try:
+                from services.whatsapp_service import notify_curator_deletion
+                deleted_by = agent.get("name") if agent else (agent_user or {}).get("name", "Corretor")
+                pi = match.get("property_info") or {}
+                item_desc = pi.get("address") or pi.get("description", "")[:40]
+                await notify_curator_deletion(
+                    curator_phone=curator["phone"],
+                    curator_name=curator.get("name", "Curador"),
+                    deletion_type="match",
+                    deleted_by_name=deleted_by,
+                    item_description=item_desc,
+                )
+            except Exception as e:
+                logger.error(f"WhatsApp curator deletion notification failed: {e}")
+
     deletion_record = {
         "id": str(uuid.uuid4()),
         "match_id": match_id,

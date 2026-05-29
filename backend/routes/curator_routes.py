@@ -179,6 +179,22 @@ async def decide_match(match_id: str, decision: CurationDecision, current_user: 
         except Exception as e:
             logger.error(f"WhatsApp match notification failed: {e}")
 
+        # WhatsApp notification to agent
+        try:
+            from services.whatsapp_service import notify_agent_match_approved
+            agent_user = await db.users.find_one({"id": match["agent_id"]}, {"_id": 0})
+            agent_phone = (agent or {}).get("phone") or (agent_user or {}).get("phone")
+            if agent_phone:
+                await notify_agent_match_approved(
+                    agent_phone=agent_phone,
+                    agent_name=(agent or {}).get("name", "Corretor"),
+                    buyer_name=(buyer or {}).get("name", "Comprador"),
+                    score=str((match.get("ai_compatibility") or {}).get("score", 0)),
+                    location=(match.get("property_info") or {}).get("address", ""),
+                )
+        except Exception as e:
+            logger.error(f"WhatsApp agent match notification failed: {e}")
+
         return {"status": "success", "match_status": new_status, "emails_sent": email_results}
 
     return {"status": "success", "match_status": new_status}
@@ -465,6 +481,22 @@ async def _send_feedback_request(visit: dict) -> bool:
         )
         await db.visits.update_one({"id": visit["id"]}, {"$set": {"feedback_email_sent": True}})
 
+    # WhatsApp feedback request (opens Flow B session)
+    try:
+        from services.whatsapp_service import notify_buyer_feedback_request
+        buyer_user = await db.users.find_one({"user_id": match["buyer_id"]}, {"_id": 0}) if match else None
+        buyer_phone = buyer.get("phone") or (buyer_user or {}).get("phone")
+        if buyer_phone:
+            await notify_buyer_feedback_request(
+                buyer_phone=buyer_phone,
+                buyer_name=buyer.get("name", "Comprador"),
+                match_id=visit["match_id"],
+                buyer_id=match["buyer_id"] if match else "",
+                property_address=property_address,
+            )
+    except Exception as e:
+        logger.error(f"WhatsApp feedback request failed: {e}")
+
     return sent
 
 
@@ -666,6 +698,21 @@ async def approve_buyer_rejection(
                 {"$set": {"agent_rejection_email_sent": True}}
             )
 
+    # WhatsApp notification to agent
+    try:
+        from services.whatsapp_service import notify_agent_match_rejected
+        agent_user = await db.users.find_one({"id": (match or {}).get("agent_id", "")}, {"_id": 0})
+        agent_phone = (agent or {}).get("phone") or (agent_user or {}).get("phone")
+        if agent_phone:
+            await notify_agent_match_rejected(
+                agent_phone=agent_phone,
+                agent_name=(agent or {}).get("name", "Corretor"),
+                buyer_name=(buyer or {}).get("name", "Comprador"),
+                property_address=property_address,
+            )
+    except Exception as e:
+        logger.error(f"WhatsApp agent rejection notification failed: {e}")
+
     return {"status": "success", "agent_notified": email_sent}
 
 
@@ -786,6 +833,23 @@ async def process_visit_token_action(action_data: VisitTokenActionRequest):
                     property_address=property_address,
                 )
 
+                # WhatsApp notification to curator
+                try:
+                    from services.whatsapp_service import notify_curator_visit_confirmed
+                    curator_phone = curator_user.get("phone")
+                    if curator_phone:
+                        await notify_curator_visit_confirmed(
+                            curator_phone=curator_phone,
+                            curator_name=curator_user.get("name", "Curador"),
+                            actor_name=actor_name,
+                            actor_type=actor_type,
+                            visit_date=visit["visit_date"],
+                            visit_time=visit["visit_time"],
+                            property_address=property_address,
+                        )
+                except Exception as e:
+                    logger.error(f"WhatsApp curator confirmation notification failed: {e}")
+
     elif action_data.action == "cancel":
         await db.visits.update_one({"id": visit["id"]}, {"$set": {"status": "cancelled"}})
 
@@ -846,6 +910,27 @@ async def process_visit_token_action(action_data: VisitTokenActionRequest):
                     proposed_date=action_data.proposed_date,
                     proposed_time=action_data.proposed_time,
                 )
+
+            # WhatsApp notification for reschedule request
+            try:
+                from services.whatsapp_service import notify_reschedule_requested
+                wa_targets = []
+                if curator_user and curator_user.get("phone"):
+                    wa_targets.append((curator_user["phone"], curator_user.get("name", "Curador")))
+                if actor_type == "buyer" and agent and agent.get("phone"):
+                    wa_targets.append((agent["phone"], agent.get("name", "Corretor")))
+                elif actor_type == "agent" and buyer and buyer.get("phone"):
+                    wa_targets.append((buyer["phone"], buyer.get("name", "Comprador")))
+                if wa_targets:
+                    await notify_reschedule_requested(
+                        phones_names=wa_targets,
+                        requester_name=requester_name,
+                        reason=action_data.reason or "",
+                        proposed_date=action_data.proposed_date,
+                        property_address=property_address,
+                    )
+            except Exception as e:
+                logger.error(f"WhatsApp reschedule notification failed: {e}")
 
     # Mark token as used
     await db.visit_actions.update_one(
@@ -1008,6 +1093,21 @@ async def send_visit_reminders(request: Request):
                             {"$set": {"reminder_2h_sent": True, "reminder_sent_at": now.isoformat()}}
                         )
                         reminders_sent += 1
+
+                    # WhatsApp 2h reminder
+                    try:
+                        from services.whatsapp_service import notify_visit_reminder
+                        await notify_visit_reminder(
+                            buyer_phone=(buyer or {}).get("phone"),
+                            buyer_name=(buyer or {}).get("name", "Comprador"),
+                            agent_phone=(agent or {}).get("phone"),
+                            agent_name=(agent or {}).get("name", "Corretor"),
+                            visit_date=visit["visit_date"],
+                            visit_time=visit["visit_time"],
+                            property_address=property_address,
+                        )
+                    except Exception as e:
+                        logger.error(f"WhatsApp visit reminder failed: {e}")
         except Exception as e:
             errors += 1
             logger.error(f"Error processing visit {visit.get('id', '?')}: {e}")

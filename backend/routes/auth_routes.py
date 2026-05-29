@@ -172,6 +172,7 @@ async def register(user_data: UserRegister, request: Request):
         # Notify all admin users of new agent registration
         admin_url = f"{FRONTEND_URL}/admin/dashboard" if FRONTEND_URL else ""
         admin_users = await db.users.find({"role": "admin"}, {"_id": 0}).to_list(10)
+        creci_display = f"{user_data.creci_uf}-{user_data.creci}" if user_data.creci_uf else user_data.creci
         for admin in admin_users:
             try:
                 await send_new_agent_notification(
@@ -186,6 +187,20 @@ async def register(user_data: UserRegister, request: Request):
                 )
             except Exception:
                 pass
+
+        # WhatsApp notification to admin (opt-in via WHATSAPP_ADMIN_PHONE)
+        try:
+            import os
+            from services.whatsapp_service import notify_admin_new_agent
+            admin_phone = os.environ.get("WHATSAPP_ADMIN_PHONE")
+            if admin_phone:
+                await notify_admin_new_agent(
+                    admin_phone=admin_phone,
+                    agent_name=user_data.name,
+                    creci=creci_display,
+                )
+        except Exception:
+            pass
 
     token = create_access_token(user_id, user_data.role)
     return AuthResponse(token=token, user_id=user_id, role=user_data.role, name=user_data.name)
@@ -424,7 +439,20 @@ async def forgot_password(request: ForgotPasswordRequest):
         user_name=user.get("name", "Usuário"),
         reset_link=reset_link
     )
-    
+
+    # WhatsApp notification (best-effort)
+    try:
+        from services.whatsapp_service import notify_password_reset
+        user_phone = user.get("phone")
+        if user_phone:
+            await notify_password_reset(
+                user_phone=user_phone,
+                user_name=user.get("name", "Usuário"),
+                reset_link=reset_link,
+            )
+    except Exception:
+        pass
+
     return success_message
 
 

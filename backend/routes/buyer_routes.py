@@ -184,6 +184,21 @@ async def process_ai_interpretation_background(interest_id: str, form_data: dict
                 ai_interpretation=ai_interpretation
             )
             logger.info(f"Confirmation email sent to {buyer_email}")
+
+            # WhatsApp confirmation (skip if originating from WhatsApp bot)
+            if form_data.get("client_ip") != "whatsapp":
+                try:
+                    from services.whatsapp_service import notify_buyer_interest_registered
+                    buyer_phone = form_data.get("phone")
+                    if buyer_phone:
+                        await notify_buyer_interest_registered(
+                            buyer_phone=buyer_phone,
+                            buyer_name=buyer_name,
+                            property_type=property_type_display,
+                            location=form_data.get("location", ""),
+                        )
+                except Exception:
+                    pass
             
     except Exception as e:
         logger.error(f"Error in background AI processing for interest {interest_id}: {str(e)}")
@@ -269,7 +284,21 @@ async def delete_interest(interest_id: str, reason_data: DeleteReason, current_u
                     reason=reason_data.reason,
                     description=reason_data.other_reason or ""
                 )
-    
+            # WhatsApp notification to curator
+            if curator and curator.get("phone"):
+                try:
+                    from services.whatsapp_service import notify_curator_deletion
+                    deleted_by = (buyer.get("name") if buyer else None) or buyer_user.get("name", "Comprador")
+                    await notify_curator_deletion(
+                        curator_phone=curator["phone"],
+                        curator_name=curator.get("name", "Curador"),
+                        deletion_type="interest",
+                        deleted_by_name=deleted_by,
+                        item_description=interest.get("location", "") if interest else "",
+                    )
+                except Exception as e:
+                    logger.error(f"WhatsApp curator deletion notification failed: {e}")
+
     deletion_record = {
         "id": str(uuid.uuid4()),
         "interest_id": interest_id,
@@ -508,7 +537,22 @@ async def create_full_interest(form_data: FullInterestCreate, request: Request):
                 'location': form_data.location
             }
         )
-    
+
+    # WhatsApp confirmation (skip if originating from WhatsApp bot)
+    if getattr(form_data, "client_ip", None) != "whatsapp":
+        try:
+            from services.whatsapp_service import notify_buyer_interest_registered
+            buyer_phone = getattr(form_data, "phone", None)
+            if buyer_phone:
+                await notify_buyer_interest_registered(
+                    buyer_phone=buyer_phone,
+                    buyer_name=form_data.name,
+                    property_type=form_data.property_type,
+                    location=form_data.location,
+                )
+        except Exception:
+            pass
+
     return {
         "status": "success",
         "message": "Interesse cadastrado com sucesso!",
@@ -857,6 +901,26 @@ async def buyer_reschedule_visit(visit_id: str, data: dict, current_user: dict =
             property_address=property_address, reason=data.get("reason", ""),
             proposed_date=data.get("proposed_date"), proposed_time=data.get("proposed_time"),
         )
+
+    # WhatsApp notifications for reschedule request
+    try:
+        from services.whatsapp_service import notify_reschedule_requested
+        wa_targets = []
+        if curator_user and curator_user.get("phone"):
+            wa_targets.append((curator_user["phone"], curator_user.get("name", "Curador")))
+        if agent and agent.get("phone"):
+            wa_targets.append((agent["phone"], agent.get("name", "Corretor")))
+        if wa_targets:
+            await notify_reschedule_requested(
+                phones_names=wa_targets,
+                requester_name=(buyer or {}).get("name", "Comprador"),
+                reason=data.get("reason", ""),
+                proposed_date=data.get("proposed_date"),
+                property_address=property_address,
+            )
+    except Exception as e:
+        logger.error(f"WhatsApp reschedule notification failed: {e}")
+
     return {"status": "success"}
 
 

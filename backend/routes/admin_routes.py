@@ -115,7 +115,21 @@ async def verify_agent_creci(agent_id: str, current_user: dict = Depends(get_cur
             agent_name=agent.get("name", "Corretor"),
             creci=creci_display
         )
-    
+
+    # WhatsApp notification
+    try:
+        from services.whatsapp_service import notify_agent_creci_verified
+        agent_user = await db.users.find_one({"id": agent_id}, {"_id": 0})
+        agent_phone = agent.get("phone") or (agent_user or {}).get("phone")
+        if agent_phone:
+            await notify_agent_creci_verified(
+                agent_phone=agent_phone,
+                agent_name=agent.get("name", "Corretor"),
+                creci=creci_display,
+            )
+    except Exception as e:
+        logger.error(f"WhatsApp CRECI verified notification failed: {e}")
+
     return {"status": "success", "message": "CRECI verificado com sucesso"}
 
 
@@ -141,7 +155,22 @@ async def block_agent_creci(agent_id: str, blocked: bool = True, current_user: d
             agent_name=agent.get("name", "Corretor"),
             creci=creci_display
         )
-    
+
+    # WhatsApp notification
+    if blocked:
+        try:
+            from services.whatsapp_service import notify_agent_creci_blocked
+            agent_user = await db.users.find_one({"id": agent_id}, {"_id": 0})
+            agent_phone = agent.get("phone") or (agent_user or {}).get("phone")
+            if agent_phone:
+                await notify_agent_creci_blocked(
+                    agent_phone=agent_phone,
+                    agent_name=agent.get("name", "Corretor"),
+                    creci=creci_display,
+                )
+        except Exception as e:
+            logger.error(f"WhatsApp CRECI blocked notification failed: {e}")
+
     action = "bloqueado" if blocked else "desbloqueado"
     return {"status": "success", "message": f"CRECI {action} com sucesso"}
 
@@ -174,22 +203,47 @@ async def update_creci_status(agent_id: str, status: CreciStatusUpdate, current_
     creci_display = f"{agent.get('creci_uf', '')}-{agent.get('creci', '')}"
     
     # Send email notifications based on status changes
+    newly_verified = status.creci_verified and not status.creci_blocked and not was_verified
+    newly_blocked = status.creci_blocked and not was_blocked
+
     if agent.get("email"):
-        # If newly verified (was not verified before, now is verified and not blocked)
-        if status.creci_verified and not status.creci_blocked and not was_verified:
+        if newly_verified:
             await send_creci_verified_email(
                 agent_email=agent["email"],
                 agent_name=agent.get("name", "Corretor"),
                 creci=creci_display
             )
-        # If newly blocked (was not blocked before, now is blocked)
-        elif status.creci_blocked and not was_blocked:
+        elif newly_blocked:
             await send_creci_blocked_email(
                 agent_email=agent["email"],
                 agent_name=agent.get("name", "Corretor"),
                 creci=creci_display
             )
-    
+
+    # WhatsApp notifications
+    if newly_verified or newly_blocked:
+        try:
+            from services.whatsapp_service import (
+                notify_agent_creci_verified, notify_agent_creci_blocked
+            )
+            agent_user = await db.users.find_one({"id": agent_id}, {"_id": 0})
+            agent_phone = agent.get("phone") or (agent_user or {}).get("phone")
+            if agent_phone:
+                if newly_verified:
+                    await notify_agent_creci_verified(
+                        agent_phone=agent_phone,
+                        agent_name=agent.get("name", "Corretor"),
+                        creci=creci_display,
+                    )
+                elif newly_blocked:
+                    await notify_agent_creci_blocked(
+                        agent_phone=agent_phone,
+                        agent_name=agent.get("name", "Corretor"),
+                        creci=creci_display,
+                    )
+        except Exception as e:
+            logger.error(f"WhatsApp CRECI status notification failed: {e}")
+
     return {"status": "success", "message": "Status do CRECI atualizado com sucesso"}
 
 
