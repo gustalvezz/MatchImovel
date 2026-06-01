@@ -1040,6 +1040,7 @@ async def agent_my_visits(current_user: dict = Depends(get_current_user)):
 
 # ─── cron: visit reminders ────────────────────────────────────────────────────
 
+@router.post("/internal/send-visit-reminders")
 async def send_visit_reminders(request: Request):
     """Internal: send 2h reminders and post-visit feedback emails."""
     internal_key = request.headers.get("X-Internal-Key")
