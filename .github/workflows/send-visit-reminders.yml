@@ -16,6 +16,7 @@ jobs:
           response=$(curl -s -o /tmp/response.json -w "%{http_code}" \
             -X POST "${{ secrets.REACT_APP_BACKEND_URL }}/api/internal/send-visit-reminders" \
             -H "X-Internal-Key: ${{ secrets.INTERNAL_API_KEY }}" \
+            -H "x-vercel-protection-bypass: ${{ secrets.VERCEL_BYPASS_TOKEN }}" \
             -H "Content-Type: application/json")
 
           echo "HTTP status: $response"
