@@ -198,8 +198,8 @@ backend/
 ## Backlog / Tarefas Futuras
 
 ### P1 - Alta Prioridade
-- [ ] Configurar cron job externo para lembretes de visita 2h antes (`POST /api/internal/send-visit-reminders`)
-- [ ] Assets visuais: `favicon.png`, `apple-touch-icon.png`, `og-image.png`, `logo.png` (criação por design)
+- [x] Configurar cron job externo para lembretes de visita 2h antes (`POST /api/internal/send-visit-reminders`)
+- [x] Assets visuais: `favicon.png`, `apple-touch-icon.png`, `og-image.png`, `logo.png` (criação por design)
 
 ### P2 - Média Prioridade
 - [ ] Exportação CSV de leads para email marketing
@@ -213,6 +213,21 @@ backend/
 ---
 
 ## Changelog
+
+### 01/06/2026
+- **Headers de segurança HTTP**:
+  - `SecurityHeadersMiddleware` adicionado ao FastAPI (`backend/server.py`): X-Content-Type-Options, X-Frame-Options, X-XSS-Protection, Referrer-Policy, CORP, COOP, Permissions-Policy, CSP, HSTS
+  - FastAPI docs (`/docs`, `/redoc`) desabilitados em produção via env var `ENVIRONMENT=production`
+  - `frontend/vercel.json` criado com os mesmos headers + CSP em modo `Content-Security-Policy-Report-Only` (não bloqueia, apenas reporta violações no DevTools)
+- **Cron de lembretes de visita (P1 concluído)**:
+  - Decorator `@router.post("/internal/send-visit-reminders")` adicionado ao endpoint que existia sem rota
+  - GitHub Actions workflow `send-visit-reminders.yml` criado — roda a cada 30 minutos
+  - Janela de silêncio adicionada ao endpoint: notificações enviadas apenas entre 07h–21h (horário de Brasília)
+- **Crons semanais corrigidos**:
+  - `process-searches.yml`: horário ajustado de 03h para 12h Brasília (segunda-feira)
+  - `weekly-uncovered-summary.yml`: horário ajustado de 05h para 12h Brasília (sexta-feira)
+  - Ambos os workflows corrigidos para usar secret `REACT_APP_BACKEND_URL` e header `x-vercel-protection-bypass`
+  - `INTERNAL_API_KEY` configurada no Vercel (backend) e GitHub Actions secrets
 
 ### 02/05/2026 (2ª atualização)
 - **Fluxo de descoberta refatorado para 3 etapas inline (sem modal)**:
