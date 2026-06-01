@@ -1053,6 +1053,13 @@ async def send_visit_reminders(request: Request):
     from services.email_service import send_visit_notification
 
     now = datetime.now(timezone.utc)
+
+    # Silencia notificações fora do horário 07h–21h (horário de Brasília, UTC-3)
+    brasilia_hour = now.astimezone(timezone(timedelta(hours=-3))).hour
+    if not (7 <= brasilia_hour < 21):
+        logger.info(f"Skipping reminders — outside quiet hours (Brasília {brasilia_hour}h)")
+        return {"status": "skipped", "reason": "outside_quiet_hours", "brasilia_hour": brasilia_hour}
+
     logger.info(f"Starting visit reminders check at {now.isoformat()}")
 
     visits = await db.visits.find({

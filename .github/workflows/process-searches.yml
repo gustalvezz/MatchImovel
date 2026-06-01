@@ -2,7 +2,7 @@ name: Process Saved Searches
 
 on:
   schedule:
-    - cron: '0 6 * * 1'  # toda segunda-feira às 06h (horário UTC = 03h Brasília)
+    - cron: '0 15 * * 1'  # toda segunda-feira às 15h UTC (12h Brasília)
   workflow_dispatch:       # permite rodar manualmente pelo GitHub
 
 jobs:
