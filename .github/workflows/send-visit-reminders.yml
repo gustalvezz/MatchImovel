@@ -14,7 +14,7 @@ jobs:
       - name: Trigger visit reminders
         run: |
           response=$(curl -s -o /tmp/response.json -w "%{http_code}" \
-            -X POST "${{ secrets.BACKEND_URL }}/api/internal/send-visit-reminders" \
+            -X POST "${{ secrets.REACT_APP_BACKEND_URL }}/api/internal/send-visit-reminders" \
             -H "X-Internal-Key: ${{ secrets.INTERNAL_API_KEY }}" \
             -H "Content-Type: application/json")
 
