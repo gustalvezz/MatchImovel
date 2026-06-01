@@ -30,7 +30,7 @@ python backend_test.py   # na raiz do projeto
 
 ## Environment Variables
 
-**Backend** (`backend/.env`):
+**Backend** (`backend/.env` e Vercel):
 | Var | Uso |
 |-----|-----|
 | `MONGO_URL` | Connection string do MongoDB (Motor async) |
@@ -41,12 +41,24 @@ python backend_test.py   # na raiz do projeto
 | `CORS_ORIGINS` | Origins permitidas, separadas por vírgula |
 | `SMTP_HOST/PORT/USER/PASSWORD` | Envio de email (opcional) |
 | `SMTP_FROM_EMAIL/FROM_NAME` | Remetente dos emails |
-| `INTERNAL_API_KEY` | Protege o endpoint `/api/internal/process-saved-searches` — **obrigatório**; sem ele o endpoint rejeita todas as requisições |
+| `INTERNAL_API_KEY` | Protege endpoints `/api/internal/*` — **obrigatório no Vercel e no GitHub Actions secret** |
+| `ENVIRONMENT` | Se `production`, desabilita `/docs` e `/redoc` do FastAPI |
+| `WHATSAPP_TOKEN` | Token da Meta Cloud API |
+| `WHATSAPP_PHONE_NUMBER_ID` | ID do número WhatsApp Business |
+| `WHATSAPP_VERIFY_TOKEN` | Token de verificação do webhook Meta |
+| `WHATSAPP_ADMIN_PHONE` | Telefone do admin para alertas (opt-in) |
 
 **Frontend** (`frontend/.env`):
 | Var | Uso |
 |-----|-----|
-| `REACT_APP_BACKEND_URL` | URL do backend (ex: `http://localhost:8001`) |
+| `REACT_APP_BACKEND_URL` | URL do backend — em produção: `https://match-imovel-backend.vercel.app` |
+
+**GitHub Actions secrets** (repositório):
+| Secret | Uso |
+|--------|-----|
+| `REACT_APP_BACKEND_URL` | URL do backend para os crons |
+| `INTERNAL_API_KEY` | Chave para autenticar nos endpoints `/api/internal/*` |
+| `VERCEL_BYPASS_TOKEN` | Bypass do Vercel Deployment Protection para requisições programáticas |
 
 ## Architecture
 
@@ -54,13 +66,15 @@ python backend_test.py   # na raiz do projeto
 - **Backend**: FastAPI + Motor (MongoDB async) + AsyncOpenAI (GPT-4o) + aiosmtplib
 - **Frontend**: React 19 + React Router v7 + Tailwind + shadcn/ui + Framer Motion
 - **Build**: craco (webpack com alias `@/` → `src/`)
+- **Deploy**: dois projetos Vercel separados — frontend e backend
 
-### Backend — 5 routers em `/api`
+### Backend — routers em `/api`
 - `auth_routes.py` — registro, login, reset de senha, validação CRECI (BuscaCRECI API)
 - `agent_routes.py` — fluxo de descoberta 3 etapas, saved searches, criar match
 - `buyer_routes.py` — CRUD de interesses, visualização de matches
 - `curator_routes.py` — aprovação de matches, agendamento de visitas, follow-ups
 - `admin_routes.py` — gestão de usuários, analytics, aprovação de CRECI
+- `whatsapp_routes.py` — webhook Meta Cloud API, 4 fluxos conversacionais (buyer, agent, match feedback, visit)
 
 ### Fluxo de descoberta (agent_routes.py — arquivo mais crítico, ~54KB)
 1. **Analisar** (`POST /agents/analyze-property`): texto livre → GPT-4o extrai campos estruturados
@@ -82,8 +96,44 @@ O `property_data` (dict com campos do formulário) é salvo no documento `agent_
 - **AppLogo** (`src/components/AppLogo.js`): componente único de logo — usa `/favicon.png`. Para fundo escuro usar `className="... brightness-0 invert"`
 - Tipos de imóvel suportados: `apartamento`, `casa`, `terreno`, `comercial`, `cobertura`, `kitnet`
 
-### Cron semanal
-GitHub Actions (`.github/workflows/process-searches.yml`) toda segunda às 06h UTC chama `POST /api/internal/process-saved-searches` com header `X-Internal-Key`. Requer secrets `BACKEND_URL` e `INTERNAL_API_KEY` configurados no repositório GitHub.
+### Segurança (backend/server.py)
+`SecurityHeadersMiddleware` adicionado — aplica em todas as respostas da API:
+- `X-Content-Type-Options: nosniff`
+- `X-Frame-Options: DENY`
+- `X-XSS-Protection: 1; mode=block`
+- `Referrer-Policy: strict-origin-when-cross-origin`
+- `Cross-Origin-Resource-Policy: cross-origin`
+- `Cross-Origin-Opener-Policy: same-origin`
+- `Permissions-Policy: camera=(), microphone=(), geolocation=()`
+- `Content-Security-Policy: default-src 'none'`
+- `Strict-Transport-Security` (apenas HTTPS)
+
+Frontend (`frontend/vercel.json`) tem os mesmos headers + CSP em `Content-Security-Policy-Report-Only` (modo observação — mudar key para `Content-Security-Policy` quando quiser ativar modo bloqueante).
+
+### Crons (GitHub Actions)
+| Workflow | Horário | Endpoint | O que faz |
+|---|---|---|---|
+| `process-searches.yml` | Segunda 12h Brasília (15h UTC) | `POST /api/internal/process-saved-searches` | Reprocessa buscas salvas ativas, envia resultados por email |
+| `send-visit-reminders.yml` | A cada 30 min | `POST /api/internal/send-visit-reminders` | Envia lembrete 2h antes de visitas (apenas 07h–21h Brasília) |
+| `weekly-uncovered-summary.yml` | Sexta 12h Brasília (15h UTC) | `POST /api/internal/uncovered-interests-weekly` | Resume compradores não cobertos por nenhuma busca |
+
+Todos os workflows usam os secrets `REACT_APP_BACKEND_URL`, `INTERNAL_API_KEY` e `VERCEL_BYPASS_TOKEN`.  
+O endpoint `/api/internal/send-visit-reminders` tem janela de silêncio: retorna `{"status": "skipped"}` fora das 07h–21h Brasília.
+
+### WhatsApp (whatsapp_routes.py + whatsapp_service.py)
+- Webhook: `GET/POST /api/webhooks/whatsapp`
+- 4 fluxos: Flow A (captação comprador), Flow B (feedback pós-match), Flow C (corretor cadastra imóvel), Flow V (gerenciamento de visita)
+- Sessões salvas em `db.whatsapp_sessions` com TTL de 24h
+- 17 templates Meta aprovados necessários — guia completo em `docs/WHATSAPP_TEMPLATES.md`
+- Setup externo pendente: conta Meta Business verificada, número aprovado, webhook registrado na Meta, templates criados
 
 ### PWA
-`frontend/public/`: `manifest.json` + `sw.js` (cache-first para assets, network-first para navegação, ignora `/api/`). Registro em `src/serviceWorkerRegistration.js` (produção apenas). Ícones necessários: `favicon.png` (64×64), `apple-touch-icon.png` (180×180), `logo192.png`, `logo512.png`.
+`frontend/public/`: `manifest.json` + `sw.js` (cache-first para assets, network-first para navegação, ignora `/api/`). Registro em `src/serviceWorkerRegistration.js` (produção apenas). Ícones: `favicon.png` (64×64), `apple-touch-icon.png` (180×180), `logo192.png`, `logo512.png`.
+
+## Backlog atual
+Ver `memory/PRD.md` — seção "Backlog / Tarefas Futuras" para itens pendentes atualizados.
+
+**P2 (próximas prioridades):**
+- Exportação CSV de leads para email marketing
+- Histórico de visitas no dashboard do curador
+- Analytics expandido para performance individual de curadores
