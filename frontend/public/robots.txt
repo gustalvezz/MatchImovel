@@ -1,0 +1,10 @@
+User-agent: *
+Allow: /
+
+# Blog
+Allow: /blog
+Allow: /blog/
+
+# Sitemaps
+Sitemap: https://matchimovel.com.br/sitemap.xml
+Sitemap: https://match-imovel-backend.vercel.app/api/blog/sitemap.xml

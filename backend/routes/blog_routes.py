@@ -2,6 +2,7 @@
 Blog routes — public read endpoints + admin CRUD
 """
 from fastapi import APIRouter, HTTPException, Depends
+from fastapi.responses import Response
 from datetime import datetime, timezone
 import uuid
 import re
@@ -56,6 +57,34 @@ async def get_post(slug: str):
         {"_id": 0, "content": 0}
     ).sort("published_at", -1).limit(3).to_list(3)
     return {"post": post, "related": related}
+
+
+@router.get("/blog/sitemap.xml", response_class=Response)
+async def blog_sitemap():
+    posts = await db.blog_posts.find(
+        {"status": "published"},
+        {"slug": 1, "published_at": 1, "updated_at": 1, "_id": 0}
+    ).sort("published_at", -1).to_list(1000)
+
+    base = "https://matchimovel.com.br"
+    items = f"""  <url>
+    <loc>{base}/blog</loc>
+    <changefreq>daily</changefreq>
+    <priority>0.8</priority>
+  </url>"""
+
+    for p in posts:
+        lastmod = (p.get("updated_at") or p.get("published_at") or "")[:10]
+        items += f"""
+  <url>
+    <loc>{base}/blog/{p['slug']}</loc>
+    <lastmod>{lastmod}</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>"""
+
+    xml = f'<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n{items}\n</urlset>'
+    return Response(content=xml, media_type="application/xml")
 
 
 @router.get("/blog/categories")

@@ -5,6 +5,7 @@ import AppLogo from '@/components/AppLogo';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Calendar, Clock, ArrowLeft, ArrowRight, MessageCircle } from 'lucide-react';
+import { useSEO } from '@/hooks/useSEO';
 
 function formatDate(iso) {
   if (!iso) return '';
@@ -35,6 +36,15 @@ export default function BlogPostPage() {
   const [loading, setLoading] = useState(true);
   const [isScrolled, setIsScrolled] = useState(false);
 
+  useSEO({
+    title:       post ? (post.meta_title || post.title) : undefined,
+    description: post ? (post.meta_description || post.excerpt) : undefined,
+    image:       post?.cover_image_url || undefined,
+    path:        `/blog/${slug}`,
+    type:        'article',
+    article:     post,
+  });
+
   useEffect(() => {
     const handleScroll = () => setIsScrolled(window.scrollY > 10);
     window.addEventListener('scroll', handleScroll);
@@ -47,15 +57,9 @@ export default function BlogPostPage() {
       .then(({ data }) => {
         setPost(data.post);
         setRelated(data.related || []);
-        // Update page meta
-        document.title = `${data.post.meta_title || data.post.title} | MatchImóvel Blog`;
-        const metaDesc = document.querySelector('meta[name="description"]');
-        if (metaDesc) metaDesc.setAttribute('content', data.post.meta_description || data.post.excerpt || '');
       })
       .catch(() => navigate('/blog'))
       .finally(() => setLoading(false));
-
-    return () => { document.title = 'MatchImóvel'; };
   }, [slug, navigate]);
 
   if (loading) {

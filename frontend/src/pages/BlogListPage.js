@@ -5,6 +5,7 @@ import AppLogo from '@/components/AppLogo';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Calendar, Clock, ArrowRight, MessageCircle } from 'lucide-react';
+import { useSEO } from '@/hooks/useSEO';
 
 const CATEGORIES = [
   { value: '', label: 'Todos' },
@@ -61,6 +62,12 @@ export default function BlogListPage() {
   const [loading, setLoading] = useState(true);
   const [isScrolled, setIsScrolled] = useState(false);
   const LIMIT = 9;
+
+  useSEO({
+    title:       'Blog — Dicas e tendências do mercado imobiliário',
+    description: 'Artigos sobre compra e venda de imóveis, dicas para compradores, tendências de mercado e guias para corretores. Conteúdo do MatchImóvel.',
+    path:        '/blog',
+  });
 
   useEffect(() => {
     const handleScroll = () => setIsScrolled(window.scrollY > 10);
