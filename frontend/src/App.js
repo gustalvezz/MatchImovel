@@ -22,6 +22,8 @@ import AdminDashboard from '@/pages/AdminDashboard';
 import VisitActionPage from '@/pages/VisitActionPage';
 import VisitFeedbackPage from '@/pages/VisitFeedbackPage';
 import PrivacyPage from '@/pages/PrivacyPage';
+import BlogListPage from '@/pages/BlogListPage';
+import BlogPostPage from '@/pages/BlogPostPage';
 import CookieBanner from '@/components/CookieBanner';
 import '@/App.css';
 
@@ -161,6 +163,8 @@ function App() {
             } 
           />
           <Route path="/privacidade" element={<PrivacyPage />} />
+          <Route path="/blog" element={<BlogListPage />} />
+          <Route path="/blog/:slug" element={<BlogPostPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
         <Toaster position="top-right" richColors />

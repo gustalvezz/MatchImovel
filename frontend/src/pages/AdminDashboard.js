@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import BlogAdmin from '@/components/BlogAdmin';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
@@ -299,6 +300,11 @@ const AdminDashboard = () => {
                 <TabsTrigger value="analytics" className="rounded-lg whitespace-nowrap flex-shrink-0" data-testid="admin-tab-analytics">
                   <BarChart3 className="w-4 h-4 mr-1" />
                   Analytics
+                </TabsTrigger>
+              )}
+              {user?.role === 'admin' && (
+                <TabsTrigger value="blog" className="rounded-lg whitespace-nowrap flex-shrink-0">
+                  Blog
                 </TabsTrigger>
               )}
             </TabsList>
@@ -1314,6 +1320,11 @@ const AdminDashboard = () => {
           {user?.role === 'admin' && (
             <TabsContent value="analytics">
               <AnalyticsDashboard />
+            </TabsContent>
+          )}
+          {user?.role === 'admin' && (
+            <TabsContent value="blog">
+              <BlogAdmin />
             </TabsContent>
           )}
         </Tabs>

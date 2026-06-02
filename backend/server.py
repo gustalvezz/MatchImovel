@@ -16,6 +16,7 @@ from routes.agent_routes import router as agent_router
 from routes.curator_routes import router as curator_router
 from routes.admin_routes import router as admin_router
 from routes.whatsapp_routes import router as whatsapp_router
+from routes.blog_routes import router as blog_router
 
 # Logger
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -55,6 +56,7 @@ app.include_router(agent_router, prefix="/api")
 app.include_router(curator_router, prefix="/api")
 app.include_router(admin_router, prefix="/api")
 app.include_router(whatsapp_router, prefix="/api")
+app.include_router(blog_router, prefix="/api")
 
 # Middleware (Starlette é LIFO — SecurityHeaders fica mais externo que CORS)
 app.add_middleware(
