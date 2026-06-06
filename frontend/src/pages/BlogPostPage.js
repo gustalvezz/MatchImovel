@@ -79,8 +79,9 @@ export default function BlogPostPage() {
       {/* Nav */}
       <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${isScrolled ? 'bg-white/95 backdrop-blur shadow-sm' : 'bg-white shadow-sm'}`}>
         <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
-          <Link to="/">
+          <Link to="/" className="flex items-center gap-2">
             <AppLogo className="h-8 w-auto" />
+            <span className="text-xl font-bold hidden sm:block"><span className="text-slate-900">Match</span><span className="text-indigo-600">Imovel</span></span>
           </Link>
           <div className="flex items-center gap-3">
             <Link to="/blog" className="text-sm text-gray-600 hover:text-gray-900">Blog</Link>

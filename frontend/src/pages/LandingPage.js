@@ -1,24 +1,39 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
+import axios from 'axios';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { Search, Users, Zap, Building2, CheckCircle2, ArrowRight, Shield, Target, Eye, TrendingUp, Lock, ChevronLeft, ChevronRight, Star, Menu, X } from 'lucide-react';
+import { Search, Users, Zap, Building2, CheckCircle2, ArrowRight, Shield, Target, Eye, TrendingUp, Lock, ChevronLeft, ChevronRight, Star, Menu, X, Calendar, Clock } from 'lucide-react';
 import AppLogo from '@/components/AppLogo';
+
+const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 
 const LandingPage = () => {
   const navigate = useNavigate();
   const [currentTestimonial, setCurrentTestimonial] = useState(0);
   const [isScrolled, setIsScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [blogPosts, setBlogPosts] = useState([]);
+  const [currentBlogPost, setCurrentBlogPost] = useState(0);
 
   useEffect(() => {
-    const handleScroll = () => {
-      setIsScrolled(window.scrollY > 20);
-    };
+    const handleScroll = () => setIsScrolled(window.scrollY > 20);
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
+
+  useEffect(() => {
+    axios.get(`${BACKEND_URL}/api/blog/posts?limit=4`)
+      .then(({ data }) => { if (Array.isArray(data.posts)) setBlogPosts(data.posts); })
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    if (blogPosts.length < 2) return;
+    const t = setInterval(() => setCurrentBlogPost(i => (i + 1) % blogPosts.length), 5000);
+    return () => clearInterval(t);
+  }, [blogPosts.length]);
 
   const scrollToSection = (sectionId) => {
     const element = document.getElementById(sectionId);
@@ -107,13 +122,19 @@ const LandingPage = () => {
             >
               Para Corretores
             </button>
-            <button 
+            <button
               onClick={() => scrollToSection('depoimentos')}
               className="text-slate-600 hover:text-indigo-600 font-medium transition-colors"
             >
               Depoimentos
             </button>
-            <Button 
+            <Link
+              to="/blog"
+              className="text-slate-600 hover:text-indigo-600 font-medium transition-colors"
+            >
+              Blog
+            </Link>
+            <Button
               data-testid="nav-login-button"
               onClick={() => navigate('/login')} 
               className="rounded-full bg-indigo-600 hover:bg-indigo-700 text-white px-6"
@@ -165,12 +186,19 @@ const LandingPage = () => {
               >
                 Para Corretores
               </button>
-              <button 
+              <button
                 onClick={() => scrollToSection('depoimentos')}
                 className="block w-full text-left text-slate-600 hover:text-indigo-600 font-medium py-2"
               >
                 Depoimentos
               </button>
+              <Link
+                to="/blog"
+                className="block w-full text-left text-slate-600 hover:text-indigo-600 font-medium py-2"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                Blog
+              </Link>
             </div>
           </motion.div>
         )}
@@ -530,6 +558,131 @@ const LandingPage = () => {
           </div>
         </div>
       </div>
+
+      {/* Blog Carousel — só renderiza se houver posts publicados */}
+      {blogPosts.length > 0 && (
+        <div className="bg-gradient-to-br from-indigo-50 to-purple-50 py-24">
+          <div className="max-w-7xl mx-auto px-6">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              className="text-center mb-14"
+            >
+              <p className="text-sm font-semibold text-indigo-600 mb-4 uppercase tracking-wider">Blog</p>
+              <h2 className="text-4xl md:text-5xl font-bold mb-4">
+                Conteúdo para ajudar
+                <span className="block text-indigo-600 italic mt-2">sua decisão</span>
+              </h2>
+              <p className="text-slate-600 max-w-xl mx-auto">Dicas, tendências e guias do mercado imobiliário para compradores e corretores.</p>
+            </motion.div>
+
+            <div className="max-w-5xl mx-auto">
+              <Card className="overflow-hidden rounded-3xl border-0 shadow-xl">
+                <motion.div
+                  key={currentBlogPost}
+                  initial={{ opacity: 0, x: 40 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.35 }}
+                  className="grid grid-cols-1 md:grid-cols-2"
+                >
+                  {/* Image */}
+                  <div className="aspect-video md:aspect-auto md:min-h-72 bg-gradient-to-br from-indigo-200 to-purple-300 overflow-hidden">
+                    {blogPosts[currentBlogPost]?.cover_image_url ? (
+                      <img
+                        src={blogPosts[currentBlogPost].cover_image_url}
+                        alt={blogPosts[currentBlogPost].title}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-6xl opacity-30">🏠</div>
+                    )}
+                  </div>
+
+                  {/* Content */}
+                  <div className="p-8 md:p-10 flex flex-col justify-center bg-white">
+                    {blogPosts[currentBlogPost]?.category && (
+                      <span className="inline-block text-xs font-semibold text-indigo-600 uppercase tracking-wider mb-3 capitalize">
+                        {blogPosts[currentBlogPost].category}
+                      </span>
+                    )}
+                    <h3 className="text-2xl font-bold text-slate-900 mb-3 leading-snug">
+                      {blogPosts[currentBlogPost]?.title}
+                    </h3>
+                    {blogPosts[currentBlogPost]?.excerpt && (
+                      <p className="text-slate-500 leading-relaxed mb-6 line-clamp-3">
+                        {blogPosts[currentBlogPost].excerpt}
+                      </p>
+                    )}
+                    <div className="flex items-center gap-4 text-xs text-slate-400 mb-6">
+                      {blogPosts[currentBlogPost]?.published_at && (
+                        <span className="flex items-center gap-1">
+                          <Calendar className="w-3.5 h-3.5" />
+                          {new Date(blogPosts[currentBlogPost].published_at).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long' })}
+                        </span>
+                      )}
+                      {blogPosts[currentBlogPost]?.read_time && (
+                        <span className="flex items-center gap-1">
+                          <Clock className="w-3.5 h-3.5" />
+                          {blogPosts[currentBlogPost].read_time} min
+                        </span>
+                      )}
+                    </div>
+                    <Link to={`/blog/${blogPosts[currentBlogPost]?.slug}`}>
+                      <Button className="bg-indigo-600 hover:bg-indigo-700 rounded-full w-fit">
+                        Ler artigo <ArrowRight className="w-4 h-4 ml-2" />
+                      </Button>
+                    </Link>
+                  </div>
+                </motion.div>
+              </Card>
+
+              {/* Controls */}
+              <div className="flex items-center justify-center gap-4 mt-8">
+                {blogPosts.length > 1 && (
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="rounded-full w-11 h-11 border-2 hover:border-indigo-600"
+                    onClick={() => setCurrentBlogPost(i => (i - 1 + blogPosts.length) % blogPosts.length)}
+                  >
+                    <ChevronLeft className="w-5 h-5" />
+                  </Button>
+                )}
+
+                <div className="flex gap-2">
+                  {blogPosts.map((_, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => setCurrentBlogPost(idx)}
+                      className={`h-2 rounded-full transition-all ${idx === currentBlogPost ? 'w-8 bg-indigo-600' : 'w-2 bg-slate-300 hover:bg-slate-400'}`}
+                    />
+                  ))}
+                </div>
+
+                {blogPosts.length > 1 && (
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="rounded-full w-11 h-11 border-2 hover:border-indigo-600"
+                    onClick={() => setCurrentBlogPost(i => (i + 1) % blogPosts.length)}
+                  >
+                    <ChevronRight className="w-5 h-5" />
+                  </Button>
+                )}
+              </div>
+
+              <div className="text-center mt-8">
+                <Link to="/blog">
+                  <Button variant="outline" className="rounded-full border-2 border-indigo-600 text-indigo-600 hover:bg-indigo-50 px-8">
+                    Ver todos os posts <ArrowRight className="w-4 h-4 ml-2" />
+                  </Button>
+                </Link>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Depoimentos */}
       <div id="depoimentos" className="bg-white py-24">
