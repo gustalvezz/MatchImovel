@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
+import { cloudinaryImg } from '@/utils/cloudinary';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Search, Users, Zap, Building2, CheckCircle2, ArrowRight, Shield, Target, Eye, TrendingUp, Lock, ChevronLeft, ChevronRight, Star, Menu, X, Calendar, Clock } from 'lucide-react';
@@ -590,7 +591,7 @@ const LandingPage = () => {
                   <div className="aspect-video md:aspect-auto md:min-h-72 bg-gradient-to-br from-indigo-200 to-purple-300 overflow-hidden">
                     {blogPosts[currentBlogPost]?.cover_image_url ? (
                       <img
-                        src={blogPosts[currentBlogPost].cover_image_url}
+                        src={cloudinaryImg(blogPosts[currentBlogPost].cover_image_url, { width: 900, height: 500 })}
                         alt={blogPosts[currentBlogPost].title}
                         className="w-full h-full object-cover"
                       />

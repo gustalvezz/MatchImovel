@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Calendar, Clock, ArrowLeft, ArrowRight, MessageCircle } from 'lucide-react';
 import { useSEO } from '@/hooks/useSEO';
+import { cloudinaryImg } from '@/utils/cloudinary';
 
 const API = process.env.REACT_APP_BACKEND_URL;
 
@@ -18,7 +19,7 @@ function RelatedCard({ post }) {
   return (
     <Link to={`/blog/${post.slug}`} className="group flex gap-3 items-start">
       {post.cover_image_url ? (
-        <img src={post.cover_image_url} alt={post.title} className="w-16 h-16 rounded-lg object-cover shrink-0" />
+        <img src={cloudinaryImg(post.cover_image_url, { width: 128, height: 128 })} alt={post.title} className="w-16 h-16 rounded-lg object-cover shrink-0" />
       ) : (
         <div className="w-16 h-16 rounded-lg bg-gray-100 flex items-center justify-center shrink-0 text-xl">🏠</div>
       )}
@@ -99,7 +100,7 @@ export default function BlogPostPage() {
         {/* Cover image */}
         {post.cover_image_url && (
           <div className="w-full h-72 md:h-96 overflow-hidden bg-gray-200">
-            <img src={post.cover_image_url} alt={post.title} className="w-full h-full object-cover" />
+            <img src={cloudinaryImg(post.cover_image_url, { width: 1400, height: 560 })} alt={post.title} className="w-full h-full object-cover" />
           </div>
         )}
 

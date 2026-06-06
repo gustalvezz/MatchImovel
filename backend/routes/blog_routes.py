@@ -48,11 +48,14 @@ async def generate_blog_image(data: dict, current_user: dict = Depends(get_curre
     if not prompt:
         raise HTTPException(status_code=400, detail="Prompt obrigatório")
 
-    # Prefixo para garantir imagem adequada para blog imobiliário
+    # Prefixo fixo: composição centralizada, margens limpas, sem texto
+    # Isso garante que a imagem funcione bem em qualquer tamanho de crop
     full_prompt = (
-        f"Professional real estate blog cover photo, wide landscape format, "
-        f"high quality editorial photography: {prompt}. "
-        f"Bright, modern aesthetic. No text or watermarks."
+        f"Professional real estate blog cover photo, 16:9 horizontal format, "
+        f"editorial photography style. Main subject centered with clean negative space "
+        f"on the sides. Simple uncluttered composition that works well when cropped. "
+        f"Bright and modern aesthetic, soft natural lighting. "
+        f"Absolutely no text, no watermarks, no logos: {prompt}"
     )
 
     try:

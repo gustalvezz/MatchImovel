@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Calendar, Clock, ArrowRight, MessageCircle } from 'lucide-react';
 import { useSEO } from '@/hooks/useSEO';
+import { cloudinaryImg } from '@/utils/cloudinary';
 
 const API = process.env.REACT_APP_BACKEND_URL;
 
@@ -28,7 +29,7 @@ function PostCard({ post }) {
     <Link to={`/blog/${post.slug}`} className="group block bg-white rounded-2xl border border-gray-100 overflow-hidden hover:shadow-lg transition-all duration-200 hover:-translate-y-1">
       {post.cover_image_url ? (
         <div className="aspect-video overflow-hidden bg-gray-100">
-          <img src={post.cover_image_url} alt={post.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+          <img src={cloudinaryImg(post.cover_image_url, { width: 600, height: 340 })} alt={post.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
         </div>
       ) : (
         <div className="aspect-video bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
