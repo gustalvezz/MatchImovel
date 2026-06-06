@@ -1,12 +1,14 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import axios from 'axios';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { PenSquare, Trash2, Plus, Eye, EyeOff, ArrowLeft } from 'lucide-react';
+import { PenSquare, Trash2, Plus, Eye, EyeOff, ArrowLeft, Upload } from 'lucide-react';
 import BlogEditor from '@/components/BlogEditor';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
+const CLOUDINARY_CLOUD = 'dfvdprrtl';
+const CLOUDINARY_PRESET = 'MatchImovel';
 
 const CATEGORIES = ['dicas', 'mercado', 'investimento', 'novidades', 'guias'];
 
@@ -34,6 +36,31 @@ export default function BlogAdmin() {
   const [form, setForm] = useState(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef(null);
+
+  const handleImageUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      fd.append('upload_preset', CLOUDINARY_PRESET);
+      const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD}/image/upload`, { method: 'POST', body: fd });
+      const data = await res.json();
+      if (data.secure_url) {
+        setForm(f => ({ ...f, cover_image_url: data.secure_url }));
+      } else {
+        alert('Erro ao fazer upload. Verifique o preset no Cloudinary.');
+      }
+    } catch {
+      alert('Falha no upload da imagem.');
+    } finally {
+      setUploading(false);
+      e.target.value = '';
+    }
+  };
 
   const fetchPosts = useCallback(async () => {
     try {
@@ -283,13 +310,31 @@ export default function BlogAdmin() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Imagem de capa (URL)</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Imagem de capa</label>
               <input
                 className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 value={form.cover_image_url}
                 onChange={e => setForm(f => ({ ...f, cover_image_url: e.target.value }))}
-                placeholder="https://..."
+                placeholder="https://... ou use o botão abaixo"
               />
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handleImageUpload}
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="w-full mt-2 gap-2 border-dashed"
+                disabled={uploading}
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <Upload className="w-4 h-4" />
+                {uploading ? 'Enviando...' : 'Enviar foto do computador'}
+              </Button>
               {form.cover_image_url && (
                 <img src={form.cover_image_url} alt="preview" className="mt-2 rounded-lg w-full h-32 object-cover" />
               )}
