@@ -7,12 +7,19 @@ from datetime import datetime, timezone
 import uuid
 import re
 import logging
+import os
+import httpx
+from openai import AsyncOpenAI
 
 from database import db
 from auth import get_current_user
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
+
+_openai = AsyncOpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+_CLOUDINARY_CLOUD = "dfvdprrtl"
+_CLOUDINARY_PRESET = "MatchImovel"
 
 CATEGORIES = ["dicas", "mercado", "investimento", "novidades", "guias"]
 
@@ -30,6 +37,56 @@ def _slug(title: str) -> str:
 def _read_time(content: str) -> int:
     words = len(re.sub(r"<[^>]+>", " ", content).split())
     return max(1, round(words / 200))
+
+
+@router.post("/admin/blog/generate-image")
+async def generate_blog_image(data: dict, current_user: dict = Depends(get_current_user)):
+    if current_user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Acesso negado")
+
+    prompt = (data.get("prompt") or "").strip()
+    if not prompt:
+        raise HTTPException(status_code=400, detail="Prompt obrigatório")
+
+    # Prefixo para garantir imagem adequada para blog imobiliário
+    full_prompt = (
+        f"Professional real estate blog cover photo, wide landscape format, "
+        f"high quality editorial photography: {prompt}. "
+        f"Bright, modern aesthetic. No text or watermarks."
+    )
+
+    try:
+        img_resp = await _openai.images.generate(
+            model="dall-e-3",
+            prompt=full_prompt,
+            n=1,
+            size="1792x1024",
+            quality="standard",
+            response_format="url",
+        )
+    except Exception as e:
+        logger.error(f"DALL-E error: {e}")
+        raise HTTPException(status_code=502, detail="Erro ao gerar imagem com IA")
+
+    dalle_url = img_resp.data[0].url
+
+    # Upload direto para Cloudinary usando unsigned preset
+    try:
+        async with httpx.AsyncClient(timeout=60) as client:
+            up = await client.post(
+                f"https://api.cloudinary.com/v1_1/{_CLOUDINARY_CLOUD}/image/upload",
+                data={"file": dalle_url, "upload_preset": _CLOUDINARY_PRESET},
+            )
+        result = up.json()
+    except Exception as e:
+        logger.error(f"Cloudinary upload error: {e}")
+        raise HTTPException(status_code=502, detail="Erro ao enviar imagem para Cloudinary")
+
+    if "secure_url" not in result:
+        logger.error(f"Cloudinary response: {result}")
+        raise HTTPException(status_code=502, detail="Cloudinary não retornou URL")
+
+    return {"url": result["secure_url"], "revised_prompt": img_resp.data[0].revised_prompt}
 
 
 # ── Public ────────────────────────────────────────────────────────────────────

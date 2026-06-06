@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import axios from 'axios';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { PenSquare, Trash2, Plus, Eye, EyeOff, ArrowLeft, Upload } from 'lucide-react';
+import { PenSquare, Trash2, Plus, Eye, EyeOff, ArrowLeft, Upload, Sparkles } from 'lucide-react';
 import BlogEditor from '@/components/BlogEditor';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
@@ -37,6 +37,8 @@ export default function BlogAdmin() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [uploading, setUploading] = useState(false);
+  const [generating, setGenerating] = useState(false);
+  const [aiPrompt, setAiPrompt] = useState('');
   const fileInputRef = useRef(null);
 
   const handleImageUpload = async (e) => {
@@ -59,6 +61,21 @@ export default function BlogAdmin() {
     } finally {
       setUploading(false);
       e.target.value = '';
+    }
+  };
+
+  const handleGenerateImage = async () => {
+    const prompt = aiPrompt.trim() || form.title.trim();
+    if (!prompt) { alert('Digite um prompt ou preencha o título do post primeiro.'); return; }
+    setGenerating(true);
+    try {
+      const { data } = await axios.post(`${API}/admin/blog/generate-image`, { prompt });
+      setForm(f => ({ ...f, cover_image_url: data.url }));
+      setAiPrompt('');
+    } catch (e) {
+      alert(e.response?.data?.detail || 'Erro ao gerar imagem.');
+    } finally {
+      setGenerating(false);
     }
   };
 
@@ -335,6 +352,32 @@ export default function BlogAdmin() {
                 <Upload className="w-4 h-4" />
                 {uploading ? 'Enviando...' : 'Enviar foto do computador'}
               </Button>
+
+              {/* AI Image Generator */}
+              <div className="mt-3 border border-purple-200 rounded-lg p-3 bg-purple-50 space-y-2">
+                <p className="text-xs font-medium text-purple-700 flex items-center gap-1">
+                  <Sparkles className="w-3.5 h-3.5" /> Gerar com IA
+                </p>
+                <input
+                  className="w-full border border-purple-200 rounded-md px-3 py-1.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-purple-400"
+                  value={aiPrompt}
+                  onChange={e => setAiPrompt(e.target.value)}
+                  placeholder={form.title || 'Descreva a imagem que quer gerar...'}
+                  onKeyDown={e => e.key === 'Enter' && handleGenerateImage()}
+                />
+                <Button
+                  type="button"
+                  size="sm"
+                  className="w-full bg-purple-600 hover:bg-purple-700 gap-2"
+                  disabled={generating}
+                  onClick={handleGenerateImage}
+                >
+                  <Sparkles className="w-3.5 h-3.5" />
+                  {generating ? 'Gerando (~15s)...' : 'Gerar imagem com DALL-E 3'}
+                </Button>
+                <p className="text-xs text-purple-500">Se deixar vazio, usa o título do post.</p>
+              </div>
+
               {form.cover_image_url && (
                 <img src={form.cover_image_url} alt="preview" className="mt-2 rounded-lg w-full h-32 object-cover" />
               )}
