@@ -97,7 +97,7 @@ export default function BlogListPage() {
         <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2">
             <AppLogo className="h-8 w-auto" />
-            <span className="text-xl font-bold hidden sm:block"><span className="text-slate-900">Match</span><span className="text-indigo-600">Imovel</span></span>
+            <span className="text-xl font-bold"><span className="text-slate-900">Match</span><span className="text-indigo-600">Imovel</span></span>
           </Link>
           <div className="flex items-center gap-3">
             <Link to="/login">
