@@ -5,6 +5,9 @@ import { Badge } from '@/components/ui/badge';
 import { PenSquare, Trash2, Plus, Eye, EyeOff, ArrowLeft } from 'lucide-react';
 import BlogEditor from '@/components/BlogEditor';
 
+const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
+const API = `${BACKEND_URL}/api`;
+
 const CATEGORIES = ['dicas', 'mercado', 'investimento', 'novidades', 'guias'];
 
 function slugify(text) {
@@ -34,8 +37,8 @@ export default function BlogAdmin() {
 
   const fetchPosts = useCallback(async () => {
     try {
-      const { data } = await axios.get('/api/admin/blog/posts');
-      setPosts(data);
+      const { data } = await axios.get(`${API}/admin/blog/posts`);
+      setPosts(Array.isArray(data) ? data : []);
     } catch (e) {
       console.error(e);
     } finally {
@@ -89,9 +92,9 @@ export default function BlogAdmin() {
         tags: form.tags.split(',').map(t => t.trim()).filter(Boolean),
       };
       if (editingId) {
-        await axios.put(`/api/admin/blog/posts/${editingId}`, payload);
+        await axios.put(`${API}/admin/blog/posts/${editingId}`, payload);
       } else {
-        await axios.post('/api/admin/blog/posts', payload);
+        await axios.post(`${API}/admin/blog/posts`, payload);
       }
       await fetchPosts();
       setView('list');
@@ -105,7 +108,7 @@ export default function BlogAdmin() {
   const handleDelete = async (id) => {
     if (!window.confirm('Excluir este post permanentemente?')) return;
     try {
-      await axios.delete(`/api/admin/blog/posts/${id}`);
+      await axios.delete(`${API}/admin/blog/posts/${id}`);
       setPosts(p => p.filter(x => x.id !== id));
     } catch (e) {
       alert('Erro ao excluir post.');
@@ -115,7 +118,7 @@ export default function BlogAdmin() {
   const toggleStatus = async (post) => {
     const newStatus = post.status === 'published' ? 'draft' : 'published';
     try {
-      await axios.put(`/api/admin/blog/posts/${post.id}`, { status: newStatus });
+      await axios.put(`${API}/admin/blog/posts/${post.id}`, { status: newStatus });
       setPosts(p => p.map(x => x.id === post.id ? { ...x, status: newStatus } : x));
     } catch (e) {
       alert('Erro ao alterar status.');

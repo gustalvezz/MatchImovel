@@ -7,6 +7,8 @@ import { Button } from '@/components/ui/button';
 import { Calendar, Clock, ArrowLeft, ArrowRight, MessageCircle } from 'lucide-react';
 import { useSEO } from '@/hooks/useSEO';
 
+const API = process.env.REACT_APP_BACKEND_URL;
+
 function formatDate(iso) {
   if (!iso) return '';
   return new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' });
@@ -53,7 +55,7 @@ export default function BlogPostPage() {
 
   useEffect(() => {
     setLoading(true);
-    axios.get(`/api/blog/posts/${slug}`)
+    axios.get(`${API}/api/blog/posts/${slug}`)
       .then(({ data }) => {
         setPost(data.post);
         setRelated(data.related || []);

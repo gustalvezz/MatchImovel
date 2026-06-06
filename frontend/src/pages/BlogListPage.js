@@ -7,6 +7,8 @@ import { Button } from '@/components/ui/button';
 import { Calendar, Clock, ArrowRight, MessageCircle } from 'lucide-react';
 import { useSEO } from '@/hooks/useSEO';
 
+const API = process.env.REACT_APP_BACKEND_URL;
+
 const CATEGORIES = [
   { value: '', label: 'Todos' },
   { value: 'dicas', label: 'Dicas' },
@@ -79,7 +81,7 @@ export default function BlogListPage() {
     setLoading(true);
     const params = { limit: LIMIT, offset };
     if (category) params.category = category;
-    axios.get('/api/blog/posts', { params })
+    axios.get(`${API}/api/blog/posts`, { params })
       .then(({ data }) => { setPosts(data.posts); setTotal(data.total); })
       .catch(console.error)
       .finally(() => setLoading(false));
