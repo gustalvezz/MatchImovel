@@ -23,6 +23,14 @@ _CLOUDINARY_PRESET = "MatchImovel"
 
 CATEGORIES = ["dicas", "mercado", "investimento", "novidades", "guias"]
 
+DEFAULT_CATEGORIES = [
+    {"value": "dicas",       "label": "Dicas"},
+    {"value": "mercado",     "label": "Mercado"},
+    {"value": "investimento","label": "Investimento"},
+    {"value": "novidades",   "label": "Novidades"},
+    {"value": "guias",       "label": "Guias"},
+]
+
 
 def _slug(title: str) -> str:
     s = title.lower()
@@ -149,13 +157,77 @@ async def blog_sitemap():
 
 @router.get("/blog/categories")
 async def list_categories():
-    pipeline = [
-        {"$match": {"status": "published"}},
-        {"$group": {"_id": "$category", "count": {"$sum": 1}}},
-        {"$sort": {"count": -1}},
-    ]
-    result = await db.blog_posts.aggregate(pipeline).to_list(20)
-    return [{"category": r["_id"], "count": r["count"]} for r in result if r["_id"]]
+    cats = await db.blog_categories.find({}, {"_id": 0}).sort("created_at", 1).to_list(100)
+    if not cats:
+        now = datetime.now(timezone.utc).isoformat()
+        docs = [{"id": str(uuid.uuid4()), "value": c["value"], "label": c["label"], "created_at": now} for c in DEFAULT_CATEGORIES]
+        await db.blog_categories.insert_many(docs)
+        for d in docs:
+            d.pop("_id", None)
+        cats = docs
+    return [{"value": c["value"], "label": c["label"]} for c in cats]
+
+
+# ── Admin: categories ─────────────────────────────────────────────────────────
+
+@router.get("/admin/blog/categories")
+async def admin_list_categories(current_user: dict = Depends(get_current_user)):
+    if current_user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Acesso negado")
+    cats = await db.blog_categories.find({}, {"_id": 0}).sort("created_at", 1).to_list(100)
+    if not cats:
+        now = datetime.now(timezone.utc).isoformat()
+        docs = [{"id": str(uuid.uuid4()), "value": c["value"], "label": c["label"], "created_at": now} for c in DEFAULT_CATEGORIES]
+        await db.blog_categories.insert_many(docs)
+        for d in docs:
+            d.pop("_id", None)
+        cats = docs
+    return cats
+
+
+@router.post("/admin/blog/categories")
+async def create_category(data: dict, current_user: dict = Depends(get_current_user)):
+    if current_user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Acesso negado")
+    label = (data.get("label") or "").strip()
+    if not label:
+        raise HTTPException(status_code=400, detail="Nome obrigatório")
+    value = _slug(label) or label.lower().replace(" ", "-")
+    if await db.blog_categories.find_one({"value": value}):
+        raise HTTPException(status_code=400, detail="Categoria já existe")
+    cat = {
+        "id": str(uuid.uuid4()),
+        "value": value,
+        "label": label,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+    await db.blog_categories.insert_one(cat)
+    cat.pop("_id", None)
+    return cat
+
+
+@router.put("/admin/blog/categories/{cat_id}")
+async def update_category(cat_id: str, data: dict, current_user: dict = Depends(get_current_user)):
+    if current_user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Acesso negado")
+    label = (data.get("label") or "").strip()
+    if not label:
+        raise HTTPException(status_code=400, detail="Nome obrigatório")
+    await db.blog_categories.update_one({"id": cat_id}, {"$set": {"label": label}})
+    cat = await db.blog_categories.find_one({"id": cat_id}, {"_id": 0})
+    if not cat:
+        raise HTTPException(status_code=404, detail="Categoria não encontrada")
+    return cat
+
+
+@router.delete("/admin/blog/categories/{cat_id}")
+async def delete_category(cat_id: str, current_user: dict = Depends(get_current_user)):
+    if current_user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Acesso negado")
+    result = await db.blog_categories.delete_one({"id": cat_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Categoria não encontrada")
+    return {"status": "deleted"}
 
 
 # ── Admin ─────────────────────────────────────────────────────────────────────
