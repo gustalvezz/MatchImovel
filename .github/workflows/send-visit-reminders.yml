@@ -14,6 +14,7 @@ jobs:
       - name: Trigger visit reminders
         run: |
           response=$(curl -s -o /tmp/response.json -w "%{http_code}" \
+            --max-time 60 \
             -X POST "${{ secrets.REACT_APP_BACKEND_URL }}/api/internal/send-visit-reminders" \
             -H "X-Internal-Key: ${{ secrets.INTERNAL_API_KEY }}" \
             -H "x-vercel-protection-bypass: ${{ secrets.VERCEL_BYPASS_TOKEN }}" \
@@ -23,7 +24,20 @@ jobs:
           echo "Response body:"
           cat /tmp/response.json
 
+          # Extrair campo status da resposta JSON
+          status_field=$(cat /tmp/response.json | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('status',''))" 2>/dev/null || echo "")
+          echo "Status field: $status_field"
+
           if [ "$response" != "200" ]; then
-            echo "Error: unexpected status $response"
+            echo "::error::Visit reminders endpoint returned HTTP $response"
+            echo "::error::Response: $(cat /tmp/response.json)"
             exit 1
+          fi
+
+          if [ "$status_field" = "skipped" ]; then
+            echo "Skipped (outside quiet hours) — OK"
+          elif [ "$status_field" = "success" ] || [ "$status_field" = "partial" ]; then
+            echo "Completed with status: $status_field"
+          else
+            echo "::warning::Unexpected status field: $status_field"
           fi

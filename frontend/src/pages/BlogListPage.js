@@ -1,23 +1,15 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
 import AppLogo from '@/components/AppLogo';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Calendar, Clock, ArrowRight, MessageCircle } from 'lucide-react';
+import { Calendar, Clock, ArrowRight, MessageCircle, Plus, X, Pencil, Trash2 } from 'lucide-react';
 import { useSEO } from '@/hooks/useSEO';
 import { cloudinaryImg } from '@/utils/cloudinary';
+import { useAuth } from '@/context/AuthContext';
 
 const API = process.env.REACT_APP_BACKEND_URL;
-
-const CATEGORIES = [
-  { value: '', label: 'Todos' },
-  { value: 'dicas', label: 'Dicas' },
-  { value: 'mercado', label: 'Mercado' },
-  { value: 'investimento', label: 'Investimento' },
-  { value: 'novidades', label: 'Novidades' },
-  { value: 'guias', label: 'Guias' },
-];
 
 function formatDate(iso) {
   if (!iso) return '';
@@ -57,13 +49,169 @@ function PostCard({ post }) {
   );
 }
 
+// Modal para gerenciar categorias (admin only)
+function CategoryModal({ onClose, onRefresh }) {
+  const [categories, setCategories] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [newLabel, setNewLabel] = useState('');
+  const [editingId, setEditingId] = useState(null);
+  const [editLabel, setEditLabel] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  const fetchCategories = useCallback(async () => {
+    try {
+      const { data } = await axios.get(`${API}/api/admin/blog/categories`);
+      setCategories(data);
+    } catch {
+      setError('Erro ao carregar categorias.');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { fetchCategories(); }, [fetchCategories]);
+
+  const handleCreate = async () => {
+    const label = newLabel.trim();
+    if (!label) return;
+    setSaving(true);
+    setError('');
+    try {
+      await axios.post(`${API}/api/admin/blog/categories`, { label });
+      setNewLabel('');
+      await fetchCategories();
+      onRefresh();
+    } catch (e) {
+      setError(e.response?.data?.detail || 'Erro ao criar categoria.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleUpdate = async (id) => {
+    const label = editLabel.trim();
+    if (!label) return;
+    setSaving(true);
+    setError('');
+    try {
+      await axios.put(`${API}/api/admin/blog/categories/${id}`, { label });
+      setEditingId(null);
+      setEditLabel('');
+      await fetchCategories();
+      onRefresh();
+    } catch (e) {
+      setError(e.response?.data?.detail || 'Erro ao atualizar categoria.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDelete = async (id, label) => {
+    if (!window.confirm(`Excluir a categoria "${label}"?`)) return;
+    try {
+      await axios.delete(`${API}/api/admin/blog/categories/${id}`);
+      await fetchCategories();
+      onRefresh();
+    } catch {
+      setError('Erro ao excluir categoria.');
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+          <h2 className="text-lg font-semibold text-gray-900">Gerenciar Categorias</h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-700 transition-colors">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <div className="px-6 py-4 space-y-3 max-h-80 overflow-y-auto">
+          {loading ? (
+            <p className="text-sm text-gray-400">Carregando...</p>
+          ) : categories.length === 0 ? (
+            <p className="text-sm text-gray-400">Nenhuma categoria ainda.</p>
+          ) : (
+            categories.map(cat => (
+              <div key={cat.id} className="flex items-center gap-2">
+                {editingId === cat.id ? (
+                  <>
+                    <input
+                      className="flex-1 border border-blue-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      value={editLabel}
+                      onChange={e => setEditLabel(e.target.value)}
+                      onKeyDown={e => e.key === 'Enter' && handleUpdate(cat.id)}
+                      autoFocus
+                    />
+                    <Button size="sm" disabled={saving} onClick={() => handleUpdate(cat.id)} className="h-8 px-3">
+                      Salvar
+                    </Button>
+                    <button onClick={() => setEditingId(null)} className="text-gray-400 hover:text-gray-600">
+                      <X className="w-4 h-4" />
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <span className="flex-1 text-sm text-gray-800">{cat.label}</span>
+                    <span className="text-xs text-gray-400 font-mono">{cat.value}</span>
+                    <button
+                      onClick={() => { setEditingId(cat.id); setEditLabel(cat.label); }}
+                      className="text-gray-400 hover:text-blue-600 transition-colors"
+                      title="Renomear"
+                    >
+                      <Pencil className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => handleDelete(cat.id, cat.label)}
+                      className="text-gray-400 hover:text-red-600 transition-colors"
+                      title="Excluir"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </>
+                )}
+              </div>
+            ))
+          )}
+        </div>
+
+        <div className="px-6 pb-4 space-y-3">
+          {error && <p className="text-sm text-red-600">{error}</p>}
+          <div className="flex gap-2 pt-2 border-t border-gray-100">
+            <input
+              className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="Nova categoria..."
+              value={newLabel}
+              onChange={e => setNewLabel(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && handleCreate()}
+            />
+            <Button size="sm" disabled={saving || !newLabel.trim()} onClick={handleCreate} className="gap-1">
+              <Plus className="w-4 h-4" /> Criar
+            </Button>
+          </div>
+          <p className="text-xs text-gray-400">
+            Renomear uma categoria não altera os posts já cadastrados com ela.
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function BlogListPage() {
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'admin';
+
   const [posts, setPosts] = useState([]);
   const [total, setTotal] = useState(0);
+  const [categories, setCategories] = useState([]);
   const [category, setCategory] = useState('');
   const [offset, setOffset] = useState(0);
   const [loading, setLoading] = useState(true);
   const [isScrolled, setIsScrolled] = useState(false);
+  const [showCategoryModal, setShowCategoryModal] = useState(false);
   const LIMIT = 9;
 
   useSEO({
@@ -77,6 +225,14 @@ export default function BlogListPage() {
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
+
+  const fetchCategories = useCallback(() => {
+    axios.get(`${API}/api/blog/categories`)
+      .then(({ data }) => setCategories(data))
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => { fetchCategories(); }, [fetchCategories]);
 
   useEffect(() => {
     setLoading(true);
@@ -123,8 +279,18 @@ export default function BlogListPage() {
           {/* Posts grid */}
           <div className="flex-1">
             {/* Category filter */}
-            <div className="flex flex-wrap gap-2 mb-8">
-              {CATEGORIES.map(c => (
+            <div className="flex flex-wrap items-center gap-2 mb-8">
+              <button
+                onClick={() => handleCategory('')}
+                className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${
+                  category === ''
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-white border border-gray-200 text-gray-600 hover:border-blue-300'
+                }`}
+              >
+                Todos
+              </button>
+              {categories.map(c => (
                 <button
                   key={c.value}
                   onClick={() => handleCategory(c.value)}
@@ -137,6 +303,15 @@ export default function BlogListPage() {
                   {c.label}
                 </button>
               ))}
+              {isAdmin && (
+                <button
+                  onClick={() => setShowCategoryModal(true)}
+                  title="Gerenciar categorias"
+                  className="w-8 h-8 flex items-center justify-center rounded-full border-2 border-dashed border-blue-400 text-blue-500 hover:border-blue-600 hover:text-blue-700 transition-colors"
+                >
+                  <Plus className="w-4 h-4" />
+                </button>
+              )}
             </div>
 
             {loading ? (
@@ -222,6 +397,13 @@ export default function BlogListPage() {
           </aside>
         </div>
       </div>
+
+      {showCategoryModal && (
+        <CategoryModal
+          onClose={() => setShowCategoryModal(false)}
+          onRefresh={fetchCategories}
+        />
+      )}
     </div>
   );
 }

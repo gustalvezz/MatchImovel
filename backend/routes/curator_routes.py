@@ -1062,10 +1062,14 @@ async def send_visit_reminders(request: Request):
 
     logger.info(f"Starting visit reminders check at {now.isoformat()}")
 
-    visits = await db.visits.find({
-        "status": "scheduled",
-        "reminder_2h_sent": {"$ne": True}
-    }, {"_id": 0}).to_list(100)
+    try:
+        visits = await db.visits.find({
+            "status": "scheduled",
+            "reminder_2h_sent": {"$ne": True}
+        }, {"_id": 0}).to_list(100)
+    except Exception as e:
+        logger.error(f"DB error fetching visits for reminders: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Database error: {e}")
 
     reminders_sent = 0
     errors = 0
@@ -1118,13 +1122,25 @@ async def send_visit_reminders(request: Request):
                         logger.error(f"WhatsApp visit reminder failed: {e}")
         except Exception as e:
             errors += 1
-            logger.error(f"Error processing visit {visit.get('id', '?')}: {e}")
+            logger.error(f"Error processing visit {visit.get('id', '?')}: {e}", exc_info=True)
 
     # Post-visit feedback: send email if visit passed 24h and no feedback email sent yet
-    past_visits = await db.visits.find({
-        "status": "scheduled",
-        "feedback_email_sent": {"$ne": True},
-    }, {"_id": 0}).to_list(200)
+    try:
+        past_visits = await db.visits.find({
+            "status": "scheduled",
+            "feedback_email_sent": {"$ne": True},
+        }, {"_id": 0}).to_list(200)
+    except Exception as e:
+        logger.error(f"DB error fetching past visits for feedback: {e}", exc_info=True)
+        # Don't abort — return partial result with reminders already processed
+        return {
+            "status": "partial",
+            "checked_at": now.isoformat(),
+            "reminders_sent": reminders_sent,
+            "feedback_emails_sent": 0,
+            "errors": errors + 1,
+            "warning": f"Could not fetch past visits: {e}",
+        }
 
     feedback_sent_count = 0
     for visit in past_visits:
@@ -1136,7 +1152,7 @@ async def send_visit_reminders(request: Request):
                 if sent:
                     feedback_sent_count += 1
         except Exception as e:
-            logger.error(f"Error sending feedback email for visit {visit.get('id', '?')}: {e}")
+            logger.error(f"Error sending feedback email for visit {visit.get('id', '?')}: {e}", exc_info=True)
 
     result = {
         "status": "success",

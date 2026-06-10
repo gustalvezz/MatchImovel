@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import axios from 'axios';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { PenSquare, Trash2, Plus, Eye, EyeOff, ArrowLeft, Upload, Sparkles } from 'lucide-react';
+import { PenSquare, Trash2, Plus, Eye, EyeOff, ArrowLeft, Upload, Sparkles, Tag, Pencil, X } from 'lucide-react';
 import BlogEditor from '@/components/BlogEditor';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
@@ -28,10 +28,157 @@ const EMPTY_FORM = {
   meta_title: '', meta_description: '', status: 'draft',
 };
 
+function CategoryManager() {
+  const [categories, setCategories] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [newLabel, setNewLabel] = useState('');
+  const [editingId, setEditingId] = useState(null);
+  const [editLabel, setEditLabel] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  const fetchCategories = useCallback(async () => {
+    try {
+      const { data } = await axios.get(`${API}/admin/blog/categories`);
+      setCategories(data);
+    } catch {
+      setError('Erro ao carregar categorias.');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { fetchCategories(); }, [fetchCategories]);
+
+  const handleCreate = async () => {
+    const label = newLabel.trim();
+    if (!label) return;
+    setSaving(true);
+    setError('');
+    try {
+      await axios.post(`${API}/admin/blog/categories`, { label });
+      setNewLabel('');
+      await fetchCategories();
+    } catch (e) {
+      setError(e.response?.data?.detail || 'Erro ao criar categoria.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleUpdate = async (id) => {
+    const label = editLabel.trim();
+    if (!label) return;
+    setSaving(true);
+    setError('');
+    try {
+      await axios.put(`${API}/admin/blog/categories/${id}`, { label });
+      setEditingId(null);
+      setEditLabel('');
+      await fetchCategories();
+    } catch (e) {
+      setError(e.response?.data?.detail || 'Erro ao atualizar categoria.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDelete = async (id, label) => {
+    if (!window.confirm(`Excluir a categoria "${label}"?`)) return;
+    try {
+      await axios.delete(`${API}/admin/blog/categories/${id}`);
+      await fetchCategories();
+    } catch {
+      setError('Erro ao excluir categoria.');
+    }
+  };
+
+  return (
+    <div className="space-y-4 max-w-lg">
+      <h2 className="text-xl font-semibold">Categorias do Blog</h2>
+      <p className="text-sm text-gray-500">Gerencie as categorias disponíveis para os posts. Renomear uma categoria não altera os posts já vinculados.</p>
+
+      {error && <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-2 text-sm">{error}</div>}
+
+      <div className="border rounded-lg overflow-hidden">
+        {loading ? (
+          <p className="px-4 py-6 text-sm text-gray-400">Carregando...</p>
+        ) : categories.length === 0 ? (
+          <p className="px-4 py-6 text-sm text-gray-400">Nenhuma categoria encontrada.</p>
+        ) : (
+          <table className="w-full text-sm">
+            <thead className="bg-gray-50 border-b">
+              <tr>
+                <th className="text-left px-4 py-3 font-medium text-gray-600">Nome</th>
+                <th className="text-left px-4 py-3 font-medium text-gray-600">Valor (slug)</th>
+                <th className="text-right px-4 py-3 font-medium text-gray-600">Ações</th>
+              </tr>
+            </thead>
+            <tbody>
+              {categories.map((cat, i) => (
+                <tr key={cat.id} className={i % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                  <td className="px-4 py-3">
+                    {editingId === cat.id ? (
+                      <input
+                        className="border border-blue-300 rounded-md px-2 py-1 text-sm w-full focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        value={editLabel}
+                        onChange={e => setEditLabel(e.target.value)}
+                        onKeyDown={e => e.key === 'Enter' && handleUpdate(cat.id)}
+                        autoFocus
+                      />
+                    ) : (
+                      <span className="font-medium">{cat.label}</span>
+                    )}
+                  </td>
+                  <td className="px-4 py-3 text-gray-400 font-mono text-xs">{cat.value}</td>
+                  <td className="px-4 py-3">
+                    <div className="flex justify-end gap-2">
+                      {editingId === cat.id ? (
+                        <>
+                          <Button size="sm" disabled={saving} onClick={() => handleUpdate(cat.id)}>Salvar</Button>
+                          <Button variant="ghost" size="sm" onClick={() => setEditingId(null)}>
+                            <X className="w-4 h-4" />
+                          </Button>
+                        </>
+                      ) : (
+                        <>
+                          <Button variant="ghost" size="sm" onClick={() => { setEditingId(cat.id); setEditLabel(cat.label); }}>
+                            <Pencil className="w-4 h-4" />
+                          </Button>
+                          <Button variant="ghost" size="sm" className="text-red-500 hover:text-red-700" onClick={() => handleDelete(cat.id, cat.label)}>
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+
+      <div className="flex gap-2">
+        <input
+          className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          placeholder="Nome da nova categoria..."
+          value={newLabel}
+          onChange={e => setNewLabel(e.target.value)}
+          onKeyDown={e => e.key === 'Enter' && handleCreate()}
+        />
+        <Button disabled={saving || !newLabel.trim()} onClick={handleCreate} className="gap-2">
+          <Plus className="w-4 h-4" /> Criar
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 export default function BlogAdmin() {
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [view, setView] = useState('list'); // 'list' | 'edit'
+  const [view, setView] = useState('list'); // 'list' | 'edit' | 'categories'
   const [editingId, setEditingId] = useState(null);
   const [form, setForm] = useState(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
@@ -39,6 +186,7 @@ export default function BlogAdmin() {
   const [uploading, setUploading] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [aiPrompt, setAiPrompt] = useState('');
+  const [dynamicCategories, setDynamicCategories] = useState([]);
   const fileInputRef = useRef(null);
 
   const handleImageUpload = async (e) => {
@@ -91,6 +239,12 @@ export default function BlogAdmin() {
   }, []);
 
   useEffect(() => { fetchPosts(); }, [fetchPosts]);
+
+  useEffect(() => {
+    axios.get(`${API}/admin/blog/categories`)
+      .then(({ data }) => setDynamicCategories(data))
+      .catch(() => {});
+  }, []);
 
   const openNew = () => {
     setEditingId(null);
@@ -175,9 +329,14 @@ export default function BlogAdmin() {
       <div className="space-y-4">
         <div className="flex justify-between items-center">
           <h2 className="text-xl font-semibold">Posts do Blog</h2>
-          <Button onClick={openNew} size="sm" className="gap-2">
-            <Plus className="w-4 h-4" /> Novo Post
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => setView('categories')} size="sm" className="gap-2">
+              <Tag className="w-4 h-4" /> Categorias
+            </Button>
+            <Button onClick={openNew} size="sm" className="gap-2">
+              <Plus className="w-4 h-4" /> Novo Post
+            </Button>
+          </div>
         </div>
 
         {loading ? (
@@ -234,6 +393,18 @@ export default function BlogAdmin() {
             </table>
           </div>
         )}
+      </div>
+    );
+  }
+
+  // ── Categories view ────────────────────────────────────────────────────────
+  if (view === 'categories') {
+    return (
+      <div className="space-y-4">
+        <Button variant="ghost" size="sm" onClick={() => setView('list')} className="gap-1">
+          <ArrowLeft className="w-4 h-4" /> Voltar
+        </Button>
+        <CategoryManager />
       </div>
     );
   }
@@ -309,8 +480,8 @@ export default function BlogAdmin() {
                 onChange={e => setForm(f => ({ ...f, category: e.target.value }))}
               >
                 <option value="">Sem categoria</option>
-                {CATEGORIES.map(c => (
-                  <option key={c} value={c} className="capitalize">{c.charAt(0).toUpperCase() + c.slice(1)}</option>
+                {(dynamicCategories.length > 0 ? dynamicCategories : CATEGORIES.map(c => ({ value: c, label: c.charAt(0).toUpperCase() + c.slice(1) }))).map(c => (
+                  <option key={c.value} value={c.value}>{c.label}</option>
                 ))}
               </select>
             </div>
