@@ -135,16 +135,27 @@ async def blog_sitemap():
     ).sort("published_at", -1).to_list(1000)
 
     base = "https://matchimovel.com.br"
-    items = f"""  <url>
-    <loc>{base}/blog</loc>
-    <changefreq>daily</changefreq>
-    <priority>0.8</priority>
-  </url>"""
+
+    # Páginas estáticas principais
+    static_pages = [
+        {"loc": base,             "changefreq": "weekly",  "priority": "1.0"},
+        {"loc": f"{base}/blog",   "changefreq": "daily",   "priority": "0.8"},
+        {"loc": f"{base}/login",  "changefreq": "monthly", "priority": "0.4"},
+        {"loc": f"{base}/register", "changefreq": "monthly", "priority": "0.5"},
+    ]
+
+    items = ""
+    for page in static_pages:
+        items += f"""  <url>
+    <loc>{page['loc']}</loc>
+    <changefreq>{page['changefreq']}</changefreq>
+    <priority>{page['priority']}</priority>
+  </url>
+"""
 
     for p in posts:
         lastmod = (p.get("updated_at") or p.get("published_at") or "")[:10]
-        items += f"""
-  <url>
+        items += f"""  <url>
     <loc>{base}/blog/{p['slug']}</loc>
     <lastmod>{lastmod}</lastmod>
     <changefreq>monthly</changefreq>

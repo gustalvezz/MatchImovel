@@ -1,4 +1,10 @@
 {
+  "rewrites": [
+    {
+      "source": "/sitemap.xml",
+      "destination": "https://match-imovel-backend.vercel.app/api/blog/sitemap.xml"
+    }
+  ],
   "headers": [
     {
       "source": "/(.*)",
