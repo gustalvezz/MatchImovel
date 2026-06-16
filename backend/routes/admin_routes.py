@@ -747,6 +747,137 @@ async def get_campaign_stats(campaign: str = "lancamento_2026", current_user: di
     }
 
 
+# ── WhatsApp Campaign endpoints ───────────────────────────────────────────────
+
+class CampaignSegment(BaseModel):
+    role: str  # "agent" | "buyer"
+    commission_rate_min: Optional[int] = None  # agents only
+    has_phone: Optional[bool] = True  # only recipients with phone
+
+
+class CampaignPreviewPayload(BaseModel):
+    segment: CampaignSegment
+
+
+class CampaignSendPayload(BaseModel):
+    label: str
+    segment: CampaignSegment
+    template_name: str  # e.g. "novos_interesses"
+    message_type: str = "utility"  # "utility" | "marketing"
+
+
+async def _resolve_recipients(segment: CampaignSegment) -> list[dict]:
+    """Return list of {user_id, phone, name} matching the segment."""
+    recipients = []
+    if segment.role == "agent":
+        query: dict = {}
+        if segment.commission_rate_min is not None:
+            query["commission_rate"] = {"$gte": segment.commission_rate_min}
+        agents = await db.agents.find(query, {"_id": 0, "user_id": 1, "name": 1, "phone": 1}).to_list(5000)
+        for a in agents:
+            phone = a.get("phone")
+            if not phone:
+                user = await db.users.find_one({"id": a["user_id"]}, {"_id": 0, "phone": 1})
+                phone = (user or {}).get("phone")
+            if segment.has_phone and not phone:
+                continue
+            recipients.append({"user_id": a["user_id"], "phone": phone or "", "name": a.get("name", "Corretor")})
+    elif segment.role == "buyer":
+        buyers = await db.buyers.find({}, {"_id": 0, "user_id": 1, "name": 1, "phone": 1}).to_list(5000)
+        for b in buyers:
+            phone = b.get("phone")
+            if not phone:
+                user = await db.users.find_one({"id": b["user_id"]}, {"_id": 0, "phone": 1})
+                phone = (user or {}).get("phone")
+            if segment.has_phone and not phone:
+                continue
+            recipients.append({"user_id": b["user_id"], "phone": phone or "", "name": b.get("name", "Comprador")})
+    return recipients
+
+
+@router.post("/admin/campaigns/preview")
+async def preview_campaign_segment(payload: CampaignPreviewPayload, current_user: dict = Depends(get_current_user)):
+    """Preview which recipients would receive a broadcast campaign."""
+    if current_user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Acesso negado")
+
+    recipients = await _resolve_recipients(payload.segment)
+    sample = [{"name": r["name"], "phone": r["phone"][:4] + "****" + r["phone"][-2:] if len(r["phone"]) >= 6 else r["phone"]} for r in recipients[:10]]
+    return {"count": len(recipients), "sample": sample}
+
+
+@router.post("/admin/campaigns/send")
+async def send_campaign(payload: CampaignSendPayload, current_user: dict = Depends(get_current_user)):
+    """Dispatch a WhatsApp broadcast campaign to a segment."""
+    if current_user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Acesso negado")
+
+    recipients = await _resolve_recipients(payload.segment)
+    if not recipients:
+        raise HTTPException(status_code=400, detail="Nenhum destinatário encontrado para este segmento")
+
+    campaign_id = str(uuid.uuid4())
+    now = datetime.now(timezone.utc).isoformat()
+    campaign_doc = {
+        "campaign_id": campaign_id,
+        "created_by": current_user["user_id"],
+        "created_at": now,
+        "label": payload.label,
+        "segment": payload.segment.model_dump(),
+        "template_name": payload.template_name,
+        "message_type": payload.message_type,
+        "recipients_count": len(recipients),
+        "sent_count": 0,
+        "failed_count": 0,
+        "status": "sending",
+        "results": [],
+    }
+    await db.whatsapp_campaigns.insert_one(campaign_doc)
+
+    try:
+        from services.whatsapp_service import send_bulk_notification
+
+        def build_components(r):
+            return [{
+                "type": "body",
+                "parameters": [{"type": "text", "text": r["name"]}],
+            }]
+
+        results = await send_bulk_notification(recipients, payload.template_name, build_components)
+        sent = sum(1 for r in results if r["status"] == "sent")
+        failed = len(results) - sent
+
+        await db.whatsapp_campaigns.update_one(
+            {"campaign_id": campaign_id},
+            {"$set": {
+                "status": "done",
+                "sent_count": sent,
+                "failed_count": failed,
+                "results": results,
+                "finished_at": datetime.now(timezone.utc).isoformat(),
+            }}
+        )
+        return {"campaign_id": campaign_id, "sent": sent, "failed": failed, "status": "done"}
+    except Exception as e:
+        await db.whatsapp_campaigns.update_one(
+            {"campaign_id": campaign_id},
+            {"$set": {"status": "failed", "error": str(e)}}
+        )
+        raise HTTPException(status_code=500, detail=f"Erro ao enviar campanha: {e}")
+
+
+@router.get("/admin/campaigns")
+async def list_campaigns(current_user: dict = Depends(get_current_user)):
+    """List past WhatsApp broadcast campaigns, most recent first."""
+    if current_user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Acesso negado")
+
+    campaigns = await db.whatsapp_campaigns.find(
+        {}, {"_id": 0, "results": 0}
+    ).sort("created_at", -1).to_list(200)
+    return campaigns
+
+
 @router.delete("/admin/interests/{interest_id}")
 async def admin_delete_interest(interest_id: str, current_user: dict = Depends(get_current_user)):
     """

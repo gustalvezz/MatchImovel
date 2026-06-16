@@ -456,6 +456,30 @@ async def notify_agent_new_interests(
     )
 
 
+async def send_bulk_notification(
+    recipients: list[dict],
+    template_name: str,
+    build_components_fn,
+) -> list[dict]:
+    """Send a template to multiple recipients with rate limiting.
+
+    recipients: list of dicts with at least 'phone', 'name', and optionally other fields.
+    build_components_fn: callable(recipient) -> list of template components (or None).
+    Returns: list of {phone, status: 'sent'|'failed', error}.
+    """
+    import asyncio
+    results = []
+    for r in recipients:
+        try:
+            components = build_components_fn(r)
+            ok = await send_template(to=r["phone"], template_name=template_name, components=components)
+            results.append({"phone": r["phone"], "user_id": r.get("user_id", ""), "status": "sent" if ok else "failed", "error": None if ok else "API returned error"})
+        except Exception as e:
+            results.append({"phone": r["phone"], "user_id": r.get("user_id", ""), "status": "failed", "error": str(e)})
+        await asyncio.sleep(0.3)
+    return results
+
+
 async def notify_curator_deletion(
     curator_phone: str,
     curator_name: str,

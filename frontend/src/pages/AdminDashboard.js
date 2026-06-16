@@ -10,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/context/AuthContext';
-import { LogOut, Users, Heart, Building2, TrendingUp, CheckCircle, XCircle, Clock, UserPlus, MessageSquare, BarChart3, Shield, AlertTriangle, MapPin, DollarSign, Sparkles, UserCog, FileCheck, Trash2, ChevronDown, ChevronUp, Search } from 'lucide-react';
+import { LogOut, Users, Heart, Building2, TrendingUp, CheckCircle, XCircle, Clock, UserPlus, MessageSquare, BarChart3, Shield, AlertTriangle, MapPin, DollarSign, Sparkles, UserCog, FileCheck, Trash2, ChevronDown, ChevronUp, Search, Megaphone, Send, Eye, RefreshCw } from 'lucide-react';
 import AppLogo from '@/components/AppLogo';
 import { toast } from 'sonner';
 import CreateCuratorModal from '@/components/CreateCuratorModal';
@@ -54,6 +54,15 @@ const AdminDashboard = () => {
   // Searches-by-agent modal
   const [searchModalAgent, setSearchModalAgent] = useState(null);
 
+  // Campaigns tab
+  const [campaignTab, setCampaignTab] = useState('disparos');
+  const [campaigns, setCampaigns] = useState([]);
+  const [campaignStats, setCampaignStats] = useState(null);
+  const [campaignForm, setCampaignForm] = useState({ label: '', role: 'agent', commission_rate_min: '', template_name: 'novos_interesses' });
+  const [campaignPreview, setCampaignPreview] = useState(null);
+  const [campaignSending, setCampaignSending] = useState(false);
+  const [campaignPreviewing, setCampaignPreviewing] = useState(false);
+
   const handleDeleteInterest = async (interestId) => {
     if (!window.confirm('ATENÇÃO: Esta ação irá excluir permanentemente o interesse e TODOS os dados relacionados (matches, visitas, conversas, etc). Deseja continuar?')) {
       return;
@@ -88,14 +97,15 @@ const AdminDashboard = () => {
 
   const fetchData = async () => {
     try {
-      const [statsRes, buyersRes, agentsRes, curatorsRes, interestsRes, matchesRes, searchesRes] = await Promise.all([
+      const [statsRes, buyersRes, agentsRes, curatorsRes, interestsRes, matchesRes, searchesRes, campaignsRes] = await Promise.all([
         axios.get(`${API}/admin/stats`),
         axios.get(`${API}/admin/buyers`),
         axios.get(`${API}/admin/agents`),
         axios.get(`${API}/admin/curators`).catch(() => ({ data: [] })),
         axios.get(`${API}/admin/interests`),
         axios.get(`${API}/admin/matches`),
-        axios.get(`${API}/admin/searches`).catch(() => ({ data: [] }))
+        axios.get(`${API}/admin/searches`).catch(() => ({ data: [] })),
+        axios.get(`${API}/admin/campaigns`).catch(() => ({ data: [] })),
       ]);
       setStats(statsRes.data);
       setBuyers(buyersRes.data);
@@ -104,10 +114,64 @@ const AdminDashboard = () => {
       setInterests(interestsRes.data);
       setMatches(matchesRes.data);
       setSearches(searchesRes.data);
+      setCampaigns(campaignsRes.data);
     } catch (error) {
       toast.error('Erro ao carregar dados');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchCampaignStats = async () => {
+    try {
+      const res = await axios.get(`${API}/admin/campaign/stats?campaign=lancamento_2026`);
+      setCampaignStats(res.data);
+    } catch {
+      setCampaignStats(null);
+    }
+  };
+
+  const handleCampaignPreview = async () => {
+    setCampaignPreviewing(true);
+    setCampaignPreview(null);
+    try {
+      const segment = { role: campaignForm.role, has_phone: true };
+      if (campaignForm.role === 'agent' && campaignForm.commission_rate_min) {
+        segment.commission_rate_min = parseInt(campaignForm.commission_rate_min, 10);
+      }
+      const res = await axios.post(`${API}/admin/campaigns/preview`, { segment });
+      setCampaignPreview(res.data);
+    } catch (error) {
+      toast.error(error.response?.data?.detail || 'Erro ao pré-visualizar');
+    } finally {
+      setCampaignPreviewing(false);
+    }
+  };
+
+  const handleCampaignSend = async () => {
+    if (!campaignForm.label.trim()) { toast.error('Informe um nome para a campanha'); return; }
+    if (!campaignPreview) { toast.error('Pré-visualize antes de enviar'); return; }
+    if (!window.confirm(`Enviar para ${campaignPreview.count} destinatários via WhatsApp?`)) return;
+    setCampaignSending(true);
+    try {
+      const segment = { role: campaignForm.role, has_phone: true };
+      if (campaignForm.role === 'agent' && campaignForm.commission_rate_min) {
+        segment.commission_rate_min = parseInt(campaignForm.commission_rate_min, 10);
+      }
+      const res = await axios.post(`${API}/admin/campaigns/send`, {
+        label: campaignForm.label,
+        segment,
+        template_name: campaignForm.template_name,
+        message_type: 'utility',
+      });
+      toast.success(`Campanha enviada: ${res.data.sent} enviados, ${res.data.failed} falhas`);
+      setCampaignPreview(null);
+      setCampaignForm(f => ({ ...f, label: '' }));
+      fetchData();
+    } catch (error) {
+      toast.error(error.response?.data?.detail || 'Erro ao enviar campanha');
+    } finally {
+      setCampaignSending(false);
     }
   };
 
@@ -324,6 +388,12 @@ const AdminDashboard = () => {
               {user?.role === 'admin' && (
                 <TabsTrigger value="blog" className="rounded-lg whitespace-nowrap flex-shrink-0">
                   Blog
+                </TabsTrigger>
+              )}
+              {user?.role === 'admin' && (
+                <TabsTrigger value="campaigns" className="rounded-lg whitespace-nowrap flex-shrink-0" onClick={() => { fetchCampaignStats(); }}>
+                  <Megaphone className="w-4 h-4 mr-1" />
+                  Campanhas
                 </TabsTrigger>
               )}
             </TabsList>
@@ -1379,6 +1449,229 @@ const AdminDashboard = () => {
           {user?.role === 'admin' && (
             <TabsContent value="blog">
               <BlogAdmin />
+            </TabsContent>
+          )}
+
+          {user?.role === 'admin' && (
+            <TabsContent value="campaigns" className="space-y-6">
+              {/* Sub-tab switcher */}
+              <div className="flex gap-2 border-b border-slate-200 pb-0">
+                <button
+                  onClick={() => setCampaignTab('disparos')}
+                  className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${campaignTab === 'disparos' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+                >
+                  <Send className="w-4 h-4 inline mr-1" />Disparos
+                </button>
+                <button
+                  onClick={() => { setCampaignTab('aquisicao'); if (!campaignStats) fetchCampaignStats(); }}
+                  className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${campaignTab === 'aquisicao' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+                >
+                  <TrendingUp className="w-4 h-4 inline mr-1" />Aquisição
+                </button>
+              </div>
+
+              {/* ── Disparos ── */}
+              {campaignTab === 'disparos' && (
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {/* Form */}
+                  <Card className="p-6 rounded-2xl space-y-4">
+                    <h3 className="font-semibold text-slate-800 flex items-center gap-2">
+                      <Megaphone className="w-5 h-5 text-indigo-600" />Novo disparo
+                    </h3>
+                    <div className="space-y-3">
+                      <div>
+                        <label className="text-xs font-medium text-slate-600 mb-1 block">Nome da campanha</label>
+                        <input
+                          type="text"
+                          placeholder="Ex: Novos interesses – semana 24"
+                          value={campaignForm.label}
+                          onChange={e => { setCampaignForm(f => ({ ...f, label: e.target.value })); setCampaignPreview(null); }}
+                          className="w-full h-10 px-3 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                        />
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="text-xs font-medium text-slate-600 mb-1 block">Público</label>
+                          <select
+                            value={campaignForm.role}
+                            onChange={e => { setCampaignForm(f => ({ ...f, role: e.target.value, commission_rate_min: '' })); setCampaignPreview(null); }}
+                            className="w-full h-10 px-3 rounded-lg border border-slate-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                          >
+                            <option value="agent">Corretores</option>
+                            <option value="buyer">Compradores</option>
+                          </select>
+                        </div>
+                        {campaignForm.role === 'agent' && (
+                          <div>
+                            <label className="text-xs font-medium text-slate-600 mb-1 block">Comissão mín. (%)</label>
+                            <input
+                              type="number"
+                              placeholder="Todos"
+                              min={0} max={100}
+                              value={campaignForm.commission_rate_min}
+                              onChange={e => { setCampaignForm(f => ({ ...f, commission_rate_min: e.target.value })); setCampaignPreview(null); }}
+                              className="w-full h-10 px-3 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                            />
+                          </div>
+                        )}
+                      </div>
+                      <div>
+                        <label className="text-xs font-medium text-slate-600 mb-1 block">Template WhatsApp</label>
+                        <select
+                          value={campaignForm.template_name}
+                          onChange={e => setCampaignForm(f => ({ ...f, template_name: e.target.value }))}
+                          className="w-full h-10 px-3 rounded-lg border border-slate-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                        >
+                          <option value="novos_interesses">Novos interesses de compradores</option>
+                          <option value="lembrete_acesso">Lembrete de acesso à plataforma</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="flex gap-2 pt-2">
+                      <Button
+                        variant="outline"
+                        onClick={handleCampaignPreview}
+                        disabled={campaignPreviewing}
+                        className="flex-1 rounded-lg"
+                      >
+                        <Eye className="w-4 h-4 mr-1" />
+                        {campaignPreviewing ? 'Buscando...' : 'Pré-visualizar'}
+                      </Button>
+                      {campaignPreview && (
+                        <Button
+                          onClick={handleCampaignSend}
+                          disabled={campaignSending || campaignPreview.count === 0}
+                          className="flex-1 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white"
+                        >
+                          <Send className="w-4 h-4 mr-1" />
+                          {campaignSending ? 'Enviando...' : `Enviar para ${campaignPreview.count}`}
+                        </Button>
+                      )}
+                    </div>
+
+                    {campaignPreview && (
+                      <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-4">
+                        <p className="text-sm font-medium text-indigo-800 mb-2">
+                          {campaignPreview.count} destinatário{campaignPreview.count !== 1 ? 's' : ''} elegível{campaignPreview.count !== 1 ? 's' : ''}
+                        </p>
+                        {campaignPreview.sample.length > 0 && (
+                          <ul className="space-y-1">
+                            {campaignPreview.sample.map((s, i) => (
+                              <li key={i} className="text-xs text-indigo-700">{s.name} — {s.phone}</li>
+                            ))}
+                            {campaignPreview.count > campaignPreview.sample.length && (
+                              <li className="text-xs text-indigo-500">…e mais {campaignPreview.count - campaignPreview.sample.length}</li>
+                            )}
+                          </ul>
+                        )}
+                        {campaignPreview.count === 0 && (
+                          <p className="text-xs text-red-600">Nenhum destinatário com WhatsApp encontrado para este filtro.</p>
+                        )}
+                      </div>
+                    )}
+                  </Card>
+
+                  {/* History */}
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <h3 className="font-semibold text-slate-800">Histórico de disparos</h3>
+                      <button onClick={fetchData} className="text-slate-400 hover:text-indigo-600 transition-colors">
+                        <RefreshCw className="w-4 h-4" />
+                      </button>
+                    </div>
+                    {campaigns.length === 0 ? (
+                      <Card className="p-8 rounded-2xl text-center text-slate-400">
+                        <Megaphone className="w-10 h-10 mx-auto mb-2 opacity-30" />
+                        <p className="text-sm">Nenhum disparo realizado ainda</p>
+                      </Card>
+                    ) : (
+                      campaigns.map(c => (
+                        <Card key={c.campaign_id} className="p-4 rounded-xl">
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="flex-1 min-w-0">
+                              <p className="font-medium text-sm text-slate-800 truncate">{c.label}</p>
+                              <p className="text-xs text-slate-500 mt-0.5">
+                                {c.segment?.role === 'agent' ? 'Corretores' : 'Compradores'}
+                                {c.segment?.commission_rate_min ? ` ≥${c.segment.commission_rate_min}%` : ''}
+                                {' · '}{new Date(c.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                              </p>
+                            </div>
+                            <Badge className={`rounded-full text-xs flex-shrink-0 ${c.status === 'done' ? 'bg-green-100 text-green-700' : c.status === 'sending' ? 'bg-yellow-100 text-yellow-700' : c.status === 'failed' ? 'bg-red-100 text-red-700' : 'bg-slate-100 text-slate-500'}`}>
+                              {c.status === 'done' ? 'Concluído' : c.status === 'sending' ? 'Enviando' : c.status === 'failed' ? 'Falhou' : c.status}
+                            </Badge>
+                          </div>
+                          {c.status === 'done' && (
+                            <div className="flex gap-3 mt-2 text-xs">
+                              <span className="text-green-700 font-medium">{c.sent_count} enviados</span>
+                              {c.failed_count > 0 && <span className="text-red-500">{c.failed_count} falhas</span>}
+                            </div>
+                          )}
+                        </Card>
+                      ))
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* ── Aquisição ── */}
+              {campaignTab === 'aquisicao' && (
+                <div className="space-y-6">
+                  {!campaignStats ? (
+                    <Card className="p-12 rounded-2xl text-center text-slate-400">
+                      <RefreshCw className="w-10 h-10 mx-auto mb-2 animate-spin opacity-40" />
+                      <p className="text-sm">Carregando dados...</p>
+                    </Card>
+                  ) : (
+                    <>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <Card className="p-4 rounded-2xl text-center">
+                          <p className="text-2xl font-bold text-indigo-600">{campaignStats.total_registered}</p>
+                          <p className="text-xs text-slate-500 mt-1">Cadastrados</p>
+                        </Card>
+                        <Card className="p-4 rounded-2xl text-center">
+                          <p className="text-2xl font-bold text-green-600">{campaignStats.active_agents}</p>
+                          <p className="text-xs text-slate-500 mt-1">Ativos (fizeram busca)</p>
+                        </Card>
+                        <Card className="p-4 rounded-2xl text-center">
+                          <p className="text-2xl font-bold text-purple-600">{campaignStats.matches_created}</p>
+                          <p className="text-xs text-slate-500 mt-1">Matches criados</p>
+                        </Card>
+                        <Card className="p-4 rounded-2xl text-center">
+                          <p className="text-2xl font-bold text-amber-600">{campaignStats.activation_rate}</p>
+                          <p className="text-xs text-slate-500 mt-1">Taxa de ativação</p>
+                        </Card>
+                      </div>
+
+                      <Card className="rounded-2xl overflow-hidden">
+                        <div className="p-4 border-b bg-slate-50">
+                          <h4 className="font-semibold text-slate-800 text-sm">Corretores da campanha CAMP80</h4>
+                        </div>
+                        <div className="divide-y max-h-96 overflow-y-auto">
+                          {campaignStats.agents.map(a => (
+                            <div key={a.user_id} className="flex items-center justify-between px-4 py-3">
+                              <div>
+                                <p className="text-sm font-medium text-slate-800">{a.name}</p>
+                                <p className="text-xs text-slate-500">{a.email}</p>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                {a.creci_verified && <Badge className="bg-green-100 text-green-700 rounded-full text-xs">CRECI ✓</Badge>}
+                                <Badge className={`rounded-full text-xs ${a.is_active ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-100 text-slate-500'}`}>
+                                  {a.is_active ? 'Ativo' : 'Inativo'}
+                                </Badge>
+                                <span className="text-xs text-amber-700 font-medium">{a.commission_rate || 80}%</span>
+                              </div>
+                            </div>
+                          ))}
+                          {campaignStats.agents.length === 0 && (
+                            <p className="text-center text-sm text-slate-400 py-8">Nenhum corretor cadastrado via campanha ainda</p>
+                          )}
+                        </div>
+                      </Card>
+                    </>
+                  )}
+                </div>
+              )}
             </TabsContent>
           )}
         </Tabs>
