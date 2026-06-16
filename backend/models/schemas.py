@@ -28,6 +28,8 @@ class UserRegister(BaseModel):
     terms_accepted: Optional[bool] = None
     terms_accepted_at: Optional[str] = None
     utm: Optional[UTMData] = None
+    # Campaign tracking
+    promo_code: Optional[str] = None
 
 class UserLogin(BaseModel):
     email: EmailStr

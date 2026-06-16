@@ -655,6 +655,65 @@ async def get_utm_analytics(current_user: dict = Depends(get_current_user)):
     return {"por_canal": por_canal}
 
 
+@router.get("/admin/campaign/stats")
+async def get_campaign_stats(campaign: str = "lancamento_2026", current_user: dict = Depends(get_current_user)):
+    """Stats for a specific agent acquisition campaign."""
+    if current_user["role"] not in ["admin", "curator"]:
+        raise HTTPException(status_code=403, detail="Acesso negado")
+
+    # Agents registered via this campaign
+    agents = await db.agents.find(
+        {"source_campaign": campaign},
+        {"_id": 0, "user_id": 1, "name": 1, "email": 1, "phone": 1,
+         "commission_rate": 1, "creci": 1, "creci_uf": 1, "creci_verified": 1,
+         "created_at": 1}
+    ).sort("created_at", -1).to_list(500)
+
+    agent_ids = [a["user_id"] for a in agents]
+
+    # How many made at least one search
+    active_ids = set()
+    if agent_ids:
+        searches = await db.agent_searches.find(
+            {"agent_id": {"$in": agent_ids}},
+            {"_id": 0, "agent_id": 1}
+        ).to_list(5000)
+        active_ids = {s["agent_id"] for s in searches}
+
+    # Matches created
+    matches_count = 0
+    visits_count = 0
+    if agent_ids:
+        matches_count = await db.matches.count_documents({"agent_id": {"$in": agent_ids}})
+        # Visits: via match agent_id
+        match_ids = [m["id"] async for m in db.matches.find(
+            {"agent_id": {"$in": agent_ids}}, {"_id": 0, "id": 1}
+        )]
+        if match_ids:
+            visits_count = await db.visits.count_documents({"match_id": {"$in": match_ids}})
+
+    total = len(agents)
+    active = len(active_ids)
+
+    enriched_agents = []
+    for a in agents:
+        enriched_agents.append({
+            **a,
+            "is_active": a["user_id"] in active_ids,
+        })
+
+    return {
+        "campaign": campaign,
+        "total_registered": total,
+        "active_agents": active,
+        "inactive_agents": total - active,
+        "activation_rate": f"{round(active / total * 100)}%" if total else "0%",
+        "matches_created": matches_count,
+        "visits_scheduled": visits_count,
+        "agents": enriched_agents,
+    }
+
+
 @router.delete("/admin/interests/{interest_id}")
 async def admin_delete_interest(interest_id: str, current_user: dict = Depends(get_current_user)):
     """

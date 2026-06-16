@@ -13,6 +13,11 @@ import logging
 from database import db
 from auth import hash_password, verify_password, create_access_token
 from config import BUSCACRECI_API, FRONTEND_URL
+
+# Códigos promocionais ativos: promo_code → {commission_rate, source_campaign}
+PROMO_CODES: dict = {
+    "CAMP80": {"commission_rate": 80, "source_campaign": "lancamento_2026"},
+}
 from services.email_service import send_new_agent_notification
 from models.schemas import (
     UserRegister, UserLogin, AuthResponse,
@@ -150,6 +155,11 @@ async def register(user_data: UserRegister, request: Request):
         }
         await db.buyers.insert_one(profile_doc)
     elif user_data.role == "agent":
+        # Resolve promo code
+        promo = PROMO_CODES.get((user_data.promo_code or "").upper().strip())
+        commission_rate = promo["commission_rate"] if promo else 60
+        source_campaign = promo["source_campaign"] if promo else None
+
         profile_doc = {
             "id": str(uuid.uuid4()),
             "user_id": user_id,
@@ -165,7 +175,10 @@ async def register(user_data: UserRegister, request: Request):
             # Terms acceptance
             "terms_accepted": user_data.terms_accepted or False,
             "terms_accepted_at": user_data.terms_accepted_at,
-            "terms_accepted_ip": client_ip if user_data.terms_accepted else None
+            "terms_accepted_ip": client_ip if user_data.terms_accepted else None,
+            # Campaign fields
+            "commission_rate": commission_rate,
+            **({"source_campaign": source_campaign, "promo_code": user_data.promo_code.upper()} if source_campaign else {}),
         }
         await db.agents.insert_one(profile_doc)
 
