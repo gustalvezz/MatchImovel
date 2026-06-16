@@ -30,19 +30,23 @@ export function trackPageView(path) {
   }
 }
 
-export function trackLead(source) {
+export function trackLead(source, role = 'buyer') {
   if (!initialized) return;
+
+  const contentName = role === 'agent' ? 'cadastro_corretor' : 'cadastro_comprador';
+  const contentCategory = role === 'agent' ? 'corretor' : 'comprador';
 
   if (window.gtag) {
     window.gtag('event', 'generate_lead', {
       event_category: 'lead',
       event_label: source || 'direto',
+      event_role: role,
     });
   }
   if (window.fbq) {
     window.fbq('track', 'Lead', {
-      content_name: 'cadastro_comprador',
-      content_category: 'comprador',
+      content_name: contentName,
+      content_category: contentCategory,
     });
   }
 }

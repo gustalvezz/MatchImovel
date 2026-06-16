@@ -28,6 +28,30 @@ GREETINGS = {
     "hello", "hi", "hey",
 }
 
+# Keywords that trigger the agent campaign flow
+_CAMPAIGN_KEYWORDS = {"parceiro", "camp80", "80%", "corretor parceiro", "quero ser parceiro", "corretor80"}
+_FRONTEND_URL = os.environ.get("FRONTEND_URL", "https://matchimovel.com.br")
+
+
+def _is_campaign_keyword(text: str) -> bool:
+    t = text.lower().strip()
+    return any(kw in t for kw in _CAMPAIGN_KEYWORDS)
+
+
+async def _handle_campaign_agent(phone: str) -> None:
+    """Send campaign registration link to an inbound agent from the Meta ad."""
+    link = f"{_FRONTEND_URL}/parceiro?promo=CAMP80"
+    await ws.send_text(
+        phone,
+        "👋 Olá! Você foi selecionado para o *Programa de Corretores Parceiros MatchImóvel*.\n\n"
+        "🏆 Condição exclusiva da campanha:\n"
+        "• *80% de comissão* nos negócios fechados\n"
+        "• Leads de compradores qualificados entregues pela plataforma\n"
+        "• MatchImóvel arca com toda a responsabilidade jurídica, contratos e vistoria\n\n"
+        f"📋 Acesse o link abaixo para garantir sua vaga:\n{link}\n\n"
+        "_Após o cadastro, nossa equipe ativará seu acesso em até 24h._"
+    )
+
 
 # ── Webhook verification ───────────────────────────────────────────────────────
 
@@ -97,6 +121,11 @@ async def _dispatch(phone: str, msg_type: str, content: str, session: dict | Non
             else:
                 await ws.close_session(phone)
                 await _start_identification(phone)
+            return
+
+        # Campaign trigger — keywords from Meta ad pre-filled message
+        if _is_campaign_keyword(content):
+            await _handle_campaign_agent(phone)
             return
 
         if content.lower().strip() in GREETINGS or not content.strip():

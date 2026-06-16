@@ -4,6 +4,7 @@ Handles admin dashboard, user management, and CRECI verification
 """
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
+from typing import Optional
 from datetime import datetime, timezone, timedelta
 import uuid
 import secrets
@@ -178,6 +179,38 @@ async def block_agent_creci(agent_id: str, blocked: bool = True, current_user: d
 class CreciStatusUpdate(BaseModel):
     creci_verified: bool
     creci_blocked: bool
+
+
+class CommissionRateUpdate(BaseModel):
+    commission_rate: int  # percentual que cabe ao corretor (ex: 60, 70, 80)
+    source_campaign: Optional[str] = None  # opcional: marca o corretor como parte de uma campanha
+
+
+@router.put("/admin/agents/{agent_id}/commission-rate")
+async def update_commission_rate(agent_id: str, payload: CommissionRateUpdate, current_user: dict = Depends(get_current_user)):
+    """Ajusta manualmente o percentual de comissão de um corretor já cadastrado."""
+    if current_user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Acesso negado")
+
+    if payload.commission_rate < 0 or payload.commission_rate > 100:
+        raise HTTPException(status_code=400, detail="commission_rate deve estar entre 0 e 100")
+
+    agent = await db.agents.find_one({"user_id": agent_id}, {"_id": 0})
+    if not agent:
+        raise HTTPException(status_code=404, detail="Corretor não encontrado")
+
+    update_fields = {"commission_rate": payload.commission_rate}
+    if payload.source_campaign is not None:
+        update_fields["source_campaign"] = payload.source_campaign
+
+    await db.agents.update_one({"user_id": agent_id}, {"$set": update_fields})
+
+    return {
+        "status": "ok",
+        "agent_id": agent_id,
+        "commission_rate": payload.commission_rate,
+        "source_campaign": update_fields.get("source_campaign", agent.get("source_campaign")),
+    }
 
 
 @router.put("/admin/agents/{agent_id}/creci-status")
@@ -653,6 +686,196 @@ async def get_utm_analytics(current_user: dict = Depends(get_current_user)):
         por_canal.append({"canal": "direto", "leads": sem_utm})
 
     return {"por_canal": por_canal}
+
+
+@router.get("/admin/campaign/stats")
+async def get_campaign_stats(campaign: str = "lancamento_2026", current_user: dict = Depends(get_current_user)):
+    """Stats for a specific agent acquisition campaign."""
+    if current_user["role"] not in ["admin", "curator"]:
+        raise HTTPException(status_code=403, detail="Acesso negado")
+
+    # Agents registered via this campaign
+    agents = await db.agents.find(
+        {"source_campaign": campaign},
+        {"_id": 0, "user_id": 1, "name": 1, "email": 1, "phone": 1,
+         "commission_rate": 1, "creci": 1, "creci_uf": 1, "creci_verified": 1,
+         "created_at": 1}
+    ).sort("created_at", -1).to_list(500)
+
+    agent_ids = [a["user_id"] for a in agents]
+
+    # How many made at least one search
+    active_ids = set()
+    if agent_ids:
+        searches = await db.agent_searches.find(
+            {"agent_id": {"$in": agent_ids}},
+            {"_id": 0, "agent_id": 1}
+        ).to_list(5000)
+        active_ids = {s["agent_id"] for s in searches}
+
+    # Matches created
+    matches_count = 0
+    visits_count = 0
+    if agent_ids:
+        matches_count = await db.matches.count_documents({"agent_id": {"$in": agent_ids}})
+        # Visits: via match agent_id
+        match_ids = [m["id"] async for m in db.matches.find(
+            {"agent_id": {"$in": agent_ids}}, {"_id": 0, "id": 1}
+        )]
+        if match_ids:
+            visits_count = await db.visits.count_documents({"match_id": {"$in": match_ids}})
+
+    total = len(agents)
+    active = len(active_ids)
+
+    enriched_agents = []
+    for a in agents:
+        enriched_agents.append({
+            **a,
+            "is_active": a["user_id"] in active_ids,
+        })
+
+    return {
+        "campaign": campaign,
+        "total_registered": total,
+        "active_agents": active,
+        "inactive_agents": total - active,
+        "activation_rate": f"{round(active / total * 100)}%" if total else "0%",
+        "matches_created": matches_count,
+        "visits_scheduled": visits_count,
+        "agents": enriched_agents,
+    }
+
+
+# ── WhatsApp Campaign endpoints ───────────────────────────────────────────────
+
+class CampaignSegment(BaseModel):
+    role: str  # "agent" | "buyer"
+    commission_rate_min: Optional[int] = None  # agents only
+    has_phone: Optional[bool] = True  # only recipients with phone
+
+
+class CampaignPreviewPayload(BaseModel):
+    segment: CampaignSegment
+
+
+class CampaignSendPayload(BaseModel):
+    label: str
+    segment: CampaignSegment
+    template_name: str  # e.g. "novos_interesses"
+    message_type: str = "utility"  # "utility" | "marketing"
+
+
+async def _resolve_recipients(segment: CampaignSegment) -> list[dict]:
+    """Return list of {user_id, phone, name} matching the segment."""
+    recipients = []
+    if segment.role == "agent":
+        query: dict = {}
+        if segment.commission_rate_min is not None:
+            query["commission_rate"] = {"$gte": segment.commission_rate_min}
+        agents = await db.agents.find(query, {"_id": 0, "user_id": 1, "name": 1, "phone": 1}).to_list(5000)
+        for a in agents:
+            phone = a.get("phone")
+            if not phone:
+                user = await db.users.find_one({"id": a["user_id"]}, {"_id": 0, "phone": 1})
+                phone = (user or {}).get("phone")
+            if segment.has_phone and not phone:
+                continue
+            recipients.append({"user_id": a["user_id"], "phone": phone or "", "name": a.get("name", "Corretor")})
+    elif segment.role == "buyer":
+        buyers = await db.buyers.find({}, {"_id": 0, "user_id": 1, "name": 1, "phone": 1}).to_list(5000)
+        for b in buyers:
+            phone = b.get("phone")
+            if not phone:
+                user = await db.users.find_one({"id": b["user_id"]}, {"_id": 0, "phone": 1})
+                phone = (user or {}).get("phone")
+            if segment.has_phone and not phone:
+                continue
+            recipients.append({"user_id": b["user_id"], "phone": phone or "", "name": b.get("name", "Comprador")})
+    return recipients
+
+
+@router.post("/admin/campaigns/preview")
+async def preview_campaign_segment(payload: CampaignPreviewPayload, current_user: dict = Depends(get_current_user)):
+    """Preview which recipients would receive a broadcast campaign."""
+    if current_user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Acesso negado")
+
+    recipients = await _resolve_recipients(payload.segment)
+    sample = [{"name": r["name"], "phone": r["phone"][:4] + "****" + r["phone"][-2:] if len(r["phone"]) >= 6 else r["phone"]} for r in recipients[:10]]
+    return {"count": len(recipients), "sample": sample}
+
+
+@router.post("/admin/campaigns/send")
+async def send_campaign(payload: CampaignSendPayload, current_user: dict = Depends(get_current_user)):
+    """Dispatch a WhatsApp broadcast campaign to a segment."""
+    if current_user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Acesso negado")
+
+    recipients = await _resolve_recipients(payload.segment)
+    if not recipients:
+        raise HTTPException(status_code=400, detail="Nenhum destinatário encontrado para este segmento")
+
+    campaign_id = str(uuid.uuid4())
+    now = datetime.now(timezone.utc).isoformat()
+    campaign_doc = {
+        "campaign_id": campaign_id,
+        "created_by": current_user["user_id"],
+        "created_at": now,
+        "label": payload.label,
+        "segment": payload.segment.model_dump(),
+        "template_name": payload.template_name,
+        "message_type": payload.message_type,
+        "recipients_count": len(recipients),
+        "sent_count": 0,
+        "failed_count": 0,
+        "status": "sending",
+        "results": [],
+    }
+    await db.whatsapp_campaigns.insert_one(campaign_doc)
+
+    try:
+        from services.whatsapp_service import send_bulk_notification
+
+        def build_components(r):
+            return [{
+                "type": "body",
+                "parameters": [{"type": "text", "text": r["name"]}],
+            }]
+
+        results = await send_bulk_notification(recipients, payload.template_name, build_components)
+        sent = sum(1 for r in results if r["status"] == "sent")
+        failed = len(results) - sent
+
+        await db.whatsapp_campaigns.update_one(
+            {"campaign_id": campaign_id},
+            {"$set": {
+                "status": "done",
+                "sent_count": sent,
+                "failed_count": failed,
+                "results": results,
+                "finished_at": datetime.now(timezone.utc).isoformat(),
+            }}
+        )
+        return {"campaign_id": campaign_id, "sent": sent, "failed": failed, "status": "done"}
+    except Exception as e:
+        await db.whatsapp_campaigns.update_one(
+            {"campaign_id": campaign_id},
+            {"$set": {"status": "failed", "error": str(e)}}
+        )
+        raise HTTPException(status_code=500, detail=f"Erro ao enviar campanha: {e}")
+
+
+@router.get("/admin/campaigns")
+async def list_campaigns(current_user: dict = Depends(get_current_user)):
+    """List past WhatsApp broadcast campaigns, most recent first."""
+    if current_user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Acesso negado")
+
+    campaigns = await db.whatsapp_campaigns.find(
+        {}, {"_id": 0, "results": 0}
+    ).sort("created_at", -1).to_list(200)
+    return campaigns
 
 
 @router.delete("/admin/interests/{interest_id}")

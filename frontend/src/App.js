@@ -24,6 +24,7 @@ import VisitFeedbackPage from '@/pages/VisitFeedbackPage';
 import PrivacyPage from '@/pages/PrivacyPage';
 import BlogListPage from '@/pages/BlogListPage';
 import BlogPostPage from '@/pages/BlogPostPage';
+import CampaignRegisterPage from '@/pages/CampaignRegisterPage';
 import CookieBanner from '@/components/CookieBanner';
 import '@/App.css';
 
@@ -162,6 +163,11 @@ function App() {
               </ProtectedRoute>
             } 
           />
+          <Route path="/parceiro" element={
+            <PublicRoute>
+              <CampaignRegisterPage />
+            </PublicRoute>
+          } />
           <Route path="/privacidade" element={<PrivacyPage />} />
           <Route path="/blog" element={<BlogListPage />} />
           <Route path="/blog/:slug" element={<BlogPostPage />} />

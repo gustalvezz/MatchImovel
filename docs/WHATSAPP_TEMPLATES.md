@@ -868,6 +868,47 @@ WHATSAPP_TPL_NOVO_CORRETOR=novo_corretor
 
 ---
 
+## 17. `novos_interesses` *(disparo manual — Central de Campanhas)*
+
+> Reutiliza o mesmo template do item 11 para disparos manuais via painel admin.  
+> Certifique-se de que o template está aprovado antes de usar a Central de Campanhas.
+
+---
+
+## 18. `lembrete_acesso` *(disparo manual — novo, pendente aprovação)*
+
+**Destinatário:** Corretor ou Comprador  
+**Evento:** Reativação de usuário inativo — disparado manualmente pelo admin via Central de Campanhas  
+**Categoria:** UTILITY
+
+### Corpo da mensagem
+
+```
+Olá, {{1}}! 👋
+
+Você tem acesso ao MatchImovel mas faz um tempo que não entra por lá.
+
+Que tal dar uma olhada? Podem ter aparecido novos perfis de compradores que combinam com o que você busca.
+
+Acesse: matchimov.com.br/login
+```
+
+### Variáveis
+
+| Variável | Exemplo |
+|---|---|
+| `{{1}}` | `Ricardo Souza` |
+
+### Observações
+- Template utilizado pela opção "Lembrete de acesso à plataforma" na Central de Campanhas.
+- Após aprovação, registrar o nome exato abaixo em `.env` se diferente do padrão:
+
+```env
+WHATSAPP_TPL_LEMBRETE_ACESSO=lembrete_acesso
+```
+
+---
+
 ## Processo de Criação no Meta
 
 ### Passo a passo
