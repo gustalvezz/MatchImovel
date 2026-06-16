@@ -814,11 +814,22 @@ async def create_full_interest_v2(request: Request, background_tasks: Background
         "terms_accepted": form_data.get('terms_accepted', False),
         "terms_accepted_at": form_data.get('terms_accepted_at'),
         "terms_accepted_ip": client_ip,
-        
+
         # Form version
         "form_version": "v4"
     }
-    
+
+    # Save UTM data if present
+    utm_raw = form_data.get('utm') or {}
+    utm_dict = {k: v for k, v in utm_raw.items() if v} if isinstance(utm_raw, dict) else {}
+    if utm_dict:
+        interest["utm"] = utm_dict
+        # Also persist UTM on the user record if not already set
+        await db.users.update_one(
+            {"id": user_id, "utm": {"$exists": False}},
+            {"$set": {"utm": utm_dict}}
+        )
+
     # Save interest immediately (fast response to user)
     await db.interests.insert_one(interest)
     logger.info(f"Interest {interest_id} saved. Scheduling AI processing in background.")
