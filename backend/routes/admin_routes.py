@@ -4,6 +4,7 @@ Handles admin dashboard, user management, and CRECI verification
 """
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
+from typing import Optional
 from datetime import datetime, timezone, timedelta
 import uuid
 import secrets
@@ -178,6 +179,38 @@ async def block_agent_creci(agent_id: str, blocked: bool = True, current_user: d
 class CreciStatusUpdate(BaseModel):
     creci_verified: bool
     creci_blocked: bool
+
+
+class CommissionRateUpdate(BaseModel):
+    commission_rate: int  # percentual que cabe ao corretor (ex: 60, 70, 80)
+    source_campaign: Optional[str] = None  # opcional: marca o corretor como parte de uma campanha
+
+
+@router.put("/admin/agents/{agent_id}/commission-rate")
+async def update_commission_rate(agent_id: str, payload: CommissionRateUpdate, current_user: dict = Depends(get_current_user)):
+    """Ajusta manualmente o percentual de comissão de um corretor já cadastrado."""
+    if current_user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Acesso negado")
+
+    if payload.commission_rate < 0 or payload.commission_rate > 100:
+        raise HTTPException(status_code=400, detail="commission_rate deve estar entre 0 e 100")
+
+    agent = await db.agents.find_one({"user_id": agent_id}, {"_id": 0})
+    if not agent:
+        raise HTTPException(status_code=404, detail="Corretor não encontrado")
+
+    update_fields = {"commission_rate": payload.commission_rate}
+    if payload.source_campaign is not None:
+        update_fields["source_campaign"] = payload.source_campaign
+
+    await db.agents.update_one({"user_id": agent_id}, {"$set": update_fields})
+
+    return {
+        "status": "ok",
+        "agent_id": agent_id,
+        "commission_rate": payload.commission_rate,
+        "source_campaign": update_fields.get("source_campaign", agent.get("source_campaign")),
+    }
 
 
 @router.put("/admin/agents/{agent_id}/creci-status")
