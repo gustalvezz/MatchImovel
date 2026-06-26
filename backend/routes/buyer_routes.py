@@ -23,6 +23,33 @@ router = APIRouter(tags=["buyers"])
 logger = logging.getLogger(__name__)
 
 
+async def _notify_admins_new_interest(interest: dict, buyer_name: str = None, buyer_email: str = None, buyer_phone: str = None):
+    """Immediately notify all admins by email that a new interest was registered.
+
+    Best-effort: never raises so it can't break the interest-creation flow.
+    """
+    try:
+        from services.email_service import send_new_interest_admin_notification
+        from config import FRONTEND_URL
+        admins = await db.users.find({"role": "admin"}, {"_id": 0}).to_list(50)
+        admin_url = f"{FRONTEND_URL.rstrip('/')}/admin" if FRONTEND_URL else ""
+        for admin in admins:
+            admin_email = admin.get("email")
+            if not admin_email:
+                continue
+            await send_new_interest_admin_notification(
+                admin_email=admin_email,
+                admin_name=admin.get("name", "Admin"),
+                buyer_name=buyer_name,
+                buyer_email=buyer_email,
+                buyer_phone=buyer_phone,
+                interest=interest,
+                admin_url=admin_url,
+            )
+    except Exception as e:
+        logger.error(f"Failed to notify admins of new interest: {str(e)}")
+
+
 async def generate_ai_profile(form_data: dict) -> str:
     """Generate a buyer profile using AI based on form responses"""
     try:
@@ -128,7 +155,17 @@ async def process_ai_interpretation_background(interest_id: str, form_data: dict
     """
     try:
         logger.info(f"Starting background AI interpretation for interest {interest_id}")
-        
+
+        # Notify admins immediately that a new interest was registered
+        interest_doc = await db.interests.find_one({"id": interest_id}, {"_id": 0})
+        if interest_doc:
+            await _notify_admins_new_interest(
+                interest_doc,
+                buyer_name=buyer_name,
+                buyer_email=buyer_email,
+                buyer_phone=form_data.get('phone'),
+            )
+
         # Generate AI interpretation
         ai_interpretation = await generate_ai_interpretation(form_data)
         
@@ -225,7 +262,14 @@ async def create_interest(interest_data: BuyerInterestCreate, current_user: dict
     doc = interest.model_dump()
     doc['created_at'] = doc['created_at'].isoformat()
     await db.interests.insert_one(doc)
-    
+
+    await _notify_admins_new_interest(
+        doc,
+        buyer_name=current_user.get("name"),
+        buyer_email=current_user.get("email"),
+        buyer_phone=current_user.get("phone"),
+    )
+
     return interest
 
 
@@ -417,6 +461,14 @@ async def _insert_interest_from_data(user_id: str, form_data: dict,
     }
 
     await db.interests.insert_one(interest)
+
+    await _notify_admins_new_interest(
+        interest,
+        buyer_name=form_data.get('name'),
+        buyer_email=form_data.get('email'),
+        buyer_phone=form_data.get('phone'),
+    )
+
     return interest_id
 
 
@@ -526,7 +578,14 @@ async def create_full_interest(form_data: FullInterestCreate, request: Request):
     }
 
     await db.interests.insert_one(interest)
-    
+
+    await _notify_admins_new_interest(
+        interest,
+        buyer_name=form_data.name,
+        buyer_email=form_data.email,
+        buyer_phone=getattr(form_data, "phone", None),
+    )
+
     if form_data.email:
         await send_interest_registered_email(
             buyer_email=form_data.email,

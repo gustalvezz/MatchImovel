@@ -2,10 +2,11 @@
 Admin routes
 Handles admin dashboard, user management, and CRECI verification
 """
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Request
 from pydantic import BaseModel
 from typing import Optional
 from datetime import datetime, timezone, timedelta
+import os
 import uuid
 import secrets
 import logging
@@ -17,7 +18,8 @@ from models.schemas import CreateCuratorRequest
 from services.email_service import (
     send_email,
     send_creci_verified_email,
-    send_creci_blocked_email
+    send_creci_blocked_email,
+    send_daily_summary_email
 )
 
 router = APIRouter(tags=["admin"])
@@ -960,4 +962,74 @@ async def admin_delete_interest(interest_id: str, current_user: dict = Depends(g
         "status": "success",
         "message": "Interesse e todos os dados relacionados foram excluídos",
         "deleted": deleted_counts
+    }
+
+
+@router.post("/internal/daily-summary")
+async def daily_summary(request: Request):
+    """
+    Internal endpoint: send a daily digest email to all admins summarizing
+    everything registered in the platform over the last 24 hours — new
+    interests, buyers and agent searches.
+
+    If nothing new was registered, admins still receive an email stating so.
+
+    Security: validates the INTERNAL_API_KEY via the X-Internal-Key header.
+    Intended to be triggered once a day at 08h Brasília by a GitHub Actions cron.
+    """
+    internal_key = request.headers.get("X-Internal-Key")
+    expected_key = os.environ.get("INTERNAL_API_KEY")
+
+    if not expected_key or internal_key != expected_key:
+        logger.warning("Unauthorized attempt to call daily-summary endpoint")
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
+    now = datetime.now(timezone.utc)
+    cutoff = (now - timedelta(hours=24)).isoformat()
+    period_label = f"últimas 24h até {now.strftime('%d/%m/%Y %H:%M')} UTC"
+
+    # Everything new in the window (created_at stored as ISO-8601 strings)
+    new_interests = await db.interests.find(
+        {"created_at": {"$gte": cutoff}}, {"_id": 0}
+    ).to_list(1000)
+
+    new_buyers = await db.buyers.find(
+        {"created_at": {"$gte": cutoff}}, {"_id": 0}
+    ).to_list(1000)
+
+    new_searches = await db.agent_searches.find(
+        {"created_at": {"$gte": cutoff}}, {"_id": 0}
+    ).to_list(1000)
+
+    admins = await db.users.find({"role": "admin"}, {"_id": 0}).to_list(50)
+    admin_url = f"{FRONTEND_URL.rstrip('/')}/admin" if FRONTEND_URL else ""
+
+    emails_sent = 0
+    for admin in admins:
+        admin_email = admin.get("email")
+        if not admin_email:
+            continue
+        ok = await send_daily_summary_email(
+            admin_email=admin_email,
+            admin_name=admin.get("name", "Admin"),
+            period_label=period_label,
+            interests=new_interests,
+            buyers=new_buyers,
+            searches=new_searches,
+            admin_url=admin_url,
+        )
+        if ok:
+            emails_sent += 1
+
+    logger.info(
+        f"Daily summary sent: {emails_sent} admin(s) | "
+        f"{len(new_interests)} interests, {len(new_buyers)} buyers, {len(new_searches)} searches"
+    )
+
+    return {
+        "status": "success",
+        "admins_notified": emails_sent,
+        "new_interests": len(new_interests),
+        "new_buyers": len(new_buyers),
+        "new_searches": len(new_searches),
     }
