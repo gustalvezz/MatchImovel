@@ -95,7 +95,12 @@ async def evaluate_buyers_with_openai(
             "forma_pagamento": p.get("forma_pagamento", []),
             "observacoes": p.get("observacoes", "")
         }
-        
+
+        # Admin/curator complementary notes — high priority signal
+        notas_admin = p.get("notas_admin", "")
+        if notas_admin:
+            simplified["notas_admin"] = notas_admin
+
         # If has AI interpretation, include the key fields
         if interpretacao:
             simplified["perfil_ideal_ia"] = interpretacao.get("perfil_do_imovel_ideal", "")
@@ -143,6 +148,11 @@ async def evaluate_buyers_with_openai(
 **ANÁLISE DE LOCOMOÇÃO:**
 - Se usa transporte público: proximidade de metrô/ônibus é importante
 - Se tem carro: garagem necessária
+
+**NOTAS DO CONSULTOR (campo `notas_admin`, se presente):**
+- Informações coletadas diretamente por telefone/conversa com o comprador após o cadastro
+- Têm PRIORIDADE MÁXIMA sobre o restante do perfil — reflectem o que o comprador disse com suas próprias palavras
+- Se contradizem o formulário, prevalecem as notas do consultor
 
 **CAMPOS DE IA (se disponíveis):**
 - `perfil_ideal_ia`: Use como REFERÊNCIA PRINCIPAL do que o comprador realmente precisa

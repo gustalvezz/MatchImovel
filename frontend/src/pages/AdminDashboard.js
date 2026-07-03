@@ -62,6 +62,23 @@ const AdminDashboard = () => {
   const [campaignPreview, setCampaignPreview] = useState(null);
   const [campaignSending, setCampaignSending] = useState(false);
   const [campaignPreviewing, setCampaignPreviewing] = useState(false);
+  const [adminNotesDraft, setAdminNotesDraft] = useState({});
+  const [savingNotes, setSavingNotes] = useState({});
+
+  const handleSaveAdminNotes = async (interestId) => {
+    setSavingNotes(prev => ({ ...prev, [interestId]: true }));
+    try {
+      await axios.patch(`${API}/admin/interests/${interestId}/notes`, {
+        admin_notes: adminNotesDraft[interestId] ?? ''
+      });
+      setInterests(prev => prev.map(i => i.id === interestId ? { ...i, admin_notes: adminNotesDraft[interestId] ?? '' } : i));
+      toast.success('Notas salvas com sucesso');
+    } catch (error) {
+      toast.error(error.response?.data?.detail || 'Erro ao salvar notas');
+    } finally {
+      setSavingNotes(prev => ({ ...prev, [interestId]: false }));
+    }
+  };
 
   const handleDeleteInterest = async (interestId) => {
     if (!window.confirm('ATENÇÃO: Esta ação irá excluir permanentemente o interesse e TODOS os dados relacionados (matches, visitas, conversas, etc). Deseja continuar?')) {
@@ -1038,14 +1055,41 @@ const AdminDashboard = () => {
               };
               const urgencyLabels = {
                 '3_meses': 'Urgente (3 meses)',
+                '6_meses': 'Em breve (6 meses)',
                 '12_meses': 'Planejando (12 meses)',
-                'sem_prazo': 'Pesquisando'
+                'sem_prazo': 'Pesquisando, sem prazo'
               };
               const petsLabels = {
                 'nao': 'Não tem',
                 'pequeno': 'Pequeno porte',
                 'grande': 'Grande porte',
                 'varios': 'Múltiplos pets'
+              };
+              const ageLabels = {
+                '18_25': '18–25 anos',
+                '26_35': '26–35 anos',
+                '36_45': '36–45 anos',
+                '46_60': '46–60 anos',
+                'acima_60': 'Acima de 60 anos'
+              };
+              const paymentLabels = {
+                'financiamento': 'Financiamento bancário',
+                'fgts': 'FGTS',
+                'vista': 'À vista',
+                'permuta': 'Permuta/troca',
+                'consorcio': 'Consórcio'
+              };
+              const propertyConditionLabels = {
+                'pronto': 'Pronto para morar',
+                'reformar': 'Aceita reformar',
+                'construcao': 'Em construção',
+                'planta': 'Na planta'
+              };
+              const currentStatusLabels = {
+                'alugando': 'Atualmente alugando',
+                'tem_imovel': 'Tem imóvel para vender',
+                'morando_familia': 'Mora com família',
+                'outro': 'Outro'
               };
               
               return (
@@ -1170,12 +1214,26 @@ const AdminDashboard = () => {
                   </div>
 
                   {/* New fields row */}
-                  {(interest.who_will_live?.length > 0 || interest.has_pets || interest.space_size || interest.floor_preference) && (
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+                  {/* Row 2: quem vai morar + filhos + pets + andar + tamanho */}
+                  {(interest.who_will_live?.length > 0 || interest.has_pets || interest.space_size || interest.floor_preference || interest.children_count || interest.children_ages?.length > 0) && (
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-4">
                       {interest.who_will_live?.length > 0 && (
                         <div className="bg-blue-50 p-3 rounded-xl">
-                          <p className="text-xs text-muted-foreground">Quem vai morar</p>
-                          <p className="font-semibold text-xs text-blue-700">{interest.who_will_live.slice(0,2).join(', ')}{interest.who_will_live.length > 2 ? '...' : ''}</p>
+                          <p className="text-xs text-muted-foreground mb-1">Quem vai morar</p>
+                          <div className="flex flex-wrap gap-1">
+                            {interest.who_will_live.map((item, idx) => (
+                              <span key={idx} className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">{item}</span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      {(interest.children_count || interest.children_ages?.length > 0) && (
+                        <div className="bg-pink-50 p-3 rounded-xl">
+                          <p className="text-xs text-muted-foreground mb-1">Filhos</p>
+                          {interest.children_count && <p className="text-sm font-semibold text-pink-700">{interest.children_count} filho(s)</p>}
+                          {interest.children_ages?.length > 0 && (
+                            <p className="text-xs text-pink-600 mt-0.5">Idades: {interest.children_ages.join(', ')}</p>
+                          )}
                         </div>
                       )}
                       {interest.has_pets && (
@@ -1198,7 +1256,63 @@ const AdminDashboard = () => {
                       )}
                     </div>
                   )}
-                  
+
+                  {/* Row 3: faixa etária, urgência, situação atual, forma de pagamento, condição do imóvel */}
+                  {(interest.age_range || interest.urgency || interest.current_property_status || interest.payment_method?.length > 0 || interest.property_condition?.length > 0) && (
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-4">
+                      {interest.age_range && (
+                        <div className="bg-slate-50 p-3 rounded-xl">
+                          <p className="text-xs text-muted-foreground">Faixa etária</p>
+                          <p className="font-semibold text-sm">{ageLabels[interest.age_range] || interest.age_range}</p>
+                        </div>
+                      )}
+                      {interest.urgency && (
+                        <div className="bg-amber-50 p-3 rounded-xl">
+                          <p className="text-xs text-muted-foreground">Urgência</p>
+                          <p className="font-semibold text-sm text-amber-700">{urgencyLabels[interest.urgency] || interest.urgency}</p>
+                        </div>
+                      )}
+                      {interest.current_property_status && (
+                        <div className="bg-slate-50 p-3 rounded-xl">
+                          <p className="text-xs text-muted-foreground">Situação atual</p>
+                          <p className="font-semibold text-sm">{currentStatusLabels[interest.current_property_status] || interest.current_property_status}</p>
+                        </div>
+                      )}
+                      {interest.payment_method?.length > 0 && (
+                        <div className="bg-green-50 p-3 rounded-xl">
+                          <p className="text-xs text-muted-foreground mb-1">Forma de pagamento</p>
+                          <div className="flex flex-wrap gap-1">
+                            {interest.payment_method.map((m, idx) => (
+                              <span key={idx} className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">{paymentLabels[m] || m}</span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      {interest.property_condition?.length > 0 && (
+                        <div className="bg-slate-50 p-3 rounded-xl">
+                          <p className="text-xs text-muted-foreground mb-1">Condição do imóvel</p>
+                          <div className="flex flex-wrap gap-1">
+                            {interest.property_condition.map((c, idx) => (
+                              <span key={idx} className="text-xs bg-slate-200 text-slate-700 px-2 py-0.5 rounded-full">{propertyConditionLabels[c] || c}</span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Land priorities (terreno only) */}
+                  {interest.land_priorities?.length > 0 && (
+                    <div className="mb-3">
+                      <p className="text-xs text-muted-foreground mb-2">Prioridades do terreno:</p>
+                      <div className="flex flex-wrap gap-1">
+                        {interest.land_priorities.map((item, idx) => (
+                          <Badge key={idx} variant="outline" className="text-xs">{item}</Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
                   {interest.ambiance && (
                     <div className="bg-indigo-50 p-3 rounded-xl mb-3">
                       <p className="text-xs text-muted-foreground mb-1">Ambiente Ideal</p>
@@ -1206,16 +1320,16 @@ const AdminDashboard = () => {
                     </div>
                   )}
 
-                  {/* Rotina e Locomoção */}
+                  {/* Rotina e Locomoção — sem truncamento */}
                   {(interest.daily_routine?.length > 0 || interest.transportation?.length > 0) && (
                     <div className="grid grid-cols-2 gap-3 mb-3">
                       {interest.daily_routine?.length > 0 && (
                         <div className="bg-violet-50 p-3 rounded-xl">
                           <p className="text-xs text-violet-700 font-medium mb-1">Rotina</p>
                           <div className="flex flex-wrap gap-1">
-                            {interest.daily_routine.slice(0,2).map((item, idx) => (
+                            {interest.daily_routine.map((item, idx) => (
                               <Badge key={idx} className="text-xs bg-violet-200 text-violet-800 border-violet-300">
-                                {item.split('—')[0].split('(')[0].trim().slice(0,20)}
+                                {item.split('—')[0].split('(')[0].trim()}
                               </Badge>
                             ))}
                           </div>
@@ -1225,7 +1339,7 @@ const AdminDashboard = () => {
                         <div className="bg-cyan-50 p-3 rounded-xl">
                           <p className="text-xs text-cyan-700 font-medium mb-1">Locomoção</p>
                           <div className="flex flex-wrap gap-1">
-                            {interest.transportation.slice(0,2).map((item, idx) => (
+                            {interest.transportation.map((item, idx) => (
                               <Badge key={idx} className="text-xs bg-cyan-200 text-cyan-800 border-cyan-300">{item}</Badge>
                             ))}
                           </div>
@@ -1282,6 +1396,25 @@ const AdminDashboard = () => {
                     </div>
                   )}
                   
+                  {/* Admin Notes */}
+                  <div className="bg-amber-50 border border-amber-200 p-3 rounded-xl mb-3">
+                    <p className="text-xs font-semibold text-amber-800 mb-2">Complemento do perfil (admin/curador)</p>
+                    <textarea
+                      className="w-full text-sm border border-amber-300 rounded-lg p-2 bg-white resize-none focus:outline-none focus:ring-2 focus:ring-amber-400"
+                      rows={3}
+                      placeholder="Notas coletadas por telefone ou conversa com o comprador..."
+                      value={adminNotesDraft[interest.id] !== undefined ? adminNotesDraft[interest.id] : (interest.admin_notes || '')}
+                      onChange={e => setAdminNotesDraft(prev => ({ ...prev, [interest.id]: e.target.value }))}
+                    />
+                    <button
+                      onClick={() => handleSaveAdminNotes(interest.id)}
+                      disabled={savingNotes[interest.id]}
+                      className="mt-2 text-xs px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg disabled:opacity-60"
+                    >
+                      {savingNotes[interest.id] ? 'Salvando...' : 'Salvar notas'}
+                    </button>
+                  </div>
+
                   {/* Compliance - Termos de Uso */}
                   {interest.terms_accepted && (
                     <div className="bg-emerald-50 border border-emerald-200 p-3 rounded-xl mb-3">

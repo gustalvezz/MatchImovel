@@ -1033,3 +1033,27 @@ async def daily_summary(request: Request):
         "new_buyers": len(new_buyers),
         "new_searches": len(new_searches),
     }
+
+
+class AdminNotesUpdate(BaseModel):
+    admin_notes: str
+
+
+@router.patch("/admin/interests/{interest_id}/notes")
+async def update_interest_admin_notes(
+    interest_id: str,
+    payload: AdminNotesUpdate,
+    current_user: dict = Depends(get_current_user)
+):
+    """Save admin/curator complementary notes for a buyer interest."""
+    if current_user["role"] not in ["admin", "curator"]:
+        raise HTTPException(status_code=403, detail="Acesso negado")
+
+    result = await db.interests.update_one(
+        {"id": interest_id},
+        {"$set": {"admin_notes": payload.admin_notes}}
+    )
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Interesse não encontrado")
+
+    return {"status": "success", "admin_notes": payload.admin_notes}
