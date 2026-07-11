@@ -116,8 +116,11 @@ Frontend (`frontend/vercel.json`) tem os mesmos headers + CSP em `Content-Securi
 | `process-searches.yml` | Segunda 12h Brasília (15h UTC) | `POST /api/internal/process-saved-searches` | Reprocessa buscas salvas ativas, envia resultados por email |
 | `send-visit-reminders.yml` | A cada 30 min | `POST /api/internal/send-visit-reminders` | Envia lembrete 2h antes de visitas (apenas 07h–21h Brasília) |
 | `weekly-uncovered-summary.yml` | Sexta 12h Brasília (15h UTC) | `POST /api/internal/uncovered-interests-weekly` | Resume compradores não cobertos por nenhuma busca |
+| `daily-summary.yml` | Diário 08h Brasília (11h UTC) | `POST /api/internal/daily-summary` | Email para admins com tudo novo nas últimas 24h (interesses, compradores, buscas); envia mesmo quando não há nada novo |
 
 Todos os workflows usam os secrets `REACT_APP_BACKEND_URL`, `INTERNAL_API_KEY` e `VERCEL_BYPASS_TOKEN`.  
+
+**Notificação imediata de novo interesse:** ao cadastrar um interesse (qualquer origem — formulário web v3/v2, comprador autenticado, ou WhatsApp), `_notify_admins_new_interest` em `buyer_routes.py` envia email na hora para todos os usuários com `role: admin` (função `send_new_interest_admin_notification` em `email_service.py`).
 O endpoint `/api/internal/send-visit-reminders` tem janela de silêncio: retorna `{"status": "skipped"}` fora das 07h–21h Brasília.
 
 ### WhatsApp (whatsapp_routes.py + whatsapp_service.py)

@@ -1167,3 +1167,134 @@ async def send_new_agent_notification(admin_email: str, admin_name: str, agent_n
     </html>
     """
     return await send_email(admin_email, subject, html)
+
+
+async def send_new_interest_admin_notification(admin_email: str, admin_name: str, buyer_name: str, buyer_email: str, buyer_phone: str, interest: dict, admin_url: str) -> bool:
+    """Notify an admin immediately when a new buyer interest is registered."""
+    property_type = interest.get('property_type') or 'Imóvel'
+    location = interest.get('location') or 'A definir'
+    budget_range = interest.get('budget_range') or ''
+    source = interest.get('form_version') or '—'
+
+    subject = f"Novo interesse cadastrado: {buyer_name or 'Comprador'}"
+    html = f"""
+    <!DOCTYPE html>
+    <html>
+    <head><meta charset="UTF-8"></head>
+    <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f8f9fa;">
+      <div style="text-align: center; margin-bottom: 30px;">
+        <h1 style="color: #4F46E5; font-size: 24px; margin: 0;">MatchImovel</h1>
+      </div>
+      <div style="background: white; border-radius: 16px; padding: 32px; box-shadow: 0 2px 8px rgba(0,0,0,0.08);">
+        <h2 style="color: #1e293b; margin-top: 0;">Novo interesse de comprador</h2>
+        <p style="color: #475569;">Olá, {admin_name}! Um novo interesse acabou de ser cadastrado na plataforma.</p>
+        <div style="background: #f1f5f9; border-radius: 12px; padding: 20px; margin: 24px 0;">
+          <table style="width: 100%; border-collapse: collapse;">
+            <tr><td style="color: #64748b; padding: 6px 0; font-size: 14px; width: 130px;">Comprador:</td><td style="color: #1e293b; font-weight: 600; font-size: 14px;">{buyer_name or 'Não informado'}</td></tr>
+            <tr><td style="color: #64748b; padding: 6px 0; font-size: 14px;">E-mail:</td><td style="color: #1e293b; font-size: 14px;">{buyer_email or 'Não informado'}</td></tr>
+            <tr><td style="color: #64748b; padding: 6px 0; font-size: 14px;">Telefone:</td><td style="color: #1e293b; font-size: 14px;">{buyer_phone or 'Não informado'}</td></tr>
+            <tr><td style="color: #64748b; padding: 6px 0; font-size: 14px;">Tipo de imóvel:</td><td style="color: #1e293b; font-weight: 600; font-size: 14px;">{property_type}</td></tr>
+            <tr><td style="color: #64748b; padding: 6px 0; font-size: 14px;">Localização:</td><td style="color: #1e293b; font-size: 14px;">{location}</td></tr>
+            <tr><td style="color: #64748b; padding: 6px 0; font-size: 14px;">Orçamento:</td><td style="color: #1e293b; font-size: 14px;">{budget_range or 'A definir'}</td></tr>
+            <tr><td style="color: #64748b; padding: 6px 0; font-size: 14px;">Origem:</td><td style="color: #94a3b8; font-size: 13px;">{source}</td></tr>
+          </table>
+        </div>
+        <div style="text-align: center; margin-top: 28px;">
+          <a href="{admin_url}" style="display: inline-block; background: linear-gradient(135deg, #4F46E5, #7C3AED); color: white; text-decoration: none; padding: 14px 32px; border-radius: 50px; font-weight: 600; font-size: 15px;">
+            Ver no painel administrativo
+          </a>
+        </div>
+      </div>
+    </body>
+    </html>
+    """
+    return await send_email(admin_email, subject, html)
+
+
+def _summary_section(title: str, items_html: str, count: int, color: str) -> str:
+    """Render one section of the daily summary email."""
+    return f"""
+        <div style="margin: 20px 0;">
+          <h3 style="color: {color}; font-size: 16px; margin: 0 0 10px 0;">{title} ({count})</h3>
+          <div style="background: #f8fafc; border-radius: 10px; padding: 4px 16px;">
+            <table style="width: 100%; border-collapse: collapse; font-size: 13px;">{items_html}</table>
+          </div>
+        </div>
+    """
+
+
+async def send_daily_summary_email(admin_email: str, admin_name: str, period_label: str, interests: list, buyers: list, searches: list, admin_url: str) -> bool:
+    """Send the daily 8h digest of everything new in the last 24h to an admin.
+
+    If all lists are empty, sends a short "nothing new" email instead.
+    """
+    total = len(interests) + len(buyers) + len(searches)
+
+    if total == 0:
+        subject = f"MatchImovel — Resumo diário ({period_label}): nada novo"
+        html = f"""
+        <!DOCTYPE html>
+        <html>
+        <head><meta charset="UTF-8"></head>
+        <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f8f9fa;">
+          <div style="text-align: center; margin-bottom: 30px;">
+            <h1 style="color: #4F46E5; font-size: 24px; margin: 0;">MatchImovel</h1>
+          </div>
+          <div style="background: white; border-radius: 16px; padding: 32px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); text-align: center;">
+            <h2 style="color: #1e293b; margin-top: 0;">Resumo diário</h2>
+            <p style="color: #64748b;">Período: {period_label}</p>
+            <p style="color: #475569; font-size: 15px;">Não há nada de novo na plataforma nas últimas 24 horas — nenhum interesse, comprador ou busca cadastrados.</p>
+          </div>
+        </body>
+        </html>
+        """
+        return await send_email(admin_email, subject, html)
+
+    interests_rows = "".join([
+        f'<tr><td style="padding: 6px 0; color: #1e293b; font-weight: 600;">{(i.get("property_type") or "Imóvel")}</td>'
+        f'<td style="padding: 6px 0; color: #475569;">{(i.get("location") or "—")}</td>'
+        f'<td style="padding: 6px 0; color: #94a3b8;">{(i.get("budget_range") or "—")}</td></tr>'
+        for i in interests
+    ]) or '<tr><td style="padding: 6px 0; color: #94a3b8;">Nenhum</td></tr>'
+
+    buyers_rows = "".join([
+        f'<tr><td style="padding: 6px 0; color: #1e293b; font-weight: 600;">{(b.get("name") or "Comprador")}</td>'
+        f'<td style="padding: 6px 0; color: #475569;">{(b.get("email") or "—")}</td></tr>'
+        for b in buyers
+    ]) or '<tr><td style="padding: 6px 0; color: #94a3b8;">Nenhum</td></tr>'
+
+    searches_rows = "".join([
+        f'<tr><td style="padding: 6px 0; color: #1e293b; font-weight: 600;">{(s.get("property_data", {}).get("property_type") if isinstance(s.get("property_data"), dict) else None) or s.get("property_type") or "Busca"}</td>'
+        f'<td style="padding: 6px 0; color: #475569;">{(s.get("agent_name") or s.get("agent_email") or "—")}</td></tr>'
+        for s in searches
+    ]) or '<tr><td style="padding: 6px 0; color: #94a3b8;">Nenhuma</td></tr>'
+
+    sections = (
+        _summary_section("Novos interesses", interests_rows, len(interests), "#4F46E5")
+        + _summary_section("Novos compradores", buyers_rows, len(buyers), "#059669")
+        + _summary_section("Novas buscas de corretores", searches_rows, len(searches), "#d97706")
+    )
+
+    subject = f"MatchImovel — Resumo diário ({period_label}): {total} novidade(s)"
+    html = f"""
+    <!DOCTYPE html>
+    <html>
+    <head><meta charset="UTF-8"></head>
+    <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f8f9fa;">
+      <div style="text-align: center; margin-bottom: 30px;">
+        <h1 style="color: #4F46E5; font-size: 24px; margin: 0;">MatchImovel</h1>
+      </div>
+      <div style="background: white; border-radius: 16px; padding: 32px; box-shadow: 0 2px 8px rgba(0,0,0,0.08);">
+        <h2 style="color: #1e293b; margin-top: 0;">Resumo diário</h2>
+        <p style="color: #64748b; margin-top: 0;">Olá, {admin_name}! Período: {period_label}</p>
+        {sections}
+        <div style="text-align: center; margin-top: 28px;">
+          <a href="{admin_url}" style="display: inline-block; background: linear-gradient(135deg, #4F46E5, #7C3AED); color: white; text-decoration: none; padding: 14px 32px; border-radius: 50px; font-weight: 600; font-size: 15px;">
+            Abrir painel administrativo
+          </a>
+        </div>
+      </div>
+    </body>
+    </html>
+    """
+    return await send_email(admin_email, subject, html)

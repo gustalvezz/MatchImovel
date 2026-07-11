@@ -343,6 +343,16 @@ const BuyerDashboard = () => {
                       </div>
                     )}
 
+                    {/* Admin notes visible to buyer */}
+                    {interest.admin_notes && (
+                      <div className="mt-4 pt-4 border-t border-slate-200">
+                        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
+                          <p className="text-xs font-semibold text-amber-800 mb-1">Complemento do perfil</p>
+                          <p className="text-sm text-amber-900">{interest.admin_notes}</p>
+                        </div>
+                      </div>
+                    )}
+
                     {/* Legacy AI Profile (for older interests) */}
                     {!interest.interpretacaoIA && interest.ai_profile && (
                       <div className="mt-4 pt-4 border-t border-slate-200">

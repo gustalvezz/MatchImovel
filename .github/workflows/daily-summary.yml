@@ -1,0 +1,29 @@
+name: Daily Admin Summary
+
+on:
+  schedule:
+    - cron: '0 11 * * *'  # todos os dias às 11h UTC (08h Brasília)
+  workflow_dispatch:        # permite rodar manualmente pelo GitHub
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Send daily admin summary via email
+        run: |
+          response=$(curl -s -o /tmp/response.json -w "%{http_code}" \
+            -X POST "${{ secrets.REACT_APP_BACKEND_URL }}/api/internal/daily-summary" \
+            -H "X-Internal-Key: ${{ secrets.INTERNAL_API_KEY }}" \
+            -H "x-vercel-protection-bypass: ${{ secrets.VERCEL_BYPASS_TOKEN }}" \
+            -H "Content-Type: application/json")
+
+          echo "HTTP status: $response"
+          echo "Response body:"
+          cat /tmp/response.json
+
+          if [ "$response" != "200" ]; then
+            echo "Error: unexpected status $response"
+            exit 1
+          fi

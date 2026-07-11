@@ -523,10 +523,13 @@ async def ai_discovery(request: AIDiscoveryRequest, current_user: dict = Depends
             "perfil_ia_resumido": interest.get("ai_profile", ""),
             
             # Additional notes
-            "observacoes": interest.get("additional_notes", "")
+            "observacoes": interest.get("additional_notes", ""),
+
+            # Admin/curator complementary notes (added after phone/contact)
+            "notas_admin": interest.get("admin_notes", "")
         }
         buyer_profiles.append(profile)
-    
+
     try:
         ai_results = await evaluate_buyers_with_openai(
             property_description=request.property_description,
@@ -916,7 +919,8 @@ async def process_saved_searches(request: Request):
                         "rotina_em_casa": interest.get("daily_routine", []),
                         "locomocao": interest.get("transportation", []),
                         "interpretacao_ia": interest.get("interpretacaoIA"),
-                        "observacoes": interest.get("additional_notes", "")
+                        "observacoes": interest.get("additional_notes", ""),
+                        "notas_admin": interest.get("admin_notes", "")
                     }
                     buyer_profiles.append(profile)
                 
