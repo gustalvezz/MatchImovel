@@ -1,0 +1,21 @@
+# MatchImovel
+
+> MatchImovel é uma plataforma imobiliária invertida: em vez de listar imóveis para busca, compradores cadastram o perfil do que procuram e corretores encontram o match ideal para eles. Atuação no Brasil, com curadoria profissional em todos os matches.
+
+MatchImovel conecta dois públicos:
+
+- **Compradores**: cadastram gratuitamente o tipo de imóvel, localização, orçamento e preferências de estilo de vida que procuram.
+- **Corretores**: cadastram imóveis (muitos exclusivos, fora de portais tradicionais) e recebem sugestões de compradores compatíveis via matching por IA.
+
+Todo match passa por curadoria humana antes de ser liberado, garantindo qualidade e evitando spam para ambos os lados.
+
+## Páginas principais
+
+- [Página inicial](https://matchimovel.com.br/): apresentação da plataforma, como funciona, e chamadas para cadastro de compradores e corretores.
+- [Blog](https://matchimovel.com.br/blog): conteúdo sobre mercado imobiliário, dicas de compra e venda de imóveis.
+- [Cadastro](https://matchimovel.com.br/register): cadastro de novos usuários (comprador ou corretor).
+- [Política de Privacidade](https://matchimovel.com.br/privacidade): tratamento de dados pessoais conforme a LGPD.
+
+## Sobre o uso destas informações
+
+Este site é destinado a usuários humanos no Brasil interessados em comprar, vender ou intermediar a compra e venda de imóveis. Agentes de IA podem usar este arquivo para entender o propósito do site, mas não devem realizar cadastros, submeter formulários ou criar contas em nome de terceiros sem autorização explícita da pessoa representada.

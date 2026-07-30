@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, Suspense, lazy } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { captureUTMs } from '@/utils/utm';
 import { initTrackers, trackPageView } from '@/utils/tracking';
@@ -9,24 +9,27 @@ import { Analytics } from '@vercel/analytics/react';
 import { Loader2 } from 'lucide-react';
 import AppLogo from '@/components/AppLogo';
 import LandingPage from '@/pages/LandingPage';
-import RegisterPage from '@/pages/RegisterPage';
-import LoginPage from '@/pages/LoginPage';
-import ForgotPasswordPage from '@/pages/ForgotPasswordPage';
-import ResetPasswordPage from '@/pages/ResetPasswordPage';
-import BuyerDashboard from '@/pages/BuyerDashboard';
-import AgentDashboard from '@/pages/AgentDashboard';
-import CuratorDashboard from '@/pages/CuratorDashboard';
-import CompleteRegistration from '@/pages/CompleteRegistration';
-import AdminLogin from '@/pages/AdminLogin';
-import AdminDashboard from '@/pages/AdminDashboard';
-import VisitActionPage from '@/pages/VisitActionPage';
-import VisitFeedbackPage from '@/pages/VisitFeedbackPage';
-import PrivacyPage from '@/pages/PrivacyPage';
-import BlogListPage from '@/pages/BlogListPage';
-import BlogPostPage from '@/pages/BlogPostPage';
-import CampaignRegisterPage from '@/pages/CampaignRegisterPage';
 import CookieBanner from '@/components/CookieBanner';
 import '@/App.css';
+
+// Lazy-loaded routes — keeps the initial bundle small; only the landing page
+// (the highest-traffic route) is loaded eagerly.
+const RegisterPage = lazy(() => import('@/pages/RegisterPage'));
+const LoginPage = lazy(() => import('@/pages/LoginPage'));
+const ForgotPasswordPage = lazy(() => import('@/pages/ForgotPasswordPage'));
+const ResetPasswordPage = lazy(() => import('@/pages/ResetPasswordPage'));
+const BuyerDashboard = lazy(() => import('@/pages/BuyerDashboard'));
+const AgentDashboard = lazy(() => import('@/pages/AgentDashboard'));
+const CuratorDashboard = lazy(() => import('@/pages/CuratorDashboard'));
+const CompleteRegistration = lazy(() => import('@/pages/CompleteRegistration'));
+const AdminLogin = lazy(() => import('@/pages/AdminLogin'));
+const AdminDashboard = lazy(() => import('@/pages/AdminDashboard'));
+const VisitActionPage = lazy(() => import('@/pages/VisitActionPage'));
+const VisitFeedbackPage = lazy(() => import('@/pages/VisitFeedbackPage'));
+const PrivacyPage = lazy(() => import('@/pages/PrivacyPage'));
+const BlogListPage = lazy(() => import('@/pages/BlogListPage'));
+const BlogPostPage = lazy(() => import('@/pages/BlogPostPage'));
+const CampaignRegisterPage = lazy(() => import('@/pages/CampaignRegisterPage'));
 
 // Tracks pageviews on route changes (only when consent is 'all')
 const RouteTracker = () => {
@@ -101,6 +104,7 @@ function App() {
     <AuthProvider>
       <BrowserRouter>
         <RouteTracker />
+        <Suspense fallback={<LoadingScreen />}>
         <Routes>
           <Route path="/" element={<LandingPage />} />
           <Route path="/register" element={
@@ -173,6 +177,7 @@ function App() {
           <Route path="/blog/:slug" element={<BlogPostPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
+        </Suspense>
         <Toaster position="top-right" richColors />
         <Analytics />
         <CookieBanner onConsent={(c) => { if (c === 'all') initTrackers(); }} />
