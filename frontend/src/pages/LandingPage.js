@@ -155,6 +155,8 @@ const LandingPage = () => {
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
               className="p-2 text-slate-600"
+              aria-label={mobileMenuOpen ? 'Fechar menu' : 'Abrir menu'}
+              aria-expanded={mobileMenuOpen}
             >
               {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
             </button>
@@ -205,6 +207,7 @@ const LandingPage = () => {
         )}
       </nav>
 
+      <main>
       {/* Hero Section */}
       <div id="hero" className="relative overflow-hidden bg-gradient-to-br from-indigo-50 via-purple-50 to-white pt-20">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-indigo-200 via-purple-100 to-transparent opacity-60"></div>
@@ -390,10 +393,14 @@ const LandingPage = () => {
               viewport={{ once: true }}
               className="relative"
             >
-              <img 
-                src="https://images.unsplash.com/photo-1758523419991-c6d6dae06626?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1NTJ8MHwxfHNlYXJjaHwxfHxtb2Rlcm4lMjBoYXBweSUyMGNvdXBsZSUyMGhvbWUlMjBrZXlzfGVufDB8fHx8MTc3Mjc3NjA1OHww&ixlib=rb-4.1.0&q=85"
+              <img
+                src="https://images.unsplash.com/photo-1758523419991-c6d6dae06626?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1NTJ8MHwxfHNlYXJjaHwxfHxtb2Rlcm4lMjBoYXBweSUyMGNvdXBsZSUyMGhvbWUlMjBrZXlzfGVufDB8fHx8MTc3Mjc3NjA1OHww&ixlib=rb-4.1.0&q=75&w=900&h=660&fit=crop&auto=format"
                 alt="Casal feliz com chaves"
-                className="rounded-3xl shadow-2xl"
+                width={900}
+                height={660}
+                loading="lazy"
+                decoding="async"
+                className="rounded-3xl shadow-2xl w-full h-auto"
               />
             </motion.div>
           </div>
@@ -410,10 +417,14 @@ const LandingPage = () => {
               viewport={{ once: true }}
               className="order-2 md:order-1"
             >
-              <img 
-                src="https://images.unsplash.com/photo-1758611972971-1c8b9c6d7822?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1NzV8MHwxfHNlYXJjaHwzfHxibGFjayUyMHdvbWFuJTIwcmVhbCUyMGVzdGF0ZSUyMGFnZW50JTIwc21pbGluZyUyMGxvb2tpbmclMjBhdCUyMHBob25lJTIwcHJvZmVzc2lvbmFsfGVufDB8fHx8MTc3MzA5Mzk5Mnww&ixlib=rb-4.1.0&q=85"
+              <img
+                src="https://images.unsplash.com/photo-1758611972971-1c8b9c6d7822?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1NzV8MHwxfHNlYXJjaHwzfHxibGFjayUyMHdvbWFuJTIwcmVhbCUyMGVzdGF0ZSUyMGFnZW50JTIwc21pbGluZyUyMGxvb2tpbmclMjBhdCUyMHBob25lJTIwcHJvZmVzc2lvbmFsfGVufDB8fHx8MTc3MzA5Mzk5Mnww&ixlib=rb-4.1.0&q=75&w=900&h=660&fit=crop&auto=format"
                 alt="Corretora profissional"
-                className="rounded-3xl shadow-2xl"
+                width={900}
+                height={660}
+                loading="lazy"
+                decoding="async"
+                className="rounded-3xl shadow-2xl w-full h-auto"
               />
             </motion.div>
 
@@ -611,7 +622,7 @@ const LandingPage = () => {
                       {blogPosts[currentBlogPost]?.title}
                     </h3>
                     {blogPosts[currentBlogPost]?.excerpt && (
-                      <p className="text-slate-500 leading-relaxed mb-6 line-clamp-3">
+                      <p className="text-slate-600 leading-relaxed mb-6 line-clamp-3">
                         {blogPosts[currentBlogPost].excerpt}
                       </p>
                     )}
@@ -646,18 +657,23 @@ const LandingPage = () => {
                     size="icon"
                     className="rounded-full w-11 h-11 border-2 hover:border-indigo-600"
                     onClick={() => setCurrentBlogPost(i => (i - 1 + blogPosts.length) % blogPosts.length)}
+                    aria-label="Post anterior"
                   >
                     <ChevronLeft className="w-5 h-5" />
                   </Button>
                 )}
 
-                <div className="flex gap-2">
+                <div className="flex gap-1">
                   {blogPosts.map((_, idx) => (
                     <button
                       key={idx}
                       onClick={() => setCurrentBlogPost(idx)}
-                      className={`h-2 rounded-full transition-all ${idx === currentBlogPost ? 'w-8 bg-indigo-600' : 'w-2 bg-slate-300 hover:bg-slate-400'}`}
-                    />
+                      className="p-2 -m-1"
+                      aria-label={`Ir para o post ${idx + 1}`}
+                      aria-current={idx === currentBlogPost}
+                    >
+                      <span className={`block h-2 rounded-full transition-all ${idx === currentBlogPost ? 'w-8 bg-indigo-600' : 'w-2 bg-slate-300 hover:bg-slate-400'}`} />
+                    </button>
                   ))}
                 </div>
 
@@ -667,6 +683,7 @@ const LandingPage = () => {
                     size="icon"
                     className="rounded-full w-11 h-11 border-2 hover:border-indigo-600"
                     onClick={() => setCurrentBlogPost(i => (i + 1) % blogPosts.length)}
+                    aria-label="Próximo post"
                   >
                     <ChevronRight className="w-5 h-5" />
                   </Button>
@@ -737,22 +754,27 @@ const LandingPage = () => {
                 size="icon"
                 className="rounded-full w-12 h-12 border-2 hover:border-indigo-600"
                 data-testid="testimonial-prev"
+                aria-label="Depoimento anterior"
               >
                 <ChevronLeft className="w-5 h-5" />
               </Button>
-              
-              <div className="flex gap-2">
+
+              <div className="flex gap-1">
                 {testimonials.map((_, idx) => (
                   <button
                     key={idx}
                     onClick={() => setCurrentTestimonial(idx)}
-                    className={`w-2 h-2 rounded-full transition-all ${
+                    className="p-2 -m-1"
+                    data-testid={`testimonial-dot-${idx}`}
+                    aria-label={`Ir para o depoimento ${idx + 1}`}
+                    aria-current={idx === currentTestimonial}
+                  >
+                    <span className={`block h-2 rounded-full transition-all ${
                       idx === currentTestimonial
                         ? 'w-8 bg-indigo-600'
-                        : 'bg-slate-300 hover:bg-slate-400'
-                    }`}
-                    data-testid={`testimonial-dot-${idx}`}
-                  />
+                        : 'w-2 bg-slate-300 hover:bg-slate-400'
+                    }`} />
+                  </button>
                 ))}
               </div>
 
@@ -762,6 +784,7 @@ const LandingPage = () => {
                 size="icon"
                 className="rounded-full w-12 h-12 border-2 hover:border-indigo-600"
                 data-testid="testimonial-next"
+                aria-label="Próximo depoimento"
               >
                 <ChevronRight className="w-5 h-5" />
               </Button>
@@ -769,6 +792,7 @@ const LandingPage = () => {
           </div>
         </div>
       </div>
+      </main>
 
       {/* Footer */}
       <footer className="bg-slate-900 text-slate-400 py-12">
