@@ -135,6 +135,11 @@ const InterestFormModal = ({ isOpen, onClose, onSuccess, userInfo }) => {
     budget_range: '',
     payment_method: [],
     current_property_status: '',
+    exchange_asset_type: '',
+    exchange_asset_description: '',
+    exchange_asset_value: '',
+    exchange_asset_location: '',
+    exchange_cash_complement: '',
 
     // BLOCO 3 - COMO DEVE SER
     indispensable: [],
@@ -210,6 +215,13 @@ const InterestFormModal = ({ isOpen, onClose, onSuccess, userInfo }) => {
     screens.push({ id: 'budget_range', block: 2 });
     screens.push({ id: 'payment_method', block: 2 });
 
+    const hasOwnAsset = formData.payment_method.includes('Tenho imóvel para dar como parte do pagamento')
+      || formData.payment_method.includes('Tenho outro bem (veículo, etc.) para dar como parte do pagamento');
+
+    if (hasOwnAsset) {
+      screens.push({ id: 'exchange_offer_details', block: 2, conditional: true });
+    }
+
     if (formData.payment_method.includes('Tenho imóvel para dar como parte do pagamento')) {
       screens.push({ id: 'current_property_status', block: 2, conditional: true });
     }
@@ -284,6 +296,7 @@ const InterestFormModal = ({ isOpen, onClose, onSuccess, userInfo }) => {
       case 'location': return formData.location.trim() !== '';
       case 'budget_range': return formData.budget_range !== '';
       case 'payment_method': return formData.payment_method.length > 0;
+      case 'exchange_offer_details': return formData.exchange_asset_type !== '' && formData.exchange_asset_description.trim() !== '';
       case 'current_property_status': return formData.current_property_status !== '';
       case 'investment_goal': return formData.investment_goal !== '';
       case 'indispensable': return formData.indispensable.length > 0 || (formData.indispensable.includes('Outro') && formData.indispensable_other.trim() !== '');
@@ -330,10 +343,20 @@ const InterestFormModal = ({ isOpen, onClose, onSuccess, userInfo }) => {
       return;
     }
     
+    const hasExchangeAsset = formData.exchange_asset_type !== '' && formData.exchange_asset_description.trim() !== '';
+    const exchange_offer = hasExchangeAsset ? {
+      asset_type: formData.exchange_asset_type,
+      asset_description: formData.exchange_asset_description,
+      asset_value: formData.exchange_asset_value ? Number(formData.exchange_asset_value) : null,
+      asset_location: formData.exchange_asset_type === 'imovel' ? formData.exchange_asset_location : null,
+      cash_complement: formData.exchange_cash_complement ? Number(formData.exchange_cash_complement) : null,
+    } : null;
+
     setIsSubmitting(true);
     try {
       await axios.post(`${API}/interests/create-full-v2`, {
         ...formData,
+        exchange_offer,
         name: userInfo?.name || formData.name,
         phone: userInfo?.phone || formData.phone,
         email: userInfo?.email || formData.email,
@@ -640,6 +663,7 @@ const InterestFormModal = ({ isOpen, onClose, onSuccess, userInfo }) => {
                 'Financiamento bancário',
                 'FGTS + financiamento',
                 'Tenho imóvel para dar como parte do pagamento',
+                'Tenho outro bem (veículo, etc.) para dar como parte do pagamento',
                 'Ainda não sei'
               ].map((item) => (
                 <CheckboxCard
@@ -653,7 +677,83 @@ const InterestFormModal = ({ isOpen, onClose, onSuccess, userInfo }) => {
           </div>
         );
 
-      // TELA 8A: Situação do imóvel atual (condicional)
+      // TELA 8A: Detalhes do bem oferecido em permuta (condicional)
+      case 'exchange_offer_details':
+        return (
+          <div>
+            <h2 className="text-base md:text-lg font-bold mb-1">Conte mais sobre o bem que você tem</h2>
+            <p className="text-slate-500 mb-3 text-xs">Isso ajuda o corretor a avaliar se faz sentido aceitar como parte do pagamento</p>
+            <div className="space-y-3">
+              <div>
+                <p className="text-xs font-medium text-slate-600 mb-1.5">Tipo do bem</p>
+                <div className="grid grid-cols-3 gap-2">
+                  {[
+                    { v: 'imovel', l: 'Imóvel' },
+                    { v: 'veiculo', l: 'Veículo' },
+                    { v: 'outro', l: 'Outro' },
+                  ].map(opt => (
+                    <button
+                      key={opt.v}
+                      type="button"
+                      onClick={() => handleSingleSelect('exchange_asset_type', opt.v)}
+                      className={`py-2 rounded-xl border-2 text-sm font-medium transition-colors ${
+                        formData.exchange_asset_type === opt.v
+                          ? 'border-indigo-600 bg-indigo-50 text-indigo-700'
+                          : 'border-slate-200 text-slate-600 hover:border-slate-300'
+                      }`}
+                    >
+                      {opt.l}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <p className="text-xs font-medium text-slate-600 mb-1.5">Descrição (ex: "Hilux 2020" ou "Studio 45m² no Itaim")</p>
+                <Input
+                  value={formData.exchange_asset_description}
+                  onChange={(e) => setFormData(prev => ({ ...prev, exchange_asset_description: e.target.value }))}
+                  placeholder="Descreva o bem..."
+                  className="h-9 text-sm rounded-lg"
+                />
+              </div>
+              <div>
+                <p className="text-xs font-medium text-slate-600 mb-1.5">Valor estimado do bem (R$, opcional)</p>
+                <Input
+                  type="number"
+                  min="0"
+                  value={formData.exchange_asset_value}
+                  onChange={(e) => setFormData(prev => ({ ...prev, exchange_asset_value: e.target.value }))}
+                  placeholder="0"
+                  className="h-9 text-sm rounded-lg"
+                />
+              </div>
+              {formData.exchange_asset_type === 'imovel' && (
+                <div>
+                  <p className="text-xs font-medium text-slate-600 mb-1.5">Localização do imóvel oferecido</p>
+                  <Input
+                    value={formData.exchange_asset_location}
+                    onChange={(e) => setFormData(prev => ({ ...prev, exchange_asset_location: e.target.value }))}
+                    placeholder="Cidade / bairro"
+                    className="h-9 text-sm rounded-lg"
+                  />
+                </div>
+              )}
+              <div>
+                <p className="text-xs font-medium text-slate-600 mb-1.5">Dinheiro adicional disponível (R$, opcional)</p>
+                <Input
+                  type="number"
+                  min="0"
+                  value={formData.exchange_cash_complement}
+                  onChange={(e) => setFormData(prev => ({ ...prev, exchange_cash_complement: e.target.value }))}
+                  placeholder="0"
+                  className="h-9 text-sm rounded-lg"
+                />
+              </div>
+            </div>
+          </div>
+        );
+
+      // TELA 8B: Situação do imóvel atual (condicional)
       case 'current_property_status':
         return (
           <div>

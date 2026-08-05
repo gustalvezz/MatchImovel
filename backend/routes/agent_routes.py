@@ -115,12 +115,12 @@ import json
 # ============ PROPERTY ANALYSIS ENDPOINT ============
 
 PROPERTY_FIELDS_BY_TYPE = {
-    "apartamento": ["location", "address", "price", "payment_methods", "floor", "area_m2", "bedrooms", "suites", "bathrooms", "parking_spots", "has_balcony", "condition", "furnished", "style", "condo_fee", "condo_amenities", "iptu", "accepts_financing", "accepts_exchange", "link", "ai_summary"],
-    "casa": ["location", "address", "price", "payment_methods", "area_m2", "land_area_m2", "bedrooms", "suites", "bathrooms", "parking_spots", "has_backyard", "has_pool", "has_bbq", "condition", "furnished", "style", "iptu", "accepts_financing", "accepts_exchange", "link", "ai_summary"],
-    "casa_condominio": ["location", "address", "price", "payment_methods", "area_m2", "land_area_m2", "bedrooms", "suites", "bathrooms", "parking_spots", "has_backyard", "has_pool", "has_bbq", "condition", "furnished", "style", "condo_fee", "condo_amenities", "pet_friendly", "iptu", "accepts_financing", "accepts_exchange", "link", "ai_summary"],
-    "terreno": ["location", "address", "price", "payment_methods", "land_area_m2", "frontage_m", "zoning", "topography", "documentation_status", "accepts_financing", "accepts_exchange", "link", "ai_summary"],
-    "studio_loft": ["location", "address", "price", "payment_methods", "floor", "area_m2", "bathrooms", "parking_spots", "layout_type", "has_balcony", "condition", "furnished", "style", "condo_fee", "condo_amenities", "iptu", "accepts_financing", "accepts_exchange", "link", "ai_summary"],
-    "sala_comercial": ["location", "address", "price", "payment_methods", "floor", "area_m2", "parking_spots", "layout", "has_ac", "has_generator", "condo_fee", "iptu", "accepts_pj", "accepts_financing", "accepts_exchange", "link", "ai_summary"],
+    "apartamento": ["location", "address", "price", "payment_methods", "floor", "area_m2", "bedrooms", "suites", "bathrooms", "parking_spots", "has_balcony", "condition", "furnished", "style", "condo_fee", "condo_amenities", "iptu", "accepts_financing", "accepts_exchange", "exchange_accepted_types", "exchange_max_value", "exchange_notes", "link", "ai_summary"],
+    "casa": ["location", "address", "price", "payment_methods", "area_m2", "land_area_m2", "bedrooms", "suites", "bathrooms", "parking_spots", "has_backyard", "has_pool", "has_bbq", "condition", "furnished", "style", "iptu", "accepts_financing", "accepts_exchange", "exchange_accepted_types", "exchange_max_value", "exchange_notes", "link", "ai_summary"],
+    "casa_condominio": ["location", "address", "price", "payment_methods", "area_m2", "land_area_m2", "bedrooms", "suites", "bathrooms", "parking_spots", "has_backyard", "has_pool", "has_bbq", "condition", "furnished", "style", "condo_fee", "condo_amenities", "pet_friendly", "iptu", "accepts_financing", "accepts_exchange", "exchange_accepted_types", "exchange_max_value", "exchange_notes", "link", "ai_summary"],
+    "terreno": ["location", "address", "price", "payment_methods", "land_area_m2", "frontage_m", "zoning", "topography", "documentation_status", "accepts_financing", "accepts_exchange", "exchange_accepted_types", "exchange_max_value", "exchange_notes", "link", "ai_summary"],
+    "studio_loft": ["location", "address", "price", "payment_methods", "floor", "area_m2", "bathrooms", "parking_spots", "layout_type", "has_balcony", "condition", "furnished", "style", "condo_fee", "condo_amenities", "iptu", "accepts_financing", "accepts_exchange", "exchange_accepted_types", "exchange_max_value", "exchange_notes", "link", "ai_summary"],
+    "sala_comercial": ["location", "address", "price", "payment_methods", "floor", "area_m2", "parking_spots", "layout", "has_ac", "has_generator", "condo_fee", "iptu", "accepts_pj", "accepts_financing", "accepts_exchange", "exchange_accepted_types", "exchange_max_value", "exchange_notes", "link", "ai_summary"],
 }
 
 FIELD_DESCRIPTIONS = {
@@ -153,6 +153,9 @@ FIELD_DESCRIPTIONS = {
     "iptu": "valor anual do IPTU em reais (número)",
     "accepts_financing": "aceita financiamento bancário: true ou false",
     "accepts_exchange": "aceita permuta: true, false ou 'parcial'",
+    "exchange_accepted_types": "o que aceita em permuta: lista com quaisquer de ['Imóvel', 'Veículo', 'Outro bem']",
+    "exchange_max_value": "valor máximo aceito em bens/permuta em reais (número)",
+    "exchange_notes": "condições da permuta descritas livremente pelo corretor (texto ou null)",
     "accepts_pj": "aceita pessoa jurídica: true ou false",
     "zoning": "zoneamento: 'residencial', 'comercial' ou 'misto'",
     "topography": "topografia: 'plano', 'aclive' ou 'declive'",
@@ -515,7 +518,8 @@ async def ai_discovery(request: AIDiscoveryRequest, current_user: dict = Depends
             # Payment
             "forma_pagamento": interest.get("payment_method", []),
             "situacao_imovel_atual": interest.get("current_property_status", ""),
-            
+            "oferta_permuta": interest.get("exchange_offer"),
+
             # AI Interpretation (if available)
             "interpretacao_ia": interest.get("interpretacaoIA"),
             
@@ -918,6 +922,9 @@ async def process_saved_searches(request: Request):
                         "precisa_proximidade_de": interest.get("proximity_needs", []),
                         "rotina_em_casa": interest.get("daily_routine", []),
                         "locomocao": interest.get("transportation", []),
+                        "forma_pagamento": interest.get("payment_method", []),
+                        "situacao_imovel_atual": interest.get("current_property_status", ""),
+                        "oferta_permuta": interest.get("exchange_offer"),
                         "interpretacao_ia": interest.get("interpretacaoIA"),
                         "observacoes": interest.get("additional_notes", ""),
                         "notas_admin": interest.get("admin_notes", "")

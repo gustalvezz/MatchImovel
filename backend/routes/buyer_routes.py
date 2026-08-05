@@ -649,6 +649,7 @@ BLOCO 2 - O QUE VOCÊ BUSCA:
 - Orçamento máximo: {form_data.get('budget_range', 'Não informado')}
 - Forma de pagamento: {', '.join(form_data.get('payment_method', [])) or 'Não informado'}
 - Situação do imóvel atual: {form_data.get('current_property_status', 'N/A')}
+- Oferta de permuta: {form_data.get('exchange_offer') or 'N/A'}
 
 BLOCO 3 - COMO DEVE SER:
 - Indispensáveis: {', '.join(form_data.get('indispensable', [])) or 'Não informado'} {form_data.get('indispensable_other', '')}
@@ -845,6 +846,7 @@ async def create_full_interest_v2(request: Request, background_tasks: Background
         "budget_range": form_data.get('budget_range'),
         "payment_method": form_data.get('payment_method', []),
         "current_property_status": form_data.get('current_property_status'),
+        "exchange_offer": form_data.get('exchange_offer'),
         
         # BLOCO 3 - COMO DEVE SER
         "indispensable": indispensable,

@@ -4,12 +4,12 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 
 export const FIELDS_BY_TYPE = {
-  apartamento:    ['location','address','price','payment_methods','floor','area_m2','bedrooms','suites','bathrooms','parking_spots','has_balcony','condition','furnished','style','condo_fee','condo_amenities','iptu','accepts_financing','accepts_exchange','link'],
-  casa:           ['location','address','price','payment_methods','area_m2','land_area_m2','bedrooms','suites','bathrooms','parking_spots','has_backyard','has_pool','has_bbq','condition','furnished','style','iptu','accepts_financing','accepts_exchange','link'],
-  casa_condominio:['location','address','price','payment_methods','area_m2','land_area_m2','bedrooms','suites','bathrooms','parking_spots','has_backyard','has_pool','has_bbq','condition','furnished','style','condo_fee','condo_amenities','pet_friendly','iptu','accepts_financing','accepts_exchange','link'],
-  terreno:        ['location','address','price','payment_methods','land_area_m2','frontage_m','zoning','topography','documentation_status','accepts_financing','accepts_exchange','link'],
-  studio_loft:    ['location','address','price','payment_methods','floor','area_m2','bathrooms','parking_spots','layout_type','has_balcony','condition','furnished','style','condo_fee','condo_amenities','iptu','accepts_financing','accepts_exchange','link'],
-  sala_comercial: ['location','address','price','payment_methods','floor','area_m2','parking_spots','layout','has_ac','has_generator','condo_fee','iptu','accepts_pj','accepts_financing','accepts_exchange','link'],
+  apartamento:    ['location','address','price','payment_methods','floor','area_m2','bedrooms','suites','bathrooms','parking_spots','has_balcony','condition','furnished','style','condo_fee','condo_amenities','iptu','accepts_financing','accepts_exchange','exchange_accepted_types','exchange_max_value','exchange_notes','link'],
+  casa:           ['location','address','price','payment_methods','area_m2','land_area_m2','bedrooms','suites','bathrooms','parking_spots','has_backyard','has_pool','has_bbq','condition','furnished','style','iptu','accepts_financing','accepts_exchange','exchange_accepted_types','exchange_max_value','exchange_notes','link'],
+  casa_condominio:['location','address','price','payment_methods','area_m2','land_area_m2','bedrooms','suites','bathrooms','parking_spots','has_backyard','has_pool','has_bbq','condition','furnished','style','condo_fee','condo_amenities','pet_friendly','iptu','accepts_financing','accepts_exchange','exchange_accepted_types','exchange_max_value','exchange_notes','link'],
+  terreno:        ['location','address','price','payment_methods','land_area_m2','frontage_m','zoning','topography','documentation_status','accepts_financing','accepts_exchange','exchange_accepted_types','exchange_max_value','exchange_notes','link'],
+  studio_loft:    ['location','address','price','payment_methods','floor','area_m2','bathrooms','parking_spots','layout_type','has_balcony','condition','furnished','style','condo_fee','condo_amenities','iptu','accepts_financing','accepts_exchange','exchange_accepted_types','exchange_max_value','exchange_notes','link'],
+  sala_comercial: ['location','address','price','payment_methods','floor','area_m2','parking_spots','layout','has_ac','has_generator','condo_fee','iptu','accepts_pj','accepts_financing','accepts_exchange','exchange_accepted_types','exchange_max_value','exchange_notes','link'],
 };
 
 export const FIELD_META = {
@@ -35,6 +35,9 @@ export const FIELD_META = {
   accepts_financing:    { label: 'Aceita financiamento?', type: 'boolean', required: true },
   accepts_pj:           { label: 'Aceita pessoa jurídica?', type: 'boolean', required: true },
   accepts_exchange:     { label: 'Aceita permuta?', type: 'select', options: ['Sim','Não','Parcial'], required: true },
+  exchange_accepted_types: { label: 'O que aceita em permuta', type: 'multiselect', options: ['Imóvel','Veículo','Outro bem'], required: false, showIf: fd => fd.accepts_exchange && fd.accepts_exchange !== 'Não' },
+  exchange_max_value:  { label: 'Valor máximo aceito em bens/permuta (R$)', type: 'currency', required: false, showIf: fd => fd.accepts_exchange && fd.accepts_exchange !== 'Não' },
+  exchange_notes:       { label: 'Condições da permuta (opcional)', type: 'text', required: false, showIf: fd => fd.accepts_exchange && fd.accepts_exchange !== 'Não' },
   condition:            { label: 'Estado de conservação', type: 'select', options: ['novo','reformado','original_conservado','precisa_reforma'], labels: ['Novo','Reformado','Original conservado','Precisa reforma'], required: true },
   furnished:            { label: 'Mobília', type: 'select', options: ['mobiliado','semimobiliado','sem_moveis'], labels: ['Mobiliado','Semimobiliado','Sem móveis'], required: true },
   style:                { label: 'Estilo arquitetônico', type: 'select', options: ['moderno','classico','rustico','industrial','retrofit','minimalista','sem_estilo_definido'], labels: ['Moderno/Contemporâneo','Clássico/Tradicional','Rústico/Campestre','Industrial','Retrofit','Minimalista','Sem estilo definido'], required: true },
@@ -215,7 +218,8 @@ export const PropertyFormFields = ({ formData, onChange, errors, fields, aiBadge
       {fields.filter(k => k !== 'link').map(key => {
         const meta = FIELD_META[key];
         if (!meta) return null;
-        const isWide = ['location','address','payment_methods','condo_amenities'].includes(key);
+        if (meta.showIf && !meta.showIf(formData)) return null;
+        const isWide = ['location','address','payment_methods','condo_amenities','exchange_accepted_types','exchange_notes'].includes(key);
         const hasAiBadge = aiBadgeKeys.includes(key) && formData[key] !== null && formData[key] !== undefined && formData[key] !== '';
         return (
           <div key={key} className={isWide ? 'sm:col-span-2' : ''}>

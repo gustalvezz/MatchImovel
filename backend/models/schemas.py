@@ -105,6 +105,9 @@ class BuyerInterest(BaseModel):
     ai_profile: Optional[str] = None
     form_version: Optional[str] = None
     interpretacaoIA: Optional[AIInterpretation] = None
+    payment_method: List[str] = []
+    current_property_status: Optional[str] = None
+    exchange_offer: Optional[dict] = None
 
 class BuyerInterestCreate(BaseModel):
     property_type: str
@@ -136,6 +139,9 @@ class FullInterestCreate(BaseModel):
     name: str
     phone: str
     email: Optional[str] = None
+    payment_method: List[str] = []
+    current_property_status: Optional[str] = None
+    exchange_offer: Optional[dict] = None
     # Terms of Use acceptance
     terms_accepted: bool = False
     terms_accepted_at: Optional[str] = None

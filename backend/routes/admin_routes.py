@@ -300,6 +300,17 @@ async def get_all_interests(current_user: dict = Depends(get_current_user)):
     return interests
 
 
+@router.get("/admin/exchange-cycles")
+async def get_exchange_cycles(current_user: dict = Depends(get_current_user)):
+    """Detect multi-party permuta (exchange) cycles among active interests and property listings."""
+    if current_user["role"] not in ["admin", "curator"]:
+        raise HTTPException(status_code=403, detail="Acesso negado")
+
+    from services.exchange_matching_service import find_exchange_cycles
+    cycles = await find_exchange_cycles()
+    return {"cycles": cycles, "count": len(cycles)}
+
+
 @router.get("/admin/searches")
 async def get_all_searches(current_user: dict = Depends(get_current_user)):
     if current_user["role"] not in ["admin", "curator"]:
