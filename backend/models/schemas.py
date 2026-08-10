@@ -40,6 +40,7 @@ class AuthResponse(BaseModel):
     user_id: str
     role: str
     name: str
+    phone: Optional[str] = None
 
 class CreateCuratorRequest(BaseModel):
     email: EmailStr

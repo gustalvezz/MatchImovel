@@ -216,7 +216,7 @@ async def register(user_data: UserRegister, request: Request):
             pass
 
     token = create_access_token(user_id, user_data.role)
-    return AuthResponse(token=token, user_id=user_id, role=user_data.role, name=user_data.name)
+    return AuthResponse(token=token, user_id=user_id, role=user_data.role, name=user_data.name, phone=user_data.phone)
 
 
 @router.post("/auth/login", response_model=AuthResponse)
@@ -234,7 +234,7 @@ async def login(credentials: UserLogin):
             )
     
     token = create_access_token(user["id"], user["role"])
-    return AuthResponse(token=token, user_id=user["id"], role=user["role"], name=user["name"])
+    return AuthResponse(token=token, user_id=user["id"], role=user["role"], name=user["name"], phone=user.get("phone"))
 
 
 @router.post("/auth/complete-curator-registration")

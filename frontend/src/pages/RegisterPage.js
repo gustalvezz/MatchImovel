@@ -124,12 +124,12 @@ const RegisterPage = () => {
       };
 
       const response = await axios.post(`${API}/auth/register`, payload);
-      const { token, user_id, role, name } = response.data;
+      const { token, user_id, role, name, phone } = response.data;
 
       if (role === 'buyer') trackLead(getUTMParam('utm_source'));
       if (role === 'agent') trackLead(getUTMParam('utm_source'), 'agent');
 
-      login(token, { id: user_id, role, name, email: formData.email });
+      login(token, { id: user_id, role, name, email: formData.email, phone: phone || formData.phone });
       toast.success('Cadastro realizado com sucesso!');
 
       if (role === 'buyer') {
