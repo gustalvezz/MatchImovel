@@ -743,7 +743,13 @@ async def create_full_interest_v2(request: Request, background_tasks: Background
         existing_user = await db.users.find_one({"email": email}, {"_id": 0})
     if not existing_user and phone:
         existing_user = await db.buyers.find_one({"phone": phone}, {"_id": 0})
-    
+
+    # Prefer the buyer's real stored email over what this specific request sent —
+    # covers buyers found by phone (e.g. registered first via WhatsApp) whose
+    # request payload had no/blank email despite a valid one being on file.
+    if existing_user and existing_user.get('email'):
+        email = existing_user['email']
+
     if existing_user:
         user_id = existing_user.get('id') or existing_user.get('user_id')
     else:
