@@ -65,6 +65,7 @@ const RegisterPage = () => {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
+  const [whatsappOptIn, setWhatsappOptIn] = useState(false);
   const [showTermsModal, setShowTermsModal] = useState(false);
 
   const formatPhone = (value) => {
@@ -117,6 +118,8 @@ const RegisterPage = () => {
       const payload = {
         ...formData,
         utm: getAllUTMs(),
+        whatsapp_marketing_opt_in: whatsappOptIn,
+        whatsapp_marketing_opt_in_at: whatsappOptIn ? new Date().toISOString() : null,
         ...(formData.role === 'agent' && {
           terms_accepted: true,
           terms_accepted_at: new Date().toISOString()
@@ -124,12 +127,12 @@ const RegisterPage = () => {
       };
 
       const response = await axios.post(`${API}/auth/register`, payload);
-      const { token, user_id, role, name } = response.data;
+      const { token, user_id, role, name, phone } = response.data;
 
       if (role === 'buyer') trackLead(getUTMParam('utm_source'));
       if (role === 'agent') trackLead(getUTMParam('utm_source'), 'agent');
 
-      login(token, { id: user_id, role, name, email: formData.email });
+      login(token, { id: user_id, role, name, email: formData.email, phone: phone || formData.phone });
       toast.success('Cadastro realizado com sucesso!');
 
       if (role === 'buyer') {
@@ -333,6 +336,20 @@ const RegisterPage = () => {
                 )}
               </div>
             )}
+
+            <div className="flex items-start gap-3">
+              <input
+                type="checkbox"
+                id="whatsapp-marketing-opt-in"
+                checked={whatsappOptIn}
+                onChange={(e) => setWhatsappOptIn(e.target.checked)}
+                className="mt-1 w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                data-testid="whatsapp-marketing-opt-in-checkbox"
+              />
+              <label htmlFor="whatsapp-marketing-opt-in" className="text-sm text-slate-600 leading-relaxed cursor-pointer">
+                Quero receber novidades e ofertas do MatchImóvel pelo WhatsApp.
+              </label>
+            </div>
 
             <Button
               data-testid="register-submit-button"

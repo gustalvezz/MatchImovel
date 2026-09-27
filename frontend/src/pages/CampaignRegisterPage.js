@@ -89,11 +89,11 @@ const CampaignRegisterPage = () => {
       };
 
       const response = await axios.post(`${API}/auth/register`, payload);
-      const { token, user_id, role, name } = response.data;
+      const { token, user_id, role, name, phone } = response.data;
 
       trackLead(getUTMParam('utm_source') || 'campanha_80', 'agent');
 
-      login(token, { id: user_id, role, name, email: formData.email });
+      login(token, { id: user_id, role, name, email: formData.email, phone: phone || formData.phone });
       setRegistered(true);
     } catch (error) {
       toast.error(error.response?.data?.detail || 'Erro ao cadastrar');

@@ -26,8 +26,10 @@ def _format_property_data(property_data: dict, property_description: str) -> str
         "accepts_pj": "Aceita pessoa jurídica", "zoning": "Zoneamento",
         "topography": "Topografia", "documentation_status": "Situação documental",
         "payment_methods": "Formas de pagamento aceitas",
+        "exchange_accepted_types": "Aceita em permuta", "exchange_max_value": "Valor máximo aceito em permuta (R$)",
+        "exchange_notes": "Condições de permuta",
     }
-    currency_fields = {"price", "condo_fee", "iptu"}
+    currency_fields = {"price", "condo_fee", "iptu", "exchange_max_value"}
     parts = ["## IMÓVEL OFERECIDO (dados estruturados):"]
     for key, label in field_labels.items():
         val = property_data.get(key)
@@ -101,6 +103,11 @@ async def evaluate_buyers_with_openai(
         if notas_admin:
             simplified["notas_admin"] = notas_admin
 
+        # Buyer's exchange/permuta offer, if any (asset offered as part of payment)
+        oferta_permuta = p.get("oferta_permuta")
+        if oferta_permuta:
+            simplified["oferta_permuta"] = oferta_permuta
+
         # If has AI interpretation, include the key fields
         if interpretacao:
             simplified["perfil_ideal_ia"] = interpretacao.get("perfil_do_imovel_ideal", "")
@@ -148,6 +155,11 @@ async def evaluate_buyers_with_openai(
 **ANÁLISE DE LOCOMOÇÃO:**
 - Se usa transporte público: proximidade de metrô/ônibus é importante
 - Se tem carro: garagem necessária
+
+**OFERTA DE PERMUTA (campo `oferta_permuta`, se presente):**
+- O comprador tem um bem (imóvel, veículo ou outro) que pode oferecer como parte do pagamento, além de eventual complemento em dinheiro (`cash_complement`)
+- Avalie se o imóvel oferecido aceita permuta (`accepts_exchange`) e se o tipo/valor do bem do comprador (`asset_type`, `asset_value`) é compatível com o que o corretor aceita (`exchange_accepted_types`, `exchange_max_value`)
+- Se o imóvel não aceita permuta mas o comprador só consegue fechar negócio oferecendo o bem, isso é um ponto de atenção a mencionar na justificativa
 
 **NOTAS DO CONSULTOR (campo `notas_admin`, se presente):**
 - Informações coletadas diretamente por telefone/conversa com o comprador após o cadastro

@@ -1174,7 +1174,13 @@ async def send_new_interest_admin_notification(admin_email: str, admin_name: str
     property_type = interest.get('property_type') or 'Imóvel'
     location = interest.get('location') or 'A definir'
     budget_range = interest.get('budget_range') or ''
-    source = interest.get('form_version') or '—'
+    source_labels = {
+        'v4': 'Site — Formulário completo',
+        'v3': 'Site — Formulário completo (v3)',
+        'whatsapp_v1': 'WhatsApp',
+    }
+    form_version = interest.get('form_version')
+    source = source_labels.get(form_version, form_version or '—')
 
     subject = f"Novo interesse cadastrado: {buyer_name or 'Comprador'}"
     html = f"""

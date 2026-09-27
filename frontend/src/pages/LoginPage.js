@@ -31,10 +31,10 @@ const LoginPage = () => {
     
     try {
       const response = await axios.post(`${API}/auth/login`, formData);
-      const { token, user_id, role, name } = response.data;
-      
+      const { token, user_id, role, name, phone } = response.data;
+
       // Wait for login to complete before navigating
-      await login(token, { id: user_id, role, name, email: formData.email });
+      await login(token, { id: user_id, role, name, email: formData.email, phone });
       
       toast.success('Login realizado com sucesso!');
       

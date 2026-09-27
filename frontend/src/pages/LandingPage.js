@@ -804,6 +804,18 @@ const LandingPage = () => {
             </span>
           </div>
           <p>© 2026 MatchImovel. Todos os direitos reservados.</p>
+          <div className="flex items-center justify-center gap-4 mt-3 text-sm">
+            <Link to="/privacidade" className="hover:text-white transition-colors">Política de Privacidade</Link>
+            <span className="text-slate-600">·</span>
+            <Link to="/termos-de-uso" className="hover:text-white transition-colors">Termos de Uso</Link>
+            <span className="text-slate-600">·</span>
+            <button
+              onClick={() => window.dispatchEvent(new Event('reopen-cookie-preferences'))}
+              className="hover:text-white transition-colors"
+            >
+              Preferências de cookies
+            </button>
+          </div>
         </div>
       </footer>
     </div>

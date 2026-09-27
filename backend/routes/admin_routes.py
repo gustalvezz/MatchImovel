@@ -300,6 +300,17 @@ async def get_all_interests(current_user: dict = Depends(get_current_user)):
     return interests
 
 
+@router.get("/admin/exchange-cycles")
+async def get_exchange_cycles(current_user: dict = Depends(get_current_user)):
+    """Detect multi-party permuta (exchange) cycles among active interests and property listings."""
+    if current_user["role"] not in ["admin", "curator"]:
+        raise HTTPException(status_code=403, detail="Acesso negado")
+
+    from services.exchange_matching_service import find_exchange_cycles
+    cycles = await find_exchange_cycles()
+    return {"cycles": cycles, "count": len(cycles)}
+
+
 @router.get("/admin/searches")
 async def get_all_searches(current_user: dict = Depends(get_current_user)):
     if current_user["role"] not in ["admin", "curator"]:
@@ -759,6 +770,7 @@ class CampaignSegment(BaseModel):
 
 class CampaignPreviewPayload(BaseModel):
     segment: CampaignSegment
+    message_type: str = "utility"  # "utility" | "marketing"
 
 
 class CampaignSendPayload(BaseModel):
@@ -768,8 +780,13 @@ class CampaignSendPayload(BaseModel):
     message_type: str = "utility"  # "utility" | "marketing"
 
 
-async def _resolve_recipients(segment: CampaignSegment) -> list[dict]:
-    """Return list of {user_id, phone, name} matching the segment."""
+async def _resolve_recipients(segment: CampaignSegment, message_type: str = "utility") -> list[dict]:
+    """Return list of {user_id, phone, name} matching the segment.
+
+    Marketing campaigns are filtered to users who opted in via
+    `whatsapp_marketing_opt_in` — transactional/utility campaigns are not
+    subject to this filter (they're part of the service already requested).
+    """
     recipients = []
     if segment.role == "agent":
         query: dict = {}
@@ -777,21 +794,21 @@ async def _resolve_recipients(segment: CampaignSegment) -> list[dict]:
             query["commission_rate"] = {"$gte": segment.commission_rate_min}
         agents = await db.agents.find(query, {"_id": 0, "user_id": 1, "name": 1, "phone": 1}).to_list(5000)
         for a in agents:
-            phone = a.get("phone")
-            if not phone:
-                user = await db.users.find_one({"id": a["user_id"]}, {"_id": 0, "phone": 1})
-                phone = (user or {}).get("phone")
+            user = await db.users.find_one({"id": a["user_id"]}, {"_id": 0, "phone": 1, "whatsapp_marketing_opt_in": 1})
+            phone = a.get("phone") or (user or {}).get("phone")
             if segment.has_phone and not phone:
+                continue
+            if message_type == "marketing" and not (user or {}).get("whatsapp_marketing_opt_in"):
                 continue
             recipients.append({"user_id": a["user_id"], "phone": phone or "", "name": a.get("name", "Corretor")})
     elif segment.role == "buyer":
         buyers = await db.buyers.find({}, {"_id": 0, "user_id": 1, "name": 1, "phone": 1}).to_list(5000)
         for b in buyers:
-            phone = b.get("phone")
-            if not phone:
-                user = await db.users.find_one({"id": b["user_id"]}, {"_id": 0, "phone": 1})
-                phone = (user or {}).get("phone")
+            user = await db.users.find_one({"id": b["user_id"]}, {"_id": 0, "phone": 1, "whatsapp_marketing_opt_in": 1})
+            phone = b.get("phone") or (user or {}).get("phone")
             if segment.has_phone and not phone:
+                continue
+            if message_type == "marketing" and not (user or {}).get("whatsapp_marketing_opt_in"):
                 continue
             recipients.append({"user_id": b["user_id"], "phone": phone or "", "name": b.get("name", "Comprador")})
     return recipients
@@ -803,7 +820,7 @@ async def preview_campaign_segment(payload: CampaignPreviewPayload, current_user
     if current_user["role"] != "admin":
         raise HTTPException(status_code=403, detail="Acesso negado")
 
-    recipients = await _resolve_recipients(payload.segment)
+    recipients = await _resolve_recipients(payload.segment, payload.message_type)
     sample = [{"name": r["name"], "phone": r["phone"][:4] + "****" + r["phone"][-2:] if len(r["phone"]) >= 6 else r["phone"]} for r in recipients[:10]]
     return {"count": len(recipients), "sample": sample}
 
@@ -814,7 +831,7 @@ async def send_campaign(payload: CampaignSendPayload, current_user: dict = Depen
     if current_user["role"] != "admin":
         raise HTTPException(status_code=403, detail="Acesso negado")
 
-    recipients = await _resolve_recipients(payload.segment)
+    recipients = await _resolve_recipients(payload.segment, payload.message_type)
     if not recipients:
         raise HTTPException(status_code=400, detail="Nenhum destinatário encontrado para este segmento")
 

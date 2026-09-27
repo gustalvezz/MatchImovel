@@ -27,6 +27,9 @@ class UserRegister(BaseModel):
     # Terms acceptance for agents
     terms_accepted: Optional[bool] = None
     terms_accepted_at: Optional[str] = None
+    # WhatsApp marketing opt-in — separate from terms acceptance, unchecked by default
+    whatsapp_marketing_opt_in: bool = False
+    whatsapp_marketing_opt_in_at: Optional[str] = None
     utm: Optional[UTMData] = None
     # Campaign tracking
     promo_code: Optional[str] = None
@@ -40,6 +43,7 @@ class AuthResponse(BaseModel):
     user_id: str
     role: str
     name: str
+    phone: Optional[str] = None
 
 class CreateCuratorRequest(BaseModel):
     email: EmailStr
@@ -105,6 +109,9 @@ class BuyerInterest(BaseModel):
     ai_profile: Optional[str] = None
     form_version: Optional[str] = None
     interpretacaoIA: Optional[AIInterpretation] = None
+    payment_method: List[str] = []
+    current_property_status: Optional[str] = None
+    exchange_offer: Optional[dict] = None
 
 class BuyerInterestCreate(BaseModel):
     property_type: str
@@ -136,6 +143,9 @@ class FullInterestCreate(BaseModel):
     name: str
     phone: str
     email: Optional[str] = None
+    payment_method: List[str] = []
+    current_property_status: Optional[str] = None
+    exchange_offer: Optional[dict] = None
     # Terms of Use acceptance
     terms_accepted: bool = False
     terms_accepted_at: Optional[str] = None

@@ -166,6 +166,24 @@ async def process_ai_interpretation_background(interest_id: str, form_data: dict
                 buyer_phone=form_data.get('phone'),
             )
 
+        # Meta CAPI — server-side Lead event, deduplicated with the browser Pixel
+        # via the same event_id. No-ops until META_PIXEL_ID/META_CAPI_ACCESS_TOKEN
+        # are configured (only after the consent banner is live — see Fase 2/4).
+        capi_event_id = form_data.get('capi_event_id')
+        if capi_event_id:
+            try:
+                from services.meta_capi_service import send_capi_event
+                await send_capi_event(
+                    event_name="Lead",
+                    event_id=capi_event_id,
+                    client_ip=form_data.get('_client_ip'),
+                    email=buyer_email,
+                    phone=form_data.get('phone'),
+                    custom_data={"content_name": "cadastro_comprador", "content_category": "comprador"},
+                )
+            except Exception as e:
+                logger.error(f"Meta CAPI Lead event failed for interest {interest_id}: {str(e)}")
+
         # Generate AI interpretation
         ai_interpretation = await generate_ai_interpretation(form_data)
         
@@ -455,9 +473,11 @@ async def _insert_interest_from_data(user_id: str, form_data: dict,
         "experience_fears": form_data.get('experience_fears'),
         "ai_profile": ai_profile,
         "form_version": "whatsapp_v1",
-        "terms_accepted": True,
-        "terms_accepted_at": datetime.now(timezone.utc).isoformat(),
+        "terms_accepted": form_data.get('terms_accepted', False),
+        "terms_accepted_at": form_data.get('terms_accepted_at'),
         "terms_accepted_ip": client_ip,
+        "whatsapp_marketing_opt_in": form_data.get('whatsapp_marketing_opt_in', False),
+        "whatsapp_marketing_opt_in_at": form_data.get('whatsapp_marketing_opt_in_at'),
     }
 
     await db.interests.insert_one(interest)
@@ -649,6 +669,7 @@ BLOCO 2 - O QUE VOCÊ BUSCA:
 - Orçamento máximo: {form_data.get('budget_range', 'Não informado')}
 - Forma de pagamento: {', '.join(form_data.get('payment_method', [])) or 'Não informado'}
 - Situação do imóvel atual: {form_data.get('current_property_status', 'N/A')}
+- Oferta de permuta: {form_data.get('exchange_offer') or 'N/A'}
 
 BLOCO 3 - COMO DEVE SER:
 - Indispensáveis: {', '.join(form_data.get('indispensable', [])) or 'Não informado'} {form_data.get('indispensable_other', '')}
@@ -742,13 +763,36 @@ async def create_full_interest_v2(request: Request, background_tasks: Background
         existing_user = await db.users.find_one({"email": email}, {"_id": 0})
     if not existing_user and phone:
         existing_user = await db.buyers.find_one({"phone": phone}, {"_id": 0})
-    
+
+    # Prefer the buyer's real stored email/phone over what this specific request
+    # sent — covers buyers found by phone or email whose request payload had a
+    # blank field despite a valid value already being on file. Synced back into
+    # form_data since downstream code (admin notification, WhatsApp confirmation,
+    # background task) reads these straight from form_data.
+    if existing_user and existing_user.get('email'):
+        email = existing_user['email']
+        form_data['email'] = email
+    if existing_user and existing_user.get('phone'):
+        phone = existing_user['phone']
+        form_data['phone'] = phone
+
     if existing_user:
         user_id = existing_user.get('id') or existing_user.get('user_id')
+        # Only ever raise the opt-in (never silently revoke a prior opt-in the
+        # user isn't actively changing here) — checkbox unchecked just means
+        # "no change requested" for an existing account.
+        if form_data.get('whatsapp_marketing_opt_in'):
+            await db.users.update_one(
+                {"id": user_id},
+                {"$set": {
+                    "whatsapp_marketing_opt_in": True,
+                    "whatsapp_marketing_opt_in_at": form_data.get('whatsapp_marketing_opt_in_at') or datetime.now(timezone.utc).isoformat(),
+                }}
+            )
     else:
         user_id = str(uuid.uuid4())
         temp_password = secrets.token_urlsafe(16)
-        
+
         new_user = {
             "id": user_id,
             "email": email or f"temp_{user_id}@matchimob.com",
@@ -757,7 +801,9 @@ async def create_full_interest_v2(request: Request, background_tasks: Background
             "name": name,
             "phone": phone,
             "created_at": datetime.now(timezone.utc).isoformat(),
-            "needs_password_setup": True
+            "needs_password_setup": True,
+            "whatsapp_marketing_opt_in": bool(form_data.get('whatsapp_marketing_opt_in')),
+            "whatsapp_marketing_opt_in_at": form_data.get('whatsapp_marketing_opt_in_at'),
         }
         await db.users.insert_one(new_user)
         
@@ -845,6 +891,7 @@ async def create_full_interest_v2(request: Request, background_tasks: Background
         "budget_range": form_data.get('budget_range'),
         "payment_method": form_data.get('payment_method', []),
         "current_property_status": form_data.get('current_property_status'),
+        "exchange_offer": form_data.get('exchange_offer'),
         
         # BLOCO 3 - COMO DEVE SER
         "indispensable": indispensable,
@@ -892,8 +939,9 @@ async def create_full_interest_v2(request: Request, background_tasks: Background
     # Save interest immediately (fast response to user)
     await db.interests.insert_one(interest)
     logger.info(f"Interest {interest_id} saved. Scheduling AI processing in background.")
-    
+
     # Schedule AI processing and email in background
+    form_data['_client_ip'] = client_ip
     background_tasks.add_task(
         process_ai_interpretation_background,
         interest_id,

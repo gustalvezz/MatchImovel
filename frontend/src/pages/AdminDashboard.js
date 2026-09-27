@@ -64,6 +64,8 @@ const AdminDashboard = () => {
   const [campaignPreviewing, setCampaignPreviewing] = useState(false);
   const [adminNotesDraft, setAdminNotesDraft] = useState({});
   const [savingNotes, setSavingNotes] = useState({});
+  const [exchangeCycles, setExchangeCycles] = useState(null);
+  const [checkingExchangeCycles, setCheckingExchangeCycles] = useState(false);
 
   const handleSaveAdminNotes = async (interestId) => {
     setSavingNotes(prev => ({ ...prev, [interestId]: true }));
@@ -77,6 +79,18 @@ const AdminDashboard = () => {
       toast.error(error.response?.data?.detail || 'Erro ao salvar notas');
     } finally {
       setSavingNotes(prev => ({ ...prev, [interestId]: false }));
+    }
+  };
+
+  const handleCheckExchangeCycles = async () => {
+    setCheckingExchangeCycles(true);
+    try {
+      const response = await axios.get(`${API}/admin/exchange-cycles`);
+      setExchangeCycles(response.data.cycles || []);
+    } catch (error) {
+      toast.error(error.response?.data?.detail || 'Erro ao verificar trocas em cadeia');
+    } finally {
+      setCheckingExchangeCycles(false);
     }
   };
 
@@ -952,6 +966,51 @@ const AdminDashboard = () => {
           </TabsContent>
 
           <TabsContent value="interests" className="space-y-4">
+            {/* Trocas em cadeia (permuta) */}
+            <Card className="p-4 rounded-2xl border-2 border-indigo-100 bg-indigo-50/40">
+              <div className="flex items-center justify-between gap-3 flex-wrap">
+                <div>
+                  <p className="text-sm font-semibold text-indigo-900">Trocas em cadeia (permuta)</p>
+                  <p className="text-xs text-slate-500">Busca ciclos de 3-4 pontas entre interesses e imóveis que aceitam permuta.</p>
+                </div>
+                <Button
+                  onClick={handleCheckExchangeCycles}
+                  disabled={checkingExchangeCycles}
+                  variant="outline"
+                  className="rounded-full border-indigo-300 text-indigo-700 hover:bg-indigo-100"
+                >
+                  {checkingExchangeCycles ? 'Verificando...' : 'Verificar trocas em cadeia'}
+                </Button>
+              </div>
+              {exchangeCycles !== null && (
+                <div className="mt-4">
+                  {exchangeCycles.length === 0 ? (
+                    <p className="text-sm text-slate-500">Nenhum ciclo de troca encontrado no momento.</p>
+                  ) : (
+                    <div className="space-y-3">
+                      {exchangeCycles.map((cycle, idx) => (
+                        <div key={idx} className="bg-white rounded-xl border border-indigo-200 p-3">
+                          <Badge className="mb-2 bg-indigo-600">{cycle.size} pontas</Badge>
+                          <div className="flex flex-wrap items-center gap-2 text-xs text-slate-700">
+                            {cycle.participants.map((p, pIdx) => (
+                              <React.Fragment key={pIdx}>
+                                <span className="px-2 py-1 rounded-lg bg-slate-100">
+                                  {p.label}{p.contact?.name ? ` — ${p.contact.name}` : ''}
+                                  {p.contact?.phone ? ` (${p.contact.phone})` : ''}
+                                </span>
+                                {pIdx < cycle.participants.length - 1 && <span className="text-slate-400">→</span>}
+                              </React.Fragment>
+                            ))}
+                            <span className="text-slate-400">→ (fecha o ciclo)</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </Card>
+
             {/* Filters */}
             <div className="flex flex-wrap gap-3 p-4 bg-slate-50 rounded-2xl border border-slate-200">
               <select
