@@ -47,11 +47,14 @@ python backend_test.py   # na raiz do projeto
 | `WHATSAPP_PHONE_NUMBER_ID` | ID do número WhatsApp Business |
 | `WHATSAPP_VERIFY_TOKEN` | Token de verificação do webhook Meta |
 | `WHATSAPP_ADMIN_PHONE` | Telefone do admin para alertas (opt-in) |
+| `META_PIXEL_ID` | ID do Pixel da Meta — usado pelo Conversions API (CAPI) server-side |
+| `META_CAPI_ACCESS_TOKEN` | Access token do Conversions API, gerado no Events Manager do Pixel |
 
 **Frontend** (`frontend/.env`):
 | Var | Uso |
 |-----|-----|
 | `REACT_APP_BACKEND_URL` | URL do backend — em produção: `https://match-imovel-backend.vercel.app` |
+| `REACT_APP_GTM_CONTAINER_ID` | ID do container do Google Tag Manager (`GTM-XXXXXXX`) — GA4 e Meta Pixel vivem como tags dentro dele, cada uma com sua própria trava de Consent Mode v2 configurada na interface do GTM |
 
 **GitHub Actions secrets** (repositório):
 | Secret | Uso |

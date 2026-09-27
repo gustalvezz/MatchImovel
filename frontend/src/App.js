@@ -27,6 +27,7 @@ const AdminDashboard = lazy(() => import('@/pages/AdminDashboard'));
 const VisitActionPage = lazy(() => import('@/pages/VisitActionPage'));
 const VisitFeedbackPage = lazy(() => import('@/pages/VisitFeedbackPage'));
 const PrivacyPage = lazy(() => import('@/pages/PrivacyPage'));
+const TermsOfUsePage = lazy(() => import('@/pages/TermsOfUsePage'));
 const BlogListPage = lazy(() => import('@/pages/BlogListPage'));
 const BlogPostPage = lazy(() => import('@/pages/BlogPostPage'));
 const CampaignRegisterPage = lazy(() => import('@/pages/CampaignRegisterPage'));
@@ -97,7 +98,8 @@ const PublicRoute = ({ children }) => {
 function App() {
   useEffect(() => {
     captureUTMs();
-    if (getCookieConsent() === 'all') initTrackers();
+    const consent = getCookieConsent();
+    if (consent && (consent.analytics || consent.marketing)) initTrackers(consent);
   }, []);
 
   return (
@@ -173,6 +175,7 @@ function App() {
             </PublicRoute>
           } />
           <Route path="/privacidade" element={<PrivacyPage />} />
+          <Route path="/termos-de-uso" element={<TermsOfUsePage />} />
           <Route path="/blog" element={<BlogListPage />} />
           <Route path="/blog/:slug" element={<BlogPostPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
@@ -180,7 +183,7 @@ function App() {
         </Suspense>
         <Toaster position="top-right" richColors />
         <Analytics />
-        <CookieBanner onConsent={(c) => { if (c === 'all') initTrackers(); }} />
+        <CookieBanner onConsent={(categories) => { if (categories.analytics || categories.marketing) initTrackers(categories); }} />
       </BrowserRouter>
     </AuthProvider>
   );

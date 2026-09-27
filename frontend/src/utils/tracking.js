@@ -1,52 +1,49 @@
-const PIXEL_ID = process.env.REACT_APP_META_PIXEL_ID || '1379931667380470';
+// GA4 and Meta Pixel now live as tags inside the GTM container (each with its own
+// consent requirement configured in the GTM UI). This file only pushes events to
+// the dataLayer — it never calls gtag()/fbq() directly for tracking calls.
 const GA4_ID = process.env.REACT_APP_GA4_MEASUREMENT_ID || 'G-LQ2ZJY49JE';
 
 let initialized = false;
 
-export function initTrackers() {
+function pushConsentUpdate(categories) {
+  if (!window.gtag) return;
+  const analytics = !!categories?.analytics;
+  const marketing = !!categories?.marketing;
+  window.gtag('consent', 'update', {
+    analytics_storage: analytics ? 'granted' : 'denied',
+    ad_storage: marketing ? 'granted' : 'denied',
+    ad_user_data: marketing ? 'granted' : 'denied',
+    ad_personalization: marketing ? 'granted' : 'denied',
+    functionality_storage: (analytics || marketing) ? 'granted' : 'denied',
+  });
+}
+
+// Called on app mount (if consent already exists) or right after the user
+// chooses in the cookie banner. Unlocks the Consent Mode v2 signals for GTM
+// and enables trackPageView/trackLead from here on.
+export function initTrackers(categories) {
+  pushConsentUpdate(categories);
   if (initialized) return;
   initialized = true;
-
-  // GA4
-  if (window.gtag) {
-    window.gtag('config', GA4_ID, { send_page_view: false });
-  }
-
-  // Meta Pixel
-  if (window.fbq) {
-    window.fbq('init', PIXEL_ID);
-    window.fbq('track', 'PageView');
-  }
+  window.dataLayer = window.dataLayer || [];
+  window.dataLayer.push({ event: 'consent_ready', ga4_measurement_id: GA4_ID });
 }
 
 export function trackPageView(path) {
   if (!initialized) return;
-
-  if (window.gtag) {
-    window.gtag('event', 'page_view', { page_path: path });
-  }
-  if (window.fbq) {
-    window.fbq('track', 'PageView');
-  }
+  window.dataLayer = window.dataLayer || [];
+  window.dataLayer.push({ event: 'virtual_page_view', page_path: path });
 }
 
-export function trackLead(source, role = 'buyer') {
+export function trackLead(source, role = 'buyer', eventId) {
   if (!initialized) return;
-
-  const contentName = role === 'agent' ? 'cadastro_corretor' : 'cadastro_comprador';
-  const contentCategory = role === 'agent' ? 'corretor' : 'comprador';
-
-  if (window.gtag) {
-    window.gtag('event', 'generate_lead', {
-      event_category: 'lead',
-      event_label: source || 'direto',
-      event_role: role,
-    });
-  }
-  if (window.fbq) {
-    window.fbq('track', 'Lead', {
-      content_name: contentName,
-      content_category: contentCategory,
-    });
-  }
+  window.dataLayer = window.dataLayer || [];
+  window.dataLayer.push({
+    event: 'lead',
+    lead_source: source || 'direto',
+    lead_role: role,
+    event_id: eventId,
+    content_name: role === 'agent' ? 'cadastro_corretor' : 'cadastro_comprador',
+    content_category: role === 'agent' ? 'corretor' : 'comprador',
+  });
 }

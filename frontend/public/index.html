@@ -62,33 +62,54 @@
 
         <title>MatchImovel | O imóvel ideal te encontra</title>
 
-        <!-- GA4: script loader (init happens via tracking.js after consent) -->
-        <script async src="https://www.googletagmanager.com/gtag/js?id=G-LQ2ZJY49JE"></script>
+        <!-- Google Consent Mode v2: default state (denied) — must run before GTM loads.
+             Reads any prior choice from localStorage (new {analytics,marketing} JSON format,
+             with a fallback for the old 'all'/'essential' string format). -->
         <script>
           window.dataLayer = window.dataLayer || [];
           function gtag(){dataLayer.push(arguments);}
-          gtag('js', new Date());
-          // pageview tracking happens after consent check in App.js
+          gtag('consent', 'default', {
+            ad_storage: 'denied',
+            analytics_storage: 'denied',
+            ad_user_data: 'denied',
+            ad_personalization: 'denied',
+            functionality_storage: 'denied',
+            security_storage: 'granted',
+            wait_for_update: 500
+          });
+          try {
+            var raw = localStorage.getItem('cookie_consent');
+            var analytics = false, marketing = false;
+            if (raw === 'all') { analytics = true; marketing = true; }
+            else if (raw === 'essential') { analytics = false; marketing = false; }
+            else if (raw) { var parsed = JSON.parse(raw); analytics = !!parsed.analytics; marketing = !!parsed.marketing; }
+            if (analytics || marketing) {
+              gtag('consent', 'update', {
+                analytics_storage: analytics ? 'granted' : 'denied',
+                ad_storage: marketing ? 'granted' : 'denied',
+                ad_user_data: marketing ? 'granted' : 'denied',
+                ad_personalization: marketing ? 'granted' : 'denied',
+                functionality_storage: 'granted'
+              });
+            }
+          } catch (e) {}
         </script>
 
-        <!-- Meta Pixel: base code without init (init happens after consent) -->
+        <!-- Google Tag Manager: container holds GA4 + Meta Pixel tags, each with its own
+             consent requirement configured inside GTM (see project setup notes). -->
         <script>
-          !function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){
-          n.callMethod?n.callMethod.apply(n,arguments):n.queue.push(arguments)};
-          if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
-          n.queue=[];t=b.createElement(e);t.async=!0;t.src=v;
-          s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)
-          }(window,document,'script','https://connect.facebook.net/en_US/fbevents.js');
-          // fbq('init', ...) is called via tracking.js after LGPD consent
+          (function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':new Date().getTime(),event:'gtm.js'});
+          var f=d.getElementsByTagName(s)[0],j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';
+          j.async=true;j.src='https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+          })(window,document,'script','dataLayer','%REACT_APP_GTM_CONTAINER_ID%');
         </script>
-        <noscript>
-          <img height="1" width="1" style="display:none"
-            src="https://www.facebook.com/tr?id=1379931667380470&ev=PageView&noscript=1"/>
-        </noscript>
 
         <script>window.addEventListener("error",function(e){if(e.error instanceof DOMException&&e.error.name==="DataCloneError"&&e.message&&e.message.includes("PerformanceServerTiming")){e.stopImmediatePropagation();e.preventDefault()}},true);</script>
     </head>
     <body>
+        <!-- Google Tag Manager (noscript) -->
+        <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=%REACT_APP_GTM_CONTAINER_ID%"
+        height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
         <noscript>Você precisa habilitar JavaScript para usar este aplicativo.</noscript>
         <div id="root"></div>
     </body>
