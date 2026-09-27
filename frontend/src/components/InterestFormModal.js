@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
 import { getAllUTMs } from '@/utils/utm';
+import { trackLead } from '@/utils/tracking';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -114,6 +115,7 @@ const InterestFormModal = ({ isOpen, onClose, onSuccess, userInfo }) => {
   const [currentStep, setCurrentStep] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
+  const [whatsappOptIn, setWhatsappOptIn] = useState(false);
   const [showTermsModal, setShowTermsModal] = useState(false);
 
   const getInitialFormData = () => ({
@@ -353,6 +355,7 @@ const InterestFormModal = ({ isOpen, onClose, onSuccess, userInfo }) => {
     } : null;
 
     setIsSubmitting(true);
+    const capiEventId = (window.crypto?.randomUUID?.() || `${Date.now()}-${Math.random()}`);
     try {
       await axios.post(`${API}/interests/create-full-v2`, {
         ...formData,
@@ -362,9 +365,13 @@ const InterestFormModal = ({ isOpen, onClose, onSuccess, userInfo }) => {
         email: userInfo?.email || formData.email,
         terms_accepted: true,
         terms_accepted_at: new Date().toISOString(),
+        whatsapp_marketing_opt_in: whatsappOptIn,
+        whatsapp_marketing_opt_in_at: whatsappOptIn ? new Date().toISOString() : null,
+        capi_event_id: capiEventId,
         utm: getAllUTMs()
       });
       toast.success('Interesse cadastrado com sucesso!');
+      trackLead(undefined, 'buyer', capiEventId);
       setCurrentStep(0);
       setFormData(getInitialFormData());
       setTermsAccepted(false);
@@ -1218,6 +1225,21 @@ const InterestFormModal = ({ isOpen, onClose, onSuccess, userInfo }) => {
                     <ExternalLink className="w-3 h-3" />
                   </button>
                 </div>
+              </div>
+            </div>
+
+            {/* WhatsApp marketing opt-in — separate from Terms of Use, unchecked by default */}
+            <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 mb-4 text-left">
+              <div className="flex items-start gap-3">
+                <Checkbox
+                  id="whatsapp-opt-in-checkbox"
+                  checked={whatsappOptIn}
+                  onCheckedChange={(checked) => setWhatsappOptIn(checked)}
+                  className="mt-0.5 data-[state=checked]:bg-indigo-600 data-[state=checked]:border-indigo-600"
+                />
+                <label htmlFor="whatsapp-opt-in-checkbox" className="text-xs text-slate-600 leading-relaxed cursor-pointer">
+                  Quero receber novidades e ofertas do MatchImóvel pelo WhatsApp.
+                </label>
               </div>
             </div>
 

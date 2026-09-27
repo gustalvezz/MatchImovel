@@ -96,6 +96,13 @@ async def receive_message(request: Request, background_tasks: BackgroundTasks):
                 content = interactive["list_reply"]["id"]
 
         session = await ws.get_session(phone)
+
+        # WhatsApp marketing opt-out — works regardless of session state,
+        # and never touches transactional/utility messages.
+        if content.strip().lower() in ("sair", "parar", "stop"):
+            background_tasks.add_task(_handle_opt_out, phone)
+            return {"status": "ok"}
+
         background_tasks.add_task(_dispatch, phone, msg_type, content, session)
 
     except Exception as e:
@@ -105,6 +112,21 @@ async def receive_message(request: Request, background_tasks: BackgroundTasks):
 
 
 # ── Dispatcher ─────────────────────────────────────────────────────────────────
+
+async def _handle_opt_out(phone: str):
+    """User replied SAIR/PARAR/STOP — unsubscribe from WhatsApp marketing messages."""
+    try:
+        result = await db.users.update_one(
+            {"phone": {"$in": [phone, f"+{phone}"]}},
+            {"$set": {"whatsapp_marketing_opt_in": False, "whatsapp_marketing_opt_in_at": datetime.now(timezone.utc).isoformat()}}
+        )
+        if result.matched_count:
+            await ws.send_text(phone, "Você não receberá mais mensagens de novidades e ofertas por aqui. Mensagens sobre seus matches e visitas continuam normalmente.")
+        else:
+            await ws.send_text(phone, "Não encontramos um cadastro com este número, mas você não receberá mensagens de marketing por aqui.")
+    except Exception as e:
+        logger.error(f"Opt-out error for {phone}: {e}")
+
 
 async def _dispatch(phone: str, msg_type: str, content: str, session: dict | None):
     try:
@@ -378,7 +400,9 @@ async def _handle_buyer(phone: str, content: str, session: dict):
             f"💰 Orçamento: {_BUDGET_LABELS.get(data.get('budget_range', ''), '–')}\n"
             f"⏱ Urgência: {_URGENCY_LABELS.get(data.get('urgency', ''), '–')}\n"
             f"✅ Indispensável: {', '.join(data.get('indispensable', [])) or '–'}\n"
-            f"❌ Não aceita: {', '.join(data.get('deal_breakers', [])) or 'nenhum'}\n"
+            f"❌ Não aceita: {', '.join(data.get('deal_breakers', [])) or 'nenhum'}\n\n"
+            "Ao confirmar, você declara ter lido e aceito os Termos de Uso e Compromisso de "
+            "Intermediação do MatchImóvel (matchimovel.com.br/termos-de-uso)."
         )
         await ws.send_interactive_buttons(
             phone, body=summary,
@@ -398,6 +422,9 @@ async def _handle_buyer(phone: str, content: str, session: dict):
         if content != "confirm_yes":
             await ws.send_text(phone, "Por favor, toque em *Confirmar* ou *Corrigir*.")
             return
+
+        data['terms_accepted'] = True
+        data['terms_accepted_at'] = datetime.now(timezone.utc).isoformat()
 
         try:
             from routes.buyer_routes import _insert_interest_from_data

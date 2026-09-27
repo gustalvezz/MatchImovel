@@ -27,6 +27,9 @@ class UserRegister(BaseModel):
     # Terms acceptance for agents
     terms_accepted: Optional[bool] = None
     terms_accepted_at: Optional[str] = None
+    # WhatsApp marketing opt-in — separate from terms acceptance, unchecked by default
+    whatsapp_marketing_opt_in: bool = False
+    whatsapp_marketing_opt_in_at: Optional[str] = None
     utm: Optional[UTMData] = None
     # Campaign tracking
     promo_code: Optional[str] = None

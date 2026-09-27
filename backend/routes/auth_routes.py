@@ -138,6 +138,8 @@ async def register(user_data: UserRegister, request: Request):
         "name": user_data.name,
         "phone": user_data.phone,
         "created_at": datetime.now(timezone.utc).isoformat(),
+        "whatsapp_marketing_opt_in": user_data.whatsapp_marketing_opt_in,
+        "whatsapp_marketing_opt_in_at": user_data.whatsapp_marketing_opt_in_at,
         **({"utm": utm_dict} if utm_dict else {})
     }
 
