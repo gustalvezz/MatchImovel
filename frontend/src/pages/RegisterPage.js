@@ -347,7 +347,7 @@ const RegisterPage = () => {
                 data-testid="whatsapp-marketing-opt-in-checkbox"
               />
               <label htmlFor="whatsapp-marketing-opt-in" className="text-sm text-slate-600 leading-relaxed cursor-pointer">
-                Quero receber novidades e ofertas do MatchImóvel pelo WhatsApp.
+                Aceito receber novidades e ofertas do MatchImóvel por WhatsApp e e-mail.
               </label>
             </div>
 

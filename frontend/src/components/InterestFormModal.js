@@ -1238,7 +1238,7 @@ const InterestFormModal = ({ isOpen, onClose, onSuccess, userInfo }) => {
                   className="mt-0.5 data-[state=checked]:bg-indigo-600 data-[state=checked]:border-indigo-600"
                 />
                 <label htmlFor="whatsapp-opt-in-checkbox" className="text-xs text-slate-600 leading-relaxed cursor-pointer">
-                  Quero receber novidades e ofertas do MatchImóvel pelo WhatsApp.
+                  Aceito receber novidades e ofertas do MatchImóvel por WhatsApp e e-mail.
                 </label>
               </div>
             </div>

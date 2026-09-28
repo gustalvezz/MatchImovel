@@ -18,7 +18,7 @@ const PrivacyPage = () => (
 
     <main className="max-w-3xl mx-auto px-6 py-16">
       <h1 className="text-4xl font-bold text-slate-900 mb-2">Política de Privacidade</h1>
-      <p className="text-sm text-slate-500 mb-10">Versão 1.1 — Última atualização: 27 de setembro de 2026</p>
+      <p className="text-sm text-slate-500 mb-10">Versão 1.2 — Última atualização: 28 de setembro de 2026</p>
 
       <div className="prose prose-slate max-w-none space-y-8 text-slate-700 leading-relaxed">
 
@@ -41,7 +41,7 @@ const PrivacyPage = () => (
             <li><strong>Corretores:</strong> nome, e-mail, telefone, número do CRECI e dados dos imóveis cadastrados — que podem incluir dados de terceiros (o proprietário do imóvel).</li>
             <li><strong>Dados de navegação:</strong> páginas visitadas, origem do acesso (UTM), dispositivo e navegador — coletados via Google Analytics 4 e Meta Pixel, apenas com o seu consentimento.</li>
             <li><strong>Cookies técnicos:</strong> necessários para autenticação e funcionamento da plataforma, sempre ativos.</li>
-            <li><strong>Consentimento de WhatsApp:</strong> caso você opte por receber novidades e ofertas pelo WhatsApp, registramos essa autorização separadamente do cadastro geral, com data, hora e a versão do texto aceito.</li>
+            <li><strong>Consentimento de novidades e ofertas:</strong> caso você opte por receber novidades e ofertas por WhatsApp e e-mail, registramos essa autorização separadamente do cadastro geral, com data, hora e a versão do texto aceito.</li>
           </ul>
         </section>
 
@@ -52,7 +52,7 @@ const PrivacyPage = () => (
             <li><strong>Comunicação sobre o andamento do seu match</strong> (execução de contrato) — notificações por e-mail e WhatsApp sobre o status do seu cadastro, visitas agendadas e propostas.</li>
             <li><strong>Análise de uso e melhoria do produto</strong> (consentimento) — via Google Analytics 4, ativado apenas se você autorizar no banner de cookies.</li>
             <li><strong>Anúncios e remarketing</strong> (consentimento) — via Meta Pixel, ativado apenas se você autorizar a categoria "Marketing" no banner de cookies.</li>
-            <li><strong>Novidades e ofertas por WhatsApp</strong> (consentimento específico) — somente se você marcar o checkbox de opt-in correspondente, separado do aceite geral dos Termos de Uso.</li>
+            <li><strong>Novidades e ofertas por WhatsApp e e-mail</strong> (consentimento específico) — somente se você marcar o checkbox de opt-in correspondente, separado do aceite geral dos Termos de Uso.</li>
             <li><strong>Cumprimento de obrigações legais</strong> (obrigação legal) — quando exigido por lei ou autoridade competente.</li>
           </ul>
         </section>
@@ -100,7 +100,7 @@ const PrivacyPage = () => (
             <li>Obter informação sobre com quem compartilhamos seus dados (ver seção 4).</li>
             <li>Ser informado sobre a possibilidade de não fornecer consentimento e as consequências (por exemplo, não usar cookies de marketing não impede o cadastro nem o matching).</li>
             <li>Solicitar revisão de decisões tomadas unicamente com base em tratamento automatizado — o que inclui o uso de inteligência artificial no processo de matching, que sempre passa por curadoria humana antes de qualquer contato ser liberado.</li>
-            <li>Revogar, a qualquer momento, o consentimento dado para cookies analíticos, de marketing, ou para o recebimento de mensagens de WhatsApp.</li>
+            <li>Revogar, a qualquer momento, o consentimento dado para cookies analíticos, de marketing, ou para o recebimento de novidades por WhatsApp e e-mail.</li>
           </ul>
           <p className="mt-3">
             Para exercer qualquer um desses direitos, entre em contato: <strong>contato@matchimovel.com.br</strong>
@@ -111,7 +111,7 @@ const PrivacyPage = () => (
           <h2 className="text-xl font-semibold text-slate-900 mb-3">7. Prazo de retenção</h2>
           <ul className="list-disc pl-5 space-y-1">
             <li><strong>Dados de cadastro e perfil</strong> (compradores e corretores): mantidos enquanto a conta estiver ativa, e por até 5 anos após a última interação, prazo usado como referência para eventuais obrigações legais e fiscais relacionadas à intermediação.</li>
-            <li><strong>Registros de consentimento de cookies e de WhatsApp marketing:</strong> mantidos pelo mesmo período do dado a que se referem, como prova do consentimento coletado.</li>
+            <li><strong>Registros de consentimento de cookies e de novidades por WhatsApp/e-mail:</strong> mantidos pelo mesmo período do dado a que se referem, como prova do consentimento coletado.</li>
             <li><strong>Dados de navegação (Analytics/Pixel):</strong> conforme o prazo padrão de retenção de cada ferramenta (Google Analytics 4 e Meta), tipicamente entre 14 e 26 meses.</li>
           </ul>
           <p className="mt-3">Você pode solicitar a exclusão antecipada dos seus dados a qualquer momento, ressalvadas obrigações legais de guarda.</p>
@@ -128,6 +128,7 @@ const PrivacyPage = () => (
         <section>
           <h2 className="text-xl font-semibold text-slate-900 mb-3">9. Histórico de versões</h2>
           <ul className="list-disc pl-5 space-y-1">
+            <li><strong>Versão 1.2</strong> (28/09/2026) — opt-in de novidades passa a cobrir WhatsApp e e-mail (antes só WhatsApp).</li>
             <li><strong>Versão 1.1</strong> (27/09/2026) — inclusão de categoria de cookies de Marketing, opt-in específico de WhatsApp, terceiros nomeados, direitos LGPD completos e prazos de retenção.</li>
             <li><strong>Versão 1.0</strong> (junho de 2026) — publicação inicial.</li>
           </ul>
