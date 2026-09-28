@@ -48,6 +48,7 @@ const CampaignRegisterPage = () => {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
+  const [whatsappOptIn, setWhatsappOptIn] = useState(false);
   const [showTermsModal, setShowTermsModal] = useState(false);
   const [registered, setRegistered] = useState(false);
 
@@ -85,6 +86,8 @@ const CampaignRegisterPage = () => {
         promo_code: promoCode,
         terms_accepted: true,
         terms_accepted_at: new Date().toISOString(),
+        whatsapp_marketing_opt_in: whatsappOptIn,
+        whatsapp_marketing_opt_in_at: whatsappOptIn ? new Date().toISOString() : null,
         utm: getAllUTMs(),
       };
 
@@ -316,6 +319,20 @@ const CampaignRegisterPage = () => {
                   Obrigatório para garantir sua comissão de {commissionRate}%
                 </p>
               )}
+            </div>
+
+            <div className="flex items-start gap-3">
+              <input
+                type="checkbox"
+                id="whatsapp-marketing-opt-in"
+                checked={whatsappOptIn}
+                onChange={(e) => setWhatsappOptIn(e.target.checked)}
+                className="mt-1 w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                data-testid="whatsapp-marketing-opt-in-checkbox"
+              />
+              <label htmlFor="whatsapp-marketing-opt-in" className="text-sm text-slate-600 leading-relaxed cursor-pointer">
+                <span className="font-medium text-slate-800">Quero ser avisado em primeira mão</span> — aceito receber novidades e oportunidades de negócio por WhatsApp e e-mail antes do processo formal de match.
+              </label>
             </div>
 
             <Button
