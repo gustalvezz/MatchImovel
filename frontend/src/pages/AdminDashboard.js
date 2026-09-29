@@ -66,6 +66,23 @@ const AdminDashboard = () => {
   const [savingNotes, setSavingNotes] = useState({});
   const [exchangeCycles, setExchangeCycles] = useState(null);
   const [checkingExchangeCycles, setCheckingExchangeCycles] = useState(false);
+  const [consentQuery, setConsentQuery] = useState('');
+  const [consentResult, setConsentResult] = useState(null);
+  const [checkingConsent, setCheckingConsent] = useState(false);
+
+  const handleConsentLookup = async () => {
+    if (!consentQuery.trim()) return;
+    setCheckingConsent(true);
+    setConsentResult(null);
+    try {
+      const response = await axios.get(`${API}/admin/consent-lookup`, { params: { query: consentQuery.trim() } });
+      setConsentResult(response.data);
+    } catch (error) {
+      toast.error(error.response?.data?.detail || 'Erro ao consultar consentimento');
+    } finally {
+      setCheckingConsent(false);
+    }
+  };
 
   const handleSaveAdminNotes = async (interestId) => {
     setSavingNotes(prev => ({ ...prev, [interestId]: true }));
@@ -966,6 +983,77 @@ const AdminDashboard = () => {
           </TabsContent>
 
           <TabsContent value="interests" className="space-y-4">
+            {/* Consulta de consentimento — prova de autorização */}
+            <Card className="p-4 rounded-2xl border-2 border-emerald-100 bg-emerald-50/40">
+              <p className="text-sm font-semibold text-emerald-900">Consulta de consentimento</p>
+              <p className="text-xs text-slate-500 mb-3">Busque por e-mail ou telefone para ver opt-in de novidades e aceite de termos, com data/hora e IP, caso precise comprovar autorização.</p>
+              <div className="flex gap-2">
+                <input
+                  value={consentQuery}
+                  onChange={e => setConsentQuery(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && handleConsentLookup()}
+                  placeholder="E-mail ou telefone..."
+                  className="flex-1 h-9 px-3 rounded-lg border border-slate-200 bg-white text-sm focus:border-emerald-500 focus:outline-none"
+                />
+                <Button
+                  onClick={handleConsentLookup}
+                  disabled={checkingConsent || !consentQuery.trim()}
+                  variant="outline"
+                  className="rounded-full border-emerald-300 text-emerald-700 hover:bg-emerald-100"
+                >
+                  {checkingConsent ? 'Buscando...' : 'Buscar'}
+                </Button>
+              </div>
+              {consentResult && (
+                <div className="mt-4">
+                  {!consentResult.found ? (
+                    <p className="text-sm text-slate-500">Nenhum cadastro encontrado com esse e-mail/telefone.</p>
+                  ) : (
+                    <div className="space-y-3">
+                      <div className="bg-white rounded-xl border border-emerald-200 p-3">
+                        <div className="flex items-center gap-2 mb-2">
+                          <Badge className="bg-emerald-600">{consentResult.user.role}</Badge>
+                          <p className="text-sm font-semibold text-slate-900">{consentResult.user.name}</p>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1 text-xs text-slate-600">
+                          <p>E-mail: {consentResult.user.email || '—'}</p>
+                          <p>Telefone: {consentResult.user.phone || '—'}</p>
+                          <p>Cadastrado em: {consentResult.user.created_at ? new Date(consentResult.user.created_at).toLocaleString('pt-BR') : '—'}</p>
+                          <p>Opt-in WhatsApp/e-mail: <strong className={consentResult.user.whatsapp_marketing_opt_in ? 'text-emerald-700' : 'text-red-600'}>{consentResult.user.whatsapp_marketing_opt_in ? 'Sim' : 'Não'}</strong></p>
+                          {consentResult.user.whatsapp_marketing_opt_in_at && (
+                            <p className="col-span-2">Opt-in aceito em: {new Date(consentResult.user.whatsapp_marketing_opt_in_at).toLocaleString('pt-BR')}</p>
+                          )}
+                          {consentResult.user.terms_accepted !== null && consentResult.user.terms_accepted !== undefined && (
+                            <>
+                              <p>Termos de Uso (cadastro): <strong className={consentResult.user.terms_accepted ? 'text-emerald-700' : 'text-red-600'}>{consentResult.user.terms_accepted ? 'Aceito' : 'Não aceito'}</strong></p>
+                              <p>Aceito em: {consentResult.user.terms_accepted_at ? new Date(consentResult.user.terms_accepted_at).toLocaleString('pt-BR') : '—'}</p>
+                              {consentResult.user.terms_accepted_ip && <p className="col-span-2">IP no aceite: <span className="font-mono">{consentResult.user.terms_accepted_ip}</span></p>}
+                            </>
+                          )}
+                        </div>
+                      </div>
+                      {consentResult.interests?.length > 0 && (
+                        <div>
+                          <p className="text-xs font-semibold text-slate-600 mb-2">Termos aceitos por interesse cadastrado:</p>
+                          <div className="space-y-2">
+                            {consentResult.interests.map(i => (
+                              <div key={i.id} className="bg-white rounded-xl border border-slate-200 p-3 text-xs text-slate-600">
+                                <p>Interesse de {i.created_at ? new Date(i.created_at).toLocaleString('pt-BR') : '—'} (form {i.form_version || '—'})</p>
+                                <p>Termos: <strong className={i.terms_accepted ? 'text-emerald-700' : 'text-red-600'}>{i.terms_accepted ? 'Aceito' : 'Não aceito'}</strong>
+                                  {i.terms_accepted_at && ` em ${new Date(i.terms_accepted_at).toLocaleString('pt-BR')}`}
+                                  {i.terms_accepted_ip && ` — IP: ${i.terms_accepted_ip}`}
+                                </p>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+            </Card>
+
             {/* Trocas em cadeia (permuta) */}
             <Card className="p-4 rounded-2xl border-2 border-indigo-100 bg-indigo-50/40">
               <div className="flex items-center justify-between gap-3 flex-wrap">
