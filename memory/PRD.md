@@ -144,35 +144,74 @@ localização, endereço, valor, formas de pagamento aceitas, estado de conserva
 - [x] Favicon e apple-touch-icon configurados
 - [x] Menu sticky com anchor links
 - [x] Canonical URL correta
+- [x] Performance (PageSpeed): code-splitting de rotas via `React.lazy`, imagens Unsplash redimensionadas/otimizadas, cache-control de longo prazo para assets estáticos, `llms.txt`
+
+### Consentimento, Privacidade e Tracking (LGPD)
+- [x] `CookieBanner.js`: banner com 3 ações (Aceitar todos / Rejeitar não essenciais / Personalizar) e categorias granulares (Analytics, Marketing) — consentimento salvo como objeto versionado no `localStorage`, com botão "Preferências de cookies" no rodapé pra reabrir a qualquer momento
+- [x] Log de consentimento server-side: `POST /api/consent-log` grava em `db.consent_logs` (consent_id anônimo, categorias, versão do banner, IP, timestamp)
+- [x] Google Consent Mode v2 (`gtag('consent', 'default'/'update', ...)`) + migração de GA4/Meta Pixel para dentro de um container Google Tag Manager (`REACT_APP_GTM_CONTAINER_ID`) — cada tag com sua própria trava de consentimento configurada no GTM
+- [x] `tracking.js` reescrito para empurrar eventos pro `dataLayer` (padrão GTM) em vez de chamar `gtag()`/`fbq()` direto; evento `lead` disparado no cadastro de interesse e no registro de comprador/corretor
+- [x] Meta Conversions API (CAPI) server-side (`meta_capi_service.py`) — evento `Lead` deduplicado com o Pixel client-side via `event_id` compartilhado
+- [x] Opt-in de marketing (WhatsApp + e-mail) separado do aceite de Termos de Uso, desmarcado por padrão, com copy persuasiva honesta ("Quero ser avisado em primeira mão"), presente em todos os fluxos de cadastro (comprador, corretor, corretor via campanha) e no formulário de interesse
+- [x] Handler de opt-out no webhook do WhatsApp: responder SAIR/PARAR/STOP desliga o opt-in de marketing e confirma por mensagem, sem afetar comunicação transacional
+- [x] Filtro real de destinatários de campanha por opt-in quando `message_type == "marketing"` (antes era só um rótulo administrativo, não filtrava ninguém)
+- [x] Política de Privacidade reescrita (v1.2): CNPJ unificado, terceiros nomeados (Vercel, Cloudinary, Meta, Google, OpenAI/Anthropic), direitos LGPD art. 18 completos, prazos de retenção, versionamento; página standalone de Termos de Uso (`/termos-de-uso`); links no rodapé de todo o site
+- [x] Painel admin de consulta de consentimento (`GET /admin/consent-lookup`): busca por e-mail/telefone, retorna opt-in + aceite de termos com IP/timestamp consolidados — prova de autorização sem precisar consultar o MongoDB direto
+- [ ] **Pendente (manual, fora do código)**: criar/publicar as tags de GA4 e Meta Pixel dentro do GTM com a trava de consentimento configurada; configurar `META_PIXEL_ID`/`META_CAPI_ACCESS_TOKEN` em produção; aprovar template `MARKETING` na Meta Business Manager
+
+### Permuta em cadeia (Top Trading Cycles)
+- [x] Captura estruturada de oferta de troca no formulário do comprador (`exchange_offer`: tipo de bem, descrição, valor, localização se imóvel, complemento em dinheiro) e no cadastro de imóvel pelo corretor (`exchange_accepted_types`, `exchange_max_value`, `exchange_notes`, exibidos condicionalmente quando aceita permuta)
+- [x] Motor de detecção de ciclos (`exchange_matching_service.py`): grafo direcionado entre interesses com oferta de troca e imóveis que aceitam permuta, DFS com profundidade limitada (3-4 participantes)
+- [x] Painel admin "Trocas em cadeia" (sob demanda, sem automação) — `GET /admin/exchange-cycles`
+- [x] Campo "complemento do admin" (`admin_notes`) editável por admin/curador em cada interesse, visível ao comprador no dashboard e injetado no prompt de matching da IA com prioridade máxima
+
+### Campanhas WhatsApp (Admin)
+- [x] Aba "Campanhas" no `AdminDashboard`: sub-abas Aquisição (funil CAMP80) e Disparos (broadcast segmentado)
+- [x] `POST /admin/campaigns/preview` e `POST /admin/campaigns/send` — segmentação por papel/comissão mínima/telefone, com rate limiting entre envios
+- [x] Histórico de campanhas (`db.whatsapp_campaigns`) com contadores de enviados/falhos
+
+### Notificações e correções de bugs
+- [x] Notificação imediata por email a todos os admins quando um novo interesse é cadastrado (`_notify_admins_new_interest`), com fallback para o e-mail/telefone real do comprador (não o valor potencialmente vazio da requisição) quando encontrado por telefone
+- [x] Resumo diário por email para admins com tudo de novo nas últimas 24h (cron `daily-summary.yml`)
+- [x] **Bug corrigido**: `AuthResponse` (registro/login) não retornava `phone`, então o telefone do usuário nunca chegava ao frontend — corrigido em `auth_routes.py`, `schemas.py` e nos 3 pontos de `login()` no frontend
+- [x] **Bug corrigido**: fluxo de cadastro de interesse via WhatsApp gravava `terms_accepted: True` incondicionalmente, sem aceite real — agora reflete o clique em "Confirmar" no resumo do WhatsApp (que passou a citar os Termos de Uso)
+- [x] **Bug corrigido**: `FRONTEND_URL` sem fallback fazia todo link de e-mail do sistema quebrar se a env var estivesse errada/vazia (aconteceu em produção, apontando pra URL de preview) — agora cai em `https://matchimovel.com.br` por padrão
 
 ---
 
 ## Stack Técnica
-- **Frontend**: React 18, Tailwind CSS, Shadcn UI, Framer Motion, Lucide React
+- **Frontend**: React 19, Tailwind CSS, Shadcn UI, Framer Motion, Lucide React
 - **Backend**: FastAPI (Python) — arquitetura modular v2.0.0
 - **Database**: MongoDB (Motor async)
 - **AI**: OpenAI GPT-4o — matching de compradores, extração de campos de imóveis, geração de perfis
 - **Email**: SMTP (Hostgator) via aiosmtplib — templates HTML com plain text fallback
 - **CRECI**: API BuscaCRECI (https://api.buscacreci.com.br)
+- **WhatsApp**: Meta Cloud API (WhatsApp Business)
+- **Tracking**: Google Tag Manager + Consent Mode v2, Meta Pixel + Conversions API (CAPI)
 
 ### Arquitetura Backend (v2.0.0)
 ```
 backend/
-├── server.py             # Entry point + middleware CORS
+├── server.py             # Entry point + middleware CORS + SecurityHeaders
 ├── config.py             # Variáveis de ambiente
 ├── database.py           # Conexão MongoDB
 ├── auth.py               # JWT e hash de senhas
 ├── models/
 │   └── schemas.py        # Modelos Pydantic
 ├── services/
-│   ├── email_service.py  # Templates e envio de emails
-│   └── openai_service.py # Integração GPT-4o
+│   ├── email_service.py            # Templates e envio de emails
+│   ├── openai_service.py           # Integração GPT-4o
+│   ├── whatsapp_service.py         # Meta Cloud API, sessões, templates
+│   ├── exchange_matching_service.py # Detecção de ciclos de permuta
+│   └── meta_capi_service.py        # Meta Conversions API server-side
 └── routes/
     ├── auth_routes.py    # Login, registro, CRECI, reset de senha
     ├── buyer_routes.py   # Interesses + geração de perfil IA
     ├── agent_routes.py   # Busca IA, analyze-property, buscas salvas, matches
     ├── curator_routes.py # Curadoria, follow-ups, visitas
-    └── admin_routes.py   # Gestão de usuários e analytics
+    ├── admin_routes.py   # Gestão de usuários, analytics, campanhas, consent-lookup
+    ├── whatsapp_routes.py # Webhook Meta, 4 fluxos conversacionais
+    └── consent_routes.py # Log de consentimento de cookies
 ```
 
 ## Variáveis de Ambiente Obrigatórias
@@ -183,15 +222,21 @@ backend/
 | `MONGO_URL` | URL de conexão MongoDB |
 | `DB_NAME` | Nome do banco de dados |
 | `JWT_SECRET` | Chave secreta JWT |
-| `FRONTEND_URL` | URL do frontend (links em emails) |
+| `FRONTEND_URL` | URL do frontend (links em emails) — fallback `https://matchimovel.com.br` |
 | `CORS_ORIGINS` | Origens CORS permitidas (vírgula) |
 | `OPENAI_API_KEY` | Chave OpenAI (GPT-4o) |
 | `SMTP_*` | Configurações SMTP para emails |
+| `INTERNAL_API_KEY` | Protege endpoints `/api/internal/*` |
+| `ENVIRONMENT` | `production` desabilita `/docs` e `/redoc` |
+| `WHATSAPP_TOKEN` / `WHATSAPP_PHONE_NUMBER_ID` / `WHATSAPP_VERIFY_TOKEN` | Meta Cloud API |
+| `WHATSAPP_ADMIN_PHONE` | Telefone do admin para alertas (opt-in) |
+| `META_PIXEL_ID` / `META_CAPI_ACCESS_TOKEN` | Conversions API (CAPI) server-side |
 
 ### Frontend
 | Variável | Descrição |
 |----------|-----------|
 | `REACT_APP_BACKEND_URL` | URL base da API backend |
+| `REACT_APP_GTM_CONTAINER_ID` | Container do Google Tag Manager (GA4 + Meta Pixel vivem lá dentro) |
 
 ---
 
@@ -213,6 +258,13 @@ backend/
 ---
 
 ## Changelog
+
+### 30/09/2026
+- **Consentimento, Privacidade e Tracking (LGPD)**: banner de cookies com 3 ações + categorias granulares, log de consentimento server-side, Consent Mode v2, migração de GA4/Meta Pixel para dentro do GTM, CAPI server-side, opt-in de marketing WhatsApp/e-mail com opt-out funcional, Política de Privacidade reescrita (v1.2) + Termos de Uso em página própria, painel admin de consulta de consentimento — ver seção dedicada acima
+- **Permuta em cadeia**: captura estruturada de oferta de troca (comprador e corretor), motor de detecção de ciclos (Top Trading Cycles), painel admin sob demanda, campo de complemento do admin no matching
+- **Campanhas WhatsApp**: aba de disparos segmentados no AdminDashboard, histórico de campanhas
+- **Correções de bug**: `AuthResponse` sem `phone`, `terms_accepted` hardcoded no fluxo WhatsApp, `FRONTEND_URL` sem fallback quebrando links de e-mail quando a env var está errada, e-mails de contato/suporte inexistentes (`contato@`/`suporte@` → `matchimovel@matchimovel.com.br`)
+- **Performance**: PageSpeed mobile de 76 para melhor — code-splitting de rotas, otimização de imagens, cache de assets estáticos, `llms.txt`
 
 ### 01/06/2026
 - **Headers de segurança HTTP**:
