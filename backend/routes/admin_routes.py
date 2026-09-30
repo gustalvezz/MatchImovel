@@ -282,6 +282,55 @@ async def update_creci_status(agent_id: str, status: CreciStatusUpdate, current_
     return {"status": "success", "message": "Status do CRECI atualizado com sucesso"}
 
 
+@router.get("/admin/consent-lookup")
+async def consent_lookup(query: str, current_user: dict = Depends(get_current_user)):
+    """Consolidated consent/terms record for a person, by email or phone —
+    for proving authorization (LGPD/WhatsApp marketing) if ever disputed."""
+    if current_user["role"] not in ["admin", "curator"]:
+        raise HTTPException(status_code=403, detail="Acesso negado")
+
+    q = query.strip()
+    user = await db.users.find_one({"email": q}, {"_id": 0, "password": 0})
+    if not user:
+        user = await db.users.find_one({"phone": {"$in": [q, f"+{q}"]}}, {"_id": 0, "password": 0})
+
+    if not user:
+        return {"found": False}
+
+    result = {
+        "found": True,
+        "user": {
+            "id": user.get("id"),
+            "name": user.get("name"),
+            "email": user.get("email"),
+            "phone": user.get("phone"),
+            "role": user.get("role"),
+            "created_at": user.get("created_at"),
+            "whatsapp_marketing_opt_in": user.get("whatsapp_marketing_opt_in", False),
+            "whatsapp_marketing_opt_in_at": user.get("whatsapp_marketing_opt_in_at"),
+            # Agents accept terms at registration, stored directly on the user record
+            "terms_accepted": user.get("terms_accepted"),
+            "terms_accepted_at": user.get("terms_accepted_at"),
+            "terms_accepted_ip": user.get("terms_accepted_ip"),
+        },
+        "interests": [],
+    }
+
+    if user.get("role") == "buyer":
+        interests = await db.interests.find(
+            {"buyer_id": user["id"]},
+            {"_id": 0, "id": 1, "created_at": 1, "form_version": 1,
+             "terms_accepted": 1, "terms_accepted_at": 1, "terms_accepted_ip": 1,
+             "whatsapp_marketing_opt_in": 1, "whatsapp_marketing_opt_in_at": 1}
+        ).to_list(200)
+        for i in interests:
+            if isinstance(i.get("created_at"), str) is False and i.get("created_at"):
+                i["created_at"] = i["created_at"].isoformat()
+        result["interests"] = interests
+
+    return result
+
+
 @router.get("/admin/interests")
 async def get_all_interests(current_user: dict = Depends(get_current_user)):
     if current_user["role"] not in ["admin", "curator"]:

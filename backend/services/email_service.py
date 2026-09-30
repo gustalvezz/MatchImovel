@@ -706,7 +706,7 @@ async def send_creci_blocked_email(agent_email: str, agent_name: str, creci: str
                     <ul>
                         <li>Verifique se seu CRECI está ativo junto ao CRECI do seu estado</li>
                         <li>Caso tenha alguma pendência, regularize-a</li>
-                        <li>Entre em contato conosco pelo email suporte@matchimovel.com.br informando seu CRECI atualizado</li>
+                        <li>Entre em contato conosco pelo email matchimovel@matchimovel.com.br informando seu CRECI atualizado</li>
                     </ul>
                 </div>
                 

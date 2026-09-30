@@ -30,7 +30,7 @@ from services.email_service import (
 router = APIRouter(tags=["curator"])
 logger = logging.getLogger(__name__)
 
-FRONTEND_URL = os.environ.get("FRONTEND_URL", "")
+FRONTEND_URL = os.environ.get("FRONTEND_URL") or "https://matchimovel.com.br"
 
 
 # ─── helpers ──────────────────────────────────────────────────────────────────

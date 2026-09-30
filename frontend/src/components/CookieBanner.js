@@ -153,7 +153,7 @@ const CookieBanner = ({ onConsent }) => {
                       onClick={() => setDraftCategories(prev => ({ ...prev, analytics: !prev.analytics }))}
                       className={`w-11 h-6 rounded-full transition-colors relative flex-shrink-0 ${draftCategories.analytics ? 'bg-indigo-600' : 'bg-slate-600'}`}
                     >
-                      <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white transition-transform ${draftCategories.analytics ? 'translate-x-5' : 'translate-x-0.5'}`} />
+                      <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform ${draftCategories.analytics ? 'translate-x-5' : 'translate-x-0'}`} />
                     </button>
                   </div>
                   <div className="flex items-center justify-between gap-4 bg-slate-800 rounded-xl px-4 py-3">
@@ -165,7 +165,7 @@ const CookieBanner = ({ onConsent }) => {
                       onClick={() => setDraftCategories(prev => ({ ...prev, marketing: !prev.marketing }))}
                       className={`w-11 h-6 rounded-full transition-colors relative flex-shrink-0 ${draftCategories.marketing ? 'bg-indigo-600' : 'bg-slate-600'}`}
                     >
-                      <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white transition-transform ${draftCategories.marketing ? 'translate-x-5' : 'translate-x-0.5'}`} />
+                      <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform ${draftCategories.marketing ? 'translate-x-5' : 'translate-x-0'}`} />
                     </button>
                   </div>
                 </div>
