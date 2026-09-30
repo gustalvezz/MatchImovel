@@ -389,7 +389,7 @@ async def send_password_changed_email(to_email: str, user_name: str) -> bool:
                 
                 <div class="warning">
                     <strong>🔒 Não foi você?</strong><br>
-                    Se você não fez essa alteração, entre em contato imediatamente com nosso suporte em suporte@matchimovel.com.br
+                    Se você não fez essa alteração, entre em contato imediatamente com nosso suporte em matchimovel@matchimovel.com.br
                 </div>
                 
                 <p style="margin-top: 30px;">Atenciosamente,<br><strong>Equipe MatchImovel</strong></p>
