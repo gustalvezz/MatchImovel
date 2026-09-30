@@ -25,8 +25,9 @@ SMTP_FROM_NAME = os.environ.get('SMTP_FROM_NAME', 'MatchImovel')
 # External APIs
 BUSCACRECI_API = "https://api.buscacreci.com.br"
 
-# Frontend URL (for email links)
-FRONTEND_URL = os.environ.get('FRONTEND_URL')
+# Frontend URL (for email links) — defaults to production so a missing/blank
+# env var never silently generates a broken or preview link.
+FRONTEND_URL = os.environ.get('FRONTEND_URL') or 'https://matchimovel.com.br'
 
 # CORS
 CORS_ORIGINS = os.environ.get('CORS_ORIGINS', '*').split(',')
