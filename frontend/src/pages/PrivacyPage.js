@@ -29,7 +29,7 @@ const PrivacyPage = () => (
             <strong> G. A. SILVA NEGÓCIOS IMOBILIÁRIOS - ME</strong>, inscrita no CNPJ sob o nº
             <strong> 31.957.586/0001-00</strong>, com sede em Jundiaí — SP. Nosso site é
             <strong> matchimovel.com.br</strong>. Para qualquer assunto relacionado a este documento
-            ou ao tratamento dos seus dados, o contato é <strong>contato@matchimovel.com.br</strong>.
+            ou ao tratamento dos seus dados, o contato é <strong>matchimovel@matchimovel.com.br</strong>.
           </p>
         </section>
 
@@ -103,7 +103,7 @@ const PrivacyPage = () => (
             <li>Revogar, a qualquer momento, o consentimento dado para cookies analíticos, de marketing, ou para o recebimento de novidades por WhatsApp e e-mail.</li>
           </ul>
           <p className="mt-3">
-            Para exercer qualquer um desses direitos, entre em contato: <strong>contato@matchimovel.com.br</strong>
+            Para exercer qualquer um desses direitos, entre em contato: <strong>matchimovel@matchimovel.com.br</strong>
           </p>
         </section>
 
@@ -121,7 +121,7 @@ const PrivacyPage = () => (
           <h2 className="text-xl font-semibold text-slate-900 mb-3">8. Contato</h2>
           <p>
             Dúvidas sobre esta política ou sobre o tratamento dos seus dados? Fale conosco:<br />
-            <strong>contato@matchimovel.com.br</strong>
+            <strong>matchimovel@matchimovel.com.br</strong>
           </p>
         </section>
 
