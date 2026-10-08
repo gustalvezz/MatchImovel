@@ -4,7 +4,7 @@ Duas apresentações verticais (1080×1920, 30fps) feitas em código com Remotio
 
 | Composição | Público | Duração |
 |---|---|---|
-| `Corretor` | Corretor que traz o imóvel | ~42s |
+| `Corretor` | Corretor que traz o imóvel | ~56s (com narração) |
 | `Comprador` | Lead que quer comprar | ~39s |
 
 ## Rodar no seu computador (Windows)
@@ -25,6 +25,12 @@ npm run render:comprador
 ```
 
 Os arquivos saem em `video/out/` (pasta ignorada pelo git).
+
+## Narração
+
+A voz do vídeo do corretor fica em `src/corretor/audios/corretor_voz.mp3` (um único arquivo com todas as frases).
+Em `src/corretor/Corretor.tsx`, a lista `FALAS` diz onde cada frase começa e termina no MP3 (em segundos);
+cada frase toca no início da cena correspondente. Se gerar a voz de novo, atualize esses tempos.
 
 ## Trilha sonora
 
