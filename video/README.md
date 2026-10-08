@@ -34,8 +34,11 @@ cada frase toca no início da cena correspondente. Se gerar a voz de novo, atual
 
 ## Trilha sonora
 
-1. Coloque o arquivo em `video/public/` (ex.: `public/musica.mp3`).
-2. Em `src/config.ts`, troque `MUSICA = null` por `MUSICA = "musica.mp3"`.
+A música fica em `public/musica.m4a` e é a mesma nos dois vídeos. Em `src/config.ts`:
+
+- `MUSICA`: nome do arquivo em `public/` (ou `null` para gerar sem música);
+- `MUSICA_VOLUME_PAUSA`: volume nos intervalos sem voz;
+- `MUSICA_VOLUME_VOZ`: volume enquanto a voz fala (a música abaixa sozinha, com rampa suave).
 
 ## Onde mexer
 

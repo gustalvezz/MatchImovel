@@ -1,10 +1,10 @@
 import React from "react";
-import { Audio, staticFile } from "remotion";
+import { staticFile } from "remotion";
 import { TransitionSeries } from "@remotion/transitions";
-import { MUSICA, VOLUME_MUSICA } from "../config";
+import { MUSICA, MUSICA_VOLUME_PAUSA, MUSICA_VOLUME_VOZ } from "../config";
 import { useFonts } from "../fonts";
 import { P, T } from "../components/transitions";
-import { Fala, Narracao, iniciosDasCenas } from "../components/Narracao";
+import { Fala, Narracao, Trilha, iniciosDasCenas } from "../components/Narracao";
 import { CTA, Comissao, Curadoria, Descrever, Ficha, Gancho, Marca, Resultados, Virada, WhatsCorretor } from "./Cenas";
 import voz from "./audios/corretor_voz.mp3";
 
@@ -39,6 +39,7 @@ const FALAS: Fala[] = [
 ];
 
 const DURACOES = CENAS.map((c) => c.d);
+const INICIOS = iniciosDasCenas(DURACOES, T.D);
 export const DURACAO_CORRETOR = DURACOES.reduce((s, d) => s + d, 0) - (CENAS.length - 1) * T.D;
 
 export const Corretor: React.FC = () => {
@@ -55,8 +56,17 @@ export const Corretor: React.FC = () => {
           </React.Fragment>
         ))}
       </TransitionSeries>
-      <Narracao src={voz} falas={FALAS} inicios={iniciosDasCenas(DURACOES, T.D)} />
-      {MUSICA ? <Audio src={staticFile(MUSICA)} volume={VOLUME_MUSICA} /> : null}
+      <Narracao src={voz} falas={FALAS} inicios={INICIOS} />
+      {MUSICA ? (
+        <Trilha
+          src={staticFile(MUSICA)}
+          falas={FALAS}
+          inicios={INICIOS}
+          total={DURACAO_CORRETOR}
+          pausa={MUSICA_VOLUME_PAUSA}
+          voz={MUSICA_VOLUME_VOZ}
+        />
+      ) : null}
     </>
   );
 };
