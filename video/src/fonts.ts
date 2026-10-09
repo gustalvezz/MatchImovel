@@ -2,6 +2,7 @@ import "@fontsource/outfit/500.css";
 import "@fontsource/outfit/600.css";
 import "@fontsource/outfit/700.css";
 import "@fontsource/outfit/800.css";
+import "@fontsource/inter/300.css";
 import "@fontsource/inter/400.css";
 import "@fontsource/inter/500.css";
 import "@fontsource/inter/600.css";
@@ -14,6 +15,7 @@ const PESOS = [
   "600 40px Outfit",
   "700 40px Outfit",
   "800 40px Outfit",
+  "300 40px Inter",
   "400 40px Inter",
   "500 40px Inter",
   "600 40px Inter",
