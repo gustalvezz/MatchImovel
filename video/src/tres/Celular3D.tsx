@@ -19,24 +19,32 @@ export type Pose = {
 
 const MODELO = staticFile("3d/smartphone/scene.gltf");
 
-// Carrega o modelo uma única vez, segurando a renderização até terminar.
+// Carrega o modelo uma única vez (cache entre cenas) e só libera a renderização
+// depois que o celular já foi montado e desenhado, evitando quadros sem o celular.
+let promessaModelo: Promise<GLTF> | null = null;
+const carregarModelo = () => {
+  if (!promessaModelo) {
+    promessaModelo = new Promise<GLTF>((resolve, reject) => new GLTFLoader().load(MODELO, resolve, undefined, reject));
+  }
+  return promessaModelo;
+};
+
 const useModelo = () => {
   const [gltf, setGltf] = useState<GLTF | null>(null);
   const [handle] = useState(() => delayRender("Carregando modelo 3D"));
   useEffect(() => {
-    new GLTFLoader().load(
-      MODELO,
-      (g) => {
-        setGltf(g);
-        continueRender(handle);
-      },
-      undefined,
-      (err) => {
+    carregarModelo()
+      .then(setGltf)
+      .catch((err) => {
         console.error(err);
         continueRender(handle);
-      },
-    );
+      });
   }, [handle]);
+  useEffect(() => {
+    if (!gltf) return;
+    // espera dois quadros do navegador para o WebGL desenhar o modelo recém-montado
+    requestAnimationFrame(() => requestAnimationFrame(() => continueRender(handle)));
+  }, [gltf, handle]);
   return gltf;
 };
 
@@ -134,7 +142,7 @@ const Celular: React.FC<{ gltf: GLTF; pose: Pose; tela: EstadoTela }> = ({ gltf,
     const vidro = new THREE.MeshStandardMaterial({
       color: "#000000",
       metalness: 1,
-      roughness: 0.05,
+      roughness: 0.16, // levemente difuso: o reflexo do refletor vira um brilho suave, não um ponto
       envMapIntensity: 0.45,
       transparent: true,
       blending: THREE.AdditiveBlending,

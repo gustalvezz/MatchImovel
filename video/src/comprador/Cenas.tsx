@@ -10,6 +10,7 @@ import { PhoneScene } from "../components/Layout";
 import { Tap } from "../components/Phone";
 import { AppHeader, Badge, Card, GradButton } from "../components/AppUI";
 import { WhatsAppChat } from "../components/WhatsApp";
+import { CenaNotificacao } from "../tres/CenaNotificacao";
 
 const COMPRADOR = "Olá, Mariana Costa";
 
@@ -412,6 +413,21 @@ export const Match: React.FC = () => {
     </PhoneScene>
   );
 };
+
+// 8 (versão 3D). O match acontece: celular 3D sobre a mesa recebe a notificação.
+export const Match3D: React.FC = () => (
+  <AbsoluteFill>
+    <CenaNotificacao
+      titulo="Seu match foi aprovado!"
+      linhas={["Casa em Jundiaí, 94% compatível.", "Visita agendada: sábado, 10h."]}
+      deslocY={-0.32}
+      cameraZ={6}
+    />
+    <AbsoluteFill style={{ alignItems: "center", paddingTop: 170 }}>
+      <Headline text={"E o match\n*acontece*"} size={96} />
+    </AbsoluteFill>
+  </AbsoluteFill>
+);
 
 // 9. Chamada final
 export const CTA: React.FC = () => {
