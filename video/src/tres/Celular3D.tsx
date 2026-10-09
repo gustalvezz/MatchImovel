@@ -45,7 +45,8 @@ const Ambiente: React.FC = () => {
   const { gl, scene } = useThree();
   useEffect(() => {
     const env = new THREE.Scene();
-    env.background = new THREE.Color("#050510");
+    // fundo médio: o metal reflete um gradiente de estúdio, não um vazio preto
+    env.background = new THREE.Color("#4a4862");
     const caixa = (w: number, h: number, pos: [number, number, number], intensidade: number, cor = "#ffffff") => {
       const m = new THREE.Mesh(
         new THREE.PlaneGeometry(w, h),
@@ -55,9 +56,10 @@ const Ambiente: React.FC = () => {
       m.lookAt(0, 0, 0);
       env.add(m);
     };
-    caixa(6, 1.4, [0, 6, 5], 6); // faixa de luz principal (reflexo que corre pela tela)
-    caixa(3, 8, [-7, 1, 2], 2.2, "#c7d2fe"); // luz lateral fria
-    caixa(3, 6, [7, -2, 3], 1.4, "#e9d5ff"); // contraluz roxa
+    caixa(6, 1.4, [0, 6, 5], 7); // faixa de luz principal (reflexo que corre pela tela)
+    caixa(3, 8, [-7, 1, 2], 3, "#c7d2fe"); // luz lateral fria
+    caixa(3, 6, [7, -2, 3], 2.4, "#e9d5ff"); // contraluz roxa
+    caixa(8, 3, [0, -6, 2], 1.2); // rebatedor de baixo (ilumina as laterais)
     const pmrem = new THREE.PMREMGenerator(gl);
     const rt = pmrem.fromScene(env, 0.02);
     scene.environment = rt.texture;
@@ -69,19 +71,19 @@ const Ambiente: React.FC = () => {
   return null;
 };
 
-// Mesa escura com textura sutil (couro/fosco) gerada em canvas.
+// Superfície clara (lavanda, como o site) com textura fosca sutil gerada em canvas.
 const useTexturaMesa = () =>
   useMemo(() => {
     const c = document.createElement("canvas");
     c.width = c.height = 512;
     const ctx = c.getContext("2d")!;
-    ctx.fillStyle = "#16151c";
+    ctx.fillStyle = "#ECEAF6";
     ctx.fillRect(0, 0, 512, 512);
     let seed = 7;
     const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
     for (let i = 0; i < 26000; i++) {
-      const v = 18 + rnd() * 22;
-      ctx.fillStyle = `rgba(${v},${v},${v + 6},${0.35 + rnd() * 0.4})`;
+      const v = 215 + rnd() * 30;
+      ctx.fillStyle = `rgba(${v - 6},${v - 6},${v},${0.25 + rnd() * 0.3})`;
       ctx.fillRect(rnd() * 512, rnd() * 512, 1 + rnd() * 2, 1 + rnd() * 2);
     }
     const t = new THREE.CanvasTexture(c);
@@ -133,7 +135,7 @@ const Celular: React.FC<{ gltf: GLTF; pose: Pose; tela: EstadoTela }> = ({ gltf,
       color: "#000000",
       metalness: 1,
       roughness: 0.05,
-      envMapIntensity: 0.9,
+      envMapIntensity: 0.45,
       transparent: true,
       blending: THREE.AdditiveBlending,
       depthWrite: false,
@@ -152,8 +154,11 @@ const Celular: React.FC<{ gltf: GLTF; pose: Pose; tela: EstadoTela }> = ({ gltf,
       } else if (m.name.startsWith("Glass_Glass")) {
         m.material = vidro;
         m.renderOrder = 2;
+        m.castShadow = false;
+        return;
       } else if (nome === "Material") {
-        m.material = new THREE.MeshPhysicalMaterial({ color: "#2e2e36", metalness: 0.9, roughness: 0.3, clearcoat: 0.6, clearcoatRoughness: 0.2 });
+        // titânio natural: claro o bastante para as laterais mostrarem volume
+        m.material = new THREE.MeshPhysicalMaterial({ color: "#9a9aa6", metalness: 0.7, roughness: 0.38, clearcoat: 0.5, clearcoatRoughness: 0.2 });
       } else if (nome === "Glass") {
         m.material = new THREE.MeshPhysicalMaterial({ color: "#0a0a12", metalness: 0.2, roughness: 0.05, clearcoat: 1 });
       } else if (nome === "Material.002") {
@@ -161,6 +166,7 @@ const Celular: React.FC<{ gltf: GLTF; pose: Pose; tela: EstadoTela }> = ({ gltf,
       } else if (nome === "Cam1" || nome === "base") {
         m.material = new THREE.MeshPhysicalMaterial({ color: "#0b0b10", metalness: 0.3, roughness: 0.15, clearcoat: 1 });
       }
+      m.castShadow = true;
     });
     return grupo;
   }, [gltf, textura]);
@@ -192,16 +198,30 @@ export const Celular3D: React.FC<{ pose: Pose; tela: EstadoTela; mesa?: boolean;
       height={height}
       camera={{ fov: 30, position: [0, 0, cameraZ], near: 0.1, far: 100 }}
       gl={{ antialias: true, toneMapping: THREE.ACESFilmicToneMapping, outputColorSpace: THREE.SRGBColorSpace }}
-      style={{ background: "#0d0c12" }}
+      shadows
+      style={{ background: "#ECEAF6" }}
     >
       <Ambiente />
-      <ambientLight intensity={0.15} />
-      <directionalLight position={[2, 4, 5]} intensity={1.2} />
-      <spotLight position={[0, 3, 6]} angle={0.5} penumbra={1} intensity={30} color="#d4d0ff" />
+      <ambientLight intensity={0.55} />
+      {/* luz principal vinda de cima à esquerda: projeta a sombra do celular na superfície */}
+      <directionalLight
+        position={[-2.5, 3.5, 6]}
+        intensity={2.2}
+        castShadow
+        shadow-mapSize-width={2048}
+        shadow-mapSize-height={2048}
+        shadow-camera-left={-3}
+        shadow-camera-right={3}
+        shadow-camera-top={3}
+        shadow-camera-bottom={-3}
+        shadow-radius={8}
+        shadow-bias={-0.0005}
+      />
+      <spotLight position={[3, 2, 6]} angle={0.6} penumbra={1} intensity={25} color="#e0dcff" />
       {mesa ? (
-        <mesh position={[0, 0, -2]}>
+        <mesh position={[0, 0, -1.3]} receiveShadow>
           <planeGeometry args={[30, 30]} />
-          <meshStandardMaterial map={texMesa} roughness={0.85} metalness={0} color="#55525f" />
+          <meshStandardMaterial map={texMesa} roughness={0.9} metalness={0} color="#ffffff" />
         </mesh>
       ) : null}
       {gltf ? <Celular gltf={gltf} pose={pose} tela={tela} /> : null}
