@@ -30,22 +30,21 @@ const carregarModelo = () => {
   return promessaModelo;
 };
 
-const useModelo = () => {
+const useModelo = (segurar: (h: number) => void) => {
   const [gltf, setGltf] = useState<GLTF | null>(null);
   const [handle] = useState(() => delayRender("Carregando modelo 3D"));
   useEffect(() => {
     carregarModelo()
-      .then(setGltf)
+      .then((g) => {
+        // a captura só é liberada depois do redesenho com o modelo montado
+        segurar(handle);
+        setGltf(g);
+      })
       .catch((err) => {
         console.error(err);
         continueRender(handle);
       });
-  }, [handle]);
-  useEffect(() => {
-    if (!gltf) return;
-    // espera dois quadros do navegador para o WebGL desenhar o modelo recém-montado
-    requestAnimationFrame(() => requestAnimationFrame(() => continueRender(handle)));
-  }, [gltf, handle]);
+  }, [handle, segurar]);
   return gltf;
 };
 
@@ -82,12 +81,26 @@ const Ambiente: React.FC = () => {
 
 // O ThreeCanvas só redesenha quando o número do quadro muda. Quando algo chega depois
 // (modelo carregado, quadro novo do vídeo da tela), forçamos um redesenho.
-const Redesenhar: React.FC<{ versao: number }> = ({ versao }) => {
+const Redesenhar: React.FC<{ versao: number; aoRedesenhar: () => void }> = ({ versao, aoRedesenhar }) => {
   const { advance, invalidate } = useThree();
   useEffect(() => {
     advance(performance.now());
     invalidate();
-  }, [versao, advance, invalidate]);
+    // o redesenho acima é síncrono: a imagem já está no canvas, pode liberar a captura
+    aoRedesenhar();
+  }, [versao, advance, invalidate, aoRedesenhar]);
+  return null;
+};
+
+// Guarda a função `advance` do R3F para redesenhar o 3D de forma síncrona fora da árvore 3D.
+const ExporAvanco: React.FC<{ alvo: React.MutableRefObject<((t: number) => void) | null> }> = ({ alvo }) => {
+  const { advance } = useThree();
+  useEffect(() => {
+    alvo.current = advance;
+    return () => {
+      alvo.current = null;
+    };
+  }, [advance, alvo]);
   return null;
 };
 
@@ -214,7 +227,26 @@ export const Celular3D: React.FC<{
   cameraZ?: number;
 }> = ({ pose, tela, video, brilho = 1, mesa = true, cameraZ = 5.2 }) => {
   const { width, height } = useVideoConfig();
-  const gltf = useModelo();
+  // capturas pendentes: liberadas logo após o próximo redesenho do 3D
+  const pendentes = useRef<number[]>([]);
+  const segurar = useCallback((h: number) => {
+    pendentes.current.push(h);
+    // trava de segurança: nunca segura a captura por mais de 1,5 s
+    setTimeout(() => {
+      const i = pendentes.current.indexOf(h);
+      if (i >= 0) {
+        pendentes.current.splice(i, 1);
+        continueRender(h);
+      }
+    }, 1500);
+  }, []);
+  const avanco = useRef<((t: number) => void) | null>(null);
+  const liberar = useCallback(() => {
+    const hs = pendentes.current;
+    pendentes.current = [];
+    hs.forEach((h) => continueRender(h));
+  }, []);
+  const gltf = useModelo(segurar);
   const texMesa = useTexturaMesa();
   const { textura, pintar } = useCanvasTela();
   const [tick, setTick] = useState(0);
@@ -222,24 +254,28 @@ export const Celular3D: React.FC<{
 
   if (tela) pintar((ctx) => desenharTela(ctx, tela));
 
-  // Cada quadro do vídeo da tela é pintado no canvas; a captura só é liberada
-  // depois que o 3D foi redesenhado com a imagem nova. A função é estável (useCallback + ref)
-  // para não disparar de novo a entrega do mesmo quadro a cada redesenho.
+  // Cada quadro do vídeo da tela é pintado no canvas e o 3D é redesenhado na hora.
+  // A função é estável (useCallback + ref) para não disparar de novo a entrega do mesmo quadro.
   const brilhoRef = useRef(brilho);
   brilhoRef.current = brilho;
   const aoQuadro = useCallback(
     (img: CanvasImageSource) => {
-      const h = delayRender("Tela do celular 3D");
       pintar((ctx) => {
         ctx.fillStyle = "#000";
         ctx.fillRect(0, 0, TELA_W, TELA_H);
         ctx.globalAlpha = brilhoRef.current;
         ctx.drawImage(img, 0, 0, TELA_W, TELA_H);
       });
-      setTick((n) => n + 1);
-      requestAnimationFrame(() => requestAnimationFrame(() => continueRender(h)));
+      if (avanco.current) {
+        // redesenho síncrono: a imagem nova já está no 3D antes da captura
+        avanco.current(performance.now());
+      } else {
+        // o 3D ainda não foi criado: segura a captura até o primeiro redesenho
+        segurar(delayRender("Tela do celular 3D"));
+        setTick((n) => n + 1);
+      }
     },
-    [pintar],
+    [pintar, segurar],
   );
 
   return (
@@ -279,7 +315,8 @@ export const Celular3D: React.FC<{
         </mesh>
       ) : null}
       {gltf ? <Celular gltf={gltf} pose={pose} textura={textura} /> : null}
-      <Redesenhar versao={tick * 2 + (gltf ? 1 : 0)} />
+      <Redesenhar versao={tick * 2 + (gltf ? 1 : 0)} aoRedesenhar={liberar} />
+      <ExporAvanco alvo={avanco} />
     </ThreeCanvas>
     </>
   );
