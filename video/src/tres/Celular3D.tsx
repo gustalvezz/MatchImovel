@@ -1,7 +1,7 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ThreeCanvas } from "@remotion/three";
 import { useThree } from "@react-three/fiber";
-import { continueRender, delayRender, staticFile, useCurrentFrame, useVideoConfig } from "remotion";
+import { continueRender, delayRender, OffthreadVideo, staticFile, useCurrentFrame, useVideoConfig } from "remotion";
 import * as THREE from "three";
 import { GLTFLoader, type GLTF } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { EstadoTela, TELA_H, TELA_W, desenharTela } from "./Tela";
@@ -10,6 +10,7 @@ import { EstadoTela, TELA_H, TELA_W, desenharTela } from "./Tela";
 // https://sketchfab.com/3d-models/realistic-smartphone-3d-model-77e5794dde144965b5bd4aeab9cb50e8
 
 export type Pose = {
+  x?: number; // deslocamento lateral
   rotX: number; // inclinação (rad)
   rotY: number; // giro (rad)
   rotZ: number;
@@ -79,6 +80,17 @@ const Ambiente: React.FC = () => {
   return null;
 };
 
+// O ThreeCanvas só redesenha quando o número do quadro muda. Quando algo chega depois
+// (modelo carregado, quadro novo do vídeo da tela), forçamos um redesenho.
+const Redesenhar: React.FC<{ versao: number }> = ({ versao }) => {
+  const { advance, invalidate } = useThree();
+  useEffect(() => {
+    advance(performance.now());
+    invalidate();
+  }, [versao, advance, invalidate]);
+  return null;
+};
+
 // Superfície clara (lavanda, como o site) com textura fosca sutil gerada em canvas.
 const useTexturaMesa = () =>
   useMemo(() => {
@@ -101,31 +113,32 @@ const useTexturaMesa = () =>
     return t;
   }, []);
 
-const Celular: React.FC<{ gltf: GLTF; pose: Pose; tela: EstadoTela }> = ({ gltf, pose, tela }) => {
-  // Canvas da tela, redesenhado a cada frame.
-  const { canvas, textura } = useMemo(() => {
+// Canvas "deitado" que vira a textura da tela (o UV corre ao longo do eixo longo do modelo).
+const useCanvasTela = () =>
+  useMemo(() => {
     const c = document.createElement("canvas");
-    // O UV da tela corre ao longo do eixo longo do modelo: o canvas é "deitado".
     c.width = TELA_H;
     c.height = TELA_W;
     const t = new THREE.CanvasTexture(c);
     t.colorSpace = THREE.SRGBColorSpace;
     t.anisotropy = 8;
     t.flipY = false;
-    return { canvas: c, textura: t };
+    const ctx = c.getContext("2d")!;
+    // Desenha em coordenadas "retrato" (TELA_W x TELA_H), girando e espelhando para casar com o UV.
+    const pintar = (desenho: (ctx: CanvasRenderingContext2D) => void) => {
+      ctx.save();
+      ctx.translate(0, TELA_W);
+      ctx.rotate(-Math.PI / 2);
+      ctx.translate(TELA_W, 0);
+      ctx.scale(-1, 1);
+      desenho(ctx);
+      ctx.restore();
+      t.needsUpdate = true;
+    };
+    return { textura: t, pintar };
   }, []);
 
-  const ctx = canvas.getContext("2d")!;
-  ctx.save();
-  ctx.translate(0, TELA_W);
-  ctx.rotate(-Math.PI / 2);
-  // espelha na horizontal para casar com o UV do modelo
-  ctx.translate(TELA_W, 0);
-  ctx.scale(-1, 1);
-  desenharTela(ctx, tela);
-  ctx.restore();
-  textura.needsUpdate = true;
-
+const Celular: React.FC<{ gltf: GLTF; pose: Pose; textura: THREE.Texture }> = ({ gltf, pose, textura }) => {
   // Prepara o modelo: centraliza, normaliza a escala e troca os materiais.
   const modelo = useMemo(() => {
     const raiz = gltf.scene.clone(true);
@@ -181,7 +194,7 @@ const Celular: React.FC<{ gltf: GLTF; pose: Pose; tela: EstadoTela }> = ({ gltf,
 
 
   return (
-    <group position={[0, pose.y, pose.z]} rotation={[pose.rotX, pose.rotY, pose.rotZ]}>
+    <group position={[pose.x ?? 0, pose.y, pose.z]} rotation={[pose.rotX, pose.rotY, pose.rotZ]}>
       {/* no modelo a frente aponta para +X: gira para ficar de frente para a câmera */}
       <group rotation={[0, -Math.PI / 2, 0]}>
         <primitive object={modelo} />
@@ -190,17 +203,50 @@ const Celular: React.FC<{ gltf: GLTF; pose: Pose; tela: EstadoTela }> = ({ gltf,
   );
 };
 
-export const Celular3D: React.FC<{ pose: Pose; tela: EstadoTela; mesa?: boolean; cameraZ?: number }> = ({
-  pose,
-  tela,
-  mesa = true,
-  cameraZ = 5.2,
-}) => {
+// `tela`: tela de bloqueio desenhada em canvas. `video`: vídeo com o conteúdo da tela
+// (gerado pelas composições Tela*), sincronizado quadro a quadro com a cena.
+export const Celular3D: React.FC<{
+  pose: Pose;
+  tela?: EstadoTela;
+  video?: string;
+  brilho?: number;
+  mesa?: boolean;
+  cameraZ?: number;
+}> = ({ pose, tela, video, brilho = 1, mesa = true, cameraZ = 5.2 }) => {
   const { width, height } = useVideoConfig();
   const gltf = useModelo();
   const texMesa = useTexturaMesa();
+  const { textura, pintar } = useCanvasTela();
+  const [tick, setTick] = useState(0);
   useCurrentFrame();
+
+  if (tela) pintar((ctx) => desenharTela(ctx, tela));
+
+  // Cada quadro do vídeo da tela é pintado no canvas; a captura só é liberada
+  // depois que o 3D foi redesenhado com a imagem nova. A função é estável (useCallback + ref)
+  // para não disparar de novo a entrega do mesmo quadro a cada redesenho.
+  const brilhoRef = useRef(brilho);
+  brilhoRef.current = brilho;
+  const aoQuadro = useCallback(
+    (img: CanvasImageSource) => {
+      const h = delayRender("Tela do celular 3D");
+      pintar((ctx) => {
+        ctx.fillStyle = "#000";
+        ctx.fillRect(0, 0, TELA_W, TELA_H);
+        ctx.globalAlpha = brilhoRef.current;
+        ctx.drawImage(img, 0, 0, TELA_W, TELA_H);
+      });
+      setTick((n) => n + 1);
+      requestAnimationFrame(() => requestAnimationFrame(() => continueRender(h)));
+    },
+    [pintar],
+  );
+
   return (
+    <>
+    {video ? (
+      <OffthreadVideo src={video} muted crossOrigin="anonymous" onVideoFrame={aoQuadro} style={{ position: "absolute", width: 2, height: 2, opacity: 0 }} />
+    ) : null}
     <ThreeCanvas
       width={width}
       height={height}
@@ -232,7 +278,9 @@ export const Celular3D: React.FC<{ pose: Pose; tela: EstadoTela; mesa?: boolean;
           <meshStandardMaterial map={texMesa} roughness={0.9} metalness={0} color="#ffffff" />
         </mesh>
       ) : null}
-      {gltf ? <Celular gltf={gltf} pose={pose} tela={tela} /> : null}
+      {gltf ? <Celular gltf={gltf} pose={pose} textura={textura} /> : null}
+      <Redesenhar versao={tick * 2 + (gltf ? 1 : 0)} />
     </ThreeCanvas>
+    </>
   );
 };

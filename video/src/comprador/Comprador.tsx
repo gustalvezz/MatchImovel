@@ -5,20 +5,22 @@ import { MUSICA, MUSICA_VOLUME_PAUSA, MUSICA_VOLUME_VOZ } from "../config";
 import { useFonts } from "../fonts";
 import { P, T } from "../components/transitions";
 import { Fala, Narracao, Trilha, iniciosDasCenas } from "../components/Narracao";
-import { CTA, Cadastro, Curadoria, Gancho, Marca, Match3D, Perfil, Virada, WhatsComprador } from "./Cenas";
+import { CTA, Cadastro3D, Curadoria, Gancho, Marca3D, Match3D, Perfil3D, Virada, Whats3D } from "./Cenas";
+import { DUR } from "./duracoes";
 import voz from "./audios/comprador_voz.mp3";
 
 // Ordem, duração (frames a 30fps) e transição de entrada de cada cena.
 // As durações já incluem o tempo da fala e uma pausa para leitura no fim de cada tela.
+// As cenas com celular usam o celular 3D; as versões 2D (Marca, Cadastro, ...) continuam em Cenas.tsx.
 const CENAS = [
   { C: Gancho, d: 166, t: null },
   { C: Virada, d: 126, t: P.zoom },
-  { C: Marca, d: 143, t: P.iris },
-  { C: Cadastro, d: 221, t: P.slideUp },
-  { C: WhatsComprador, d: 216, t: P.clock },
-  { C: Perfil, d: 211, t: P.slideLeft },
+  { C: Marca3D, d: DUR.marca, t: P.iris },
+  { C: Cadastro3D, d: DUR.cadastro, t: P.slideUp },
+  { C: Whats3D, d: DUR.whats, t: P.clock },
+  { C: Perfil3D, d: DUR.perfil, t: P.slideLeft },
   { C: Curadoria, d: 176, t: P.wipe },
-  { C: Match3D, d: 196, t: P.slideLeft }, // cena 3D (a versão 2D, `Match`, continua em Cenas.tsx)
+  { C: Match3D, d: DUR.match, t: P.slideLeft },
   { C: CTA, d: 176, t: P.zoom },
 ] as const;
 

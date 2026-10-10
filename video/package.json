@@ -8,6 +8,7 @@
     "render:corretor": "remotion render Corretor out/matchimovel-corretor.mp4",
     "render:comprador": "remotion render Comprador out/matchimovel-comprador.mp4",
     "render": "npm run render:corretor && npm run render:comprador",
+    "render:telas": "remotion render TelaMarca public/telas/marca.mp4 && remotion render TelaCadastro public/telas/cadastro.mp4 && remotion render TelaWhats public/telas/whats.mp4 && remotion render TelaPerfil public/telas/perfil.mp4",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

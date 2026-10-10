@@ -47,10 +47,19 @@ A música fica em `public/musica.m4a` e é a mesma nos dois vídeos. Em `src/con
 - **Cores e fontes:** `src/theme.ts` (paleta do site: indigo `#4F46E5`, roxo `#9333EA`, fontes Outfit e Inter).
 - **Destaque em degradê nos títulos:** escreva o trecho entre asteriscos, ex.: `"Descreva o imóvel\n*do seu jeito*"`.
 
-## Celular 3D (teste)
+## Celular 3D (vídeo do comprador)
 
-A composição `Teste3D` mostra um celular 3D sobre uma mesa recebendo a notificação de match
-(`src/tres/`). O render usa WebGL; num PC com placa de vídeo é rápido, em máquinas sem GPU fica lento.
+No vídeo do comprador, todas as cenas com celular usam o celular 3D (`src/tres/`):
+marca, cadastro, WhatsApp, perfil e a notificação de match (com som em `public/sons/notificacao.mp3`).
+
+O conteúdo de cada tela é gravado antes em vídeo e aplicado na tela do celular 3D:
+
+- composições `TelaMarca`, `TelaCadastro`, `TelaWhats` e `TelaPerfil` → `public/telas/*.mp4`;
+- se mudar alguma tela (textos, animações), gere de novo com `npm run render:telas`;
+- as durações das cenas ficam em `src/comprador/duracoes.ts` (as telas usam as mesmas).
+
+O render usa WebGL; num PC com placa de vídeo é rápido, em máquinas sem GPU fica lento.
+A composição `Teste3D` continua disponível para testar só a cena da notificação.
 
 Crédito obrigatório do modelo 3D (CC BY 4.0, incluir na legenda ao publicar):
 "Realistic Smartphone 3D Model" (https://sketchfab.com/3d-models/realistic-smartphone-3d-model-77e5794dde144965b5bd4aeab9cb50e8)

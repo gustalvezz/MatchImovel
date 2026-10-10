@@ -11,6 +11,7 @@ import { Tap } from "../components/Phone";
 import { AppHeader, Badge, Card, GradButton } from "../components/AppUI";
 import { WhatsAppChat } from "../components/WhatsApp";
 import { CenaNotificacao } from "../tres/CenaNotificacao";
+import { CenaCelular3D } from "../tres/CenaCelular3D";
 
 const COMPRADOR = "Olá, Mariana Costa";
 
@@ -110,7 +111,8 @@ const PERGUNTAS = [
   { passo: 11, q: "Do que você não abre mão?", ops: ["Home office", "Suíte", "Quintal", "Perto de escola"], sel: [0, 1, 3], multi: true },
 ];
 const DUR_Q = 50;
-export const Cadastro: React.FC = () => {
+// Conteúdo da tela (sem moldura), usado no celular 2D e no vídeo da tela do celular 3D.
+export const TelaCadastro: React.FC = () => {
   const frame = useCurrentFrame();
   const qi = Math.min(PERGUNTAS.length - 1, Math.max(0, Math.floor((frame - 20) / DUR_Q)));
   const local = frame - 20 - qi * DUR_Q;
@@ -118,7 +120,7 @@ export const Cadastro: React.FC = () => {
   const enter = pop(frame, 20 + qi * DUR_Q, 16, 180);
   const progresso = ease(frame, 20 + qi * DUR_Q, 30 + qi * DUR_Q, [qi === 0 ? 0 : PERGUNTAS[qi - 1].passo / 18, q.passo / 18]);
   return (
-    <PhoneScene kicker="Cadastro gratuito" title={"Conte quem você é,\n*não só o que procura*"}>
+    <>
       <AppHeader hello={COMPRADOR} />
       <div style={{ padding: 16, filter: "blur(3px)", opacity: 0.6 }}>
         <div style={{ background: GRAD_DIAG, borderRadius: 20, height: 170 }} />
@@ -186,13 +188,20 @@ export const Cadastro: React.FC = () => {
       {PERGUNTAS.map((p, qi2) =>
         p.sel.map((s, k) => <Tap key={`${qi2}-${s}`} at={20 + qi2 * DUR_Q + 14 + k * 7} x={180} y={312 + s * 49} />),
       )}
-    </PhoneScene>
+    </>
   );
 };
 
+export const Cadastro: React.FC = () => (
+  <PhoneScene kicker="Cadastro gratuito" title={"Conte quem você é,\n*não só o que procura*"}>
+    <TelaCadastro />
+  </PhoneScene>
+);
+
 // 5. WhatsApp: captação por mensagem
-export const WhatsComprador: React.FC = () => (
-  <PhoneScene kicker="Prefere o WhatsApp?" title={"Cadastre seu interesse\n*por mensagem*"} phoneBg={C.waBg}>
+// Conteúdo da tela (sem moldura).
+export const TelaWhats: React.FC = () => (
+  <>
     <WhatsAppChat
       title="MatchImovel"
       scrollAt={[120, 140, 110]}
@@ -205,6 +214,12 @@ export const WhatsComprador: React.FC = () => (
         { from: "me", at: 150, text: "Até R$ 800 mil" },
       ]}
     />
+  </>
+);
+
+export const WhatsComprador: React.FC = () => (
+  <PhoneScene kicker="Prefere o WhatsApp?" title={"Cadastre seu interesse\n*por mensagem*"} phoneBg={C.waBg}>
+    <TelaWhats />
   </PhoneScene>
 );
 
@@ -212,11 +227,12 @@ export const WhatsComprador: React.FC = () => (
 const NARRATIVA =
   "Busca uma casa térrea em Jundiaí para morar com o cônjuge e dois filhos em idade escolar. Trabalha de casa e valoriza silêncio, boa iluminação e espaço para receber a família.";
 const CRITERIOS = ["Casa térrea", "3 ou mais quartos", "Home office", "Suíte", "Perto de escola", "Garagem para 2 carros"];
-export const Perfil: React.FC = () => {
+// Conteúdo da tela (sem moldura), usado no celular 2D e no vídeo da tela do celular 3D.
+export const TelaPerfil: React.FC = () => {
   const frame = useCurrentFrame();
   const scroll = ease(frame, 112, 140, [0, 150]);
   return (
-    <PhoneScene kicker="Inteligência artificial" title={"A IA entende\n*o seu perfil*"}>
+    <>
       <AppHeader hello={COMPRADOR} />
       <div style={{ padding: "14px 16px", transform: `translateY(${-scroll}px)` }}>
         <Card>
@@ -293,9 +309,15 @@ export const Perfil: React.FC = () => {
           </div>
         </Card>
       </div>
-    </PhoneScene>
+    </>
   );
 };
+
+export const Perfil: React.FC = () => (
+  <PhoneScene kicker="Inteligência artificial" title={"A IA entende\n*o seu perfil*"}>
+    <TelaPerfil />
+  </PhoneScene>
+);
 
 // 7. Curadoria e privacidade
 export const Curadoria: React.FC = () => {
@@ -427,6 +449,22 @@ export const Match3D: React.FC = () => (
       <Headline text={"E o match\n*acontece*"} size={96} />
     </AbsoluteFill>
   </AbsoluteFill>
+);
+
+// Versões 3D: o conteúdo de cada tela é gravado em vídeo (public/telas/*.mp4, composições Tela*)
+// e exibido na tela do celular 3D.
+export const Marca3D: React.FC = () => <CenaCelular3D video="telas/marca.mp4" entrada="frente" duracaoEntrada={46} acenderEm={20} />;
+
+export const Cadastro3D: React.FC = () => (
+  <CenaCelular3D video="telas/cadastro.mp4" entrada="direita" kicker="Cadastro gratuito" titulo={"Conte quem você é,\n*não só o que procura*"} />
+);
+
+export const Whats3D: React.FC = () => (
+  <CenaCelular3D video="telas/whats.mp4" entrada="esquerda" kicker="Prefere o WhatsApp?" titulo={"Cadastre seu interesse\n*por mensagem*"} />
+);
+
+export const Perfil3D: React.FC = () => (
+  <CenaCelular3D video="telas/perfil.mp4" entrada="baixo" kicker="Inteligência artificial" titulo={"A IA entende\n*o seu perfil*"} />
 );
 
 // 9. Chamada final
