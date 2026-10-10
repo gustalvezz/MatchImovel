@@ -9,3 +9,7 @@ Config.setOverwriteOutput(true);
 if (process.env.REMOTION_BROWSER_EXECUTABLE) {
   Config.setBrowserExecutable(process.env.REMOTION_BROWSER_EXECUTABLE);
 }
+
+// As cenas com celular 3D (WebGL) podem demorar mais por quadro, principalmente
+// nas transições em que dois celulares aparecem juntos.
+Config.setDelayRenderTimeoutInMilliseconds(120000);
